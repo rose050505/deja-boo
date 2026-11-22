@@ -266,7 +266,7 @@ Export only `buildTombstone`.
 
 ---
 
-## Task 12 — Orchestrator (`src/miner/index.ts`)
+## Task 12 — Orchestrator (`src/miner/index.ts`) ✅
 
 **File:** `src/miner/index.ts`
 
@@ -310,7 +310,7 @@ Using a fixture repo with scripted commits:
 
 ---
 
-## Task 13 — Sorted JSON serializer (`src/miner/serialize.ts`)
+## Task 13 — Sorted JSON serializer (`src/miner/serialize.ts`) ✅
 
 **File:** `src/miner/serialize.ts`
 
@@ -332,7 +332,7 @@ Export both functions.
 
 ---
 
-## Task 14 — CLI `index` command (`src/cli/index-command.ts`)
+## Task 14 — CLI `index` command (`src/cli/index-command.ts`) ✅
 
 **File:** `src/cli/index-command.ts`
 
@@ -363,7 +363,7 @@ Wire up the `deja-boo index [repo] [options]` command using Node's built-in `par
 
 ---
 
-## Task 15 — Grace filter (`src/miner/grace-filter.ts`)
+## Task 15 — Grace filter (`src/miner/grace-filter.ts`) ✅
 
 **File:** `src/miner/grace-filter.ts`
 
@@ -389,7 +389,7 @@ Export only `applyGrace`.
 
 ---
 
-## Task 16 — Revival tracker (`src/miner/revival-tracker.ts`)
+## Task 16 — Revival tracker (`src/miner/revival-tracker.ts`) ✅
 
 **File:** `src/miner/revival-tracker.ts`
 
@@ -419,7 +419,7 @@ Export both functions and a higher-level `scanForRevivals(tombstones: Map<string
 
 ---
 
-## Task 17 — Graveyard stats (`src/miner/stats.ts`)
+## Task 17 — Graveyard stats (`src/miner/stats.ts`) ✅
 
 **File:** `src/miner/stats.ts`
 

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as fc from 'fast-check';
 import { buildTombstone } from './build-tombstone.js';
 import type { RawBlock, MinerConfig, ParsedCommit } from '../core/types.js';
 import { DEFAULT_MINER_CONFIG } from '../core/types.js';
@@ -105,5 +106,68 @@ describe('buildTombstone', () => {
     const t = buildTombstone(block, makeMeta(), CONFIG);
     expect(t!.revivals).toEqual([]);
     expect(t!.deaths).toEqual([]);
+  });
+});
+
+// ─── Property tests ───────────────────────────────────────────────────────────
+
+describe('buildTombstone – property tests', () => {
+  // Generator that can produce blocks whose normalized content is empty
+  // (comment-only lines, blank lines, single tokens) — these must be skipped.
+  const anyLine = fc.oneof(
+    fc.constant('// comment only'),
+    fc.constant('#! /usr/bin/env node'),
+    fc.constant('   '),
+    fc.constant(''),
+    fc.constant('{- haskell comment -}'),
+    fc.string({ maxLength: 5 }), // often too short to fingerprint
+  );
+  const anyBlock = fc.array(anyLine, { minLength: 1, maxLength: 6 });
+
+  // Generator that always produces a non-empty fingerprint.
+  const richLine = fc.stringMatching(/^[a-z]{4} [a-z]{4} [a-z]{4}[a-z]*$/);
+  const richBlock = fc.array(richLine, { minLength: 4, maxLength: 8 });
+
+  it('Property: no tombstone ever has an empty fingerprint', () => {
+    // anyBlock may yield null (empty fingerprint → skipped) or a tombstone.
+    // When it yields a tombstone, the fingerprint must be non-empty.
+    fc.assert(
+      fc.property(anyBlock, (lines) => {
+        const block = makeBlock(lines);
+        const t = buildTombstone(block, makeMeta(), CONFIG);
+        if (t === null) return true; // correctly skipped
+        return t.fingerprint.length > 0;
+      }),
+      { numRuns: 500 },
+    );
+  });
+
+  it('Property: same inputs always produce the same tombstone id', () => {
+    fc.assert(
+      fc.property(richBlock, (lines) => {
+        const block = makeBlock(lines);
+        const meta = makeMeta();
+        const t1 = buildTombstone(block, meta, CONFIG);
+        const t2 = buildTombstone(block, meta, CONFIG);
+        if (t1 === null && t2 === null) return true;
+        if (t1 === null || t2 === null) return false;
+        return t1.id === t2.id;
+      }),
+      { numRuns: 200 },
+    );
+  });
+
+  it('Property: fingerprint is always sorted ascending', () => {
+    fc.assert(
+      fc.property(richBlock, (lines) => {
+        const t = buildTombstone(makeBlock(lines), makeMeta(), CONFIG);
+        if (t === null) return true;
+        for (let i = 1; i < t.fingerprint.length; i++) {
+          if (t.fingerprint[i]! < t.fingerprint[i - 1]!) return false;
+        }
+        return true;
+      }),
+      { numRuns: 200 },
+    );
   });
 });

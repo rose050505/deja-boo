@@ -1,0 +1,94 @@
+import { describe, it, expect } from 'vitest';
+import { computeStats } from './stats.js';
+import type { Tombstone, RevivalRecord } from '../core/types.js';
+
+function makeTombstone(
+  buriedAt: string,
+  revivals: Array<{ date: string; isRevert?: boolean }> = [],
+): Tombstone {
+  return {
+    id: 'abc',
+    fingerprint: [1, 2, 3],
+    lines: ['x'],
+    path: 'src/x.ts',
+    language: 'typescript',
+    buriedAt,
+    commit: 'a'.repeat(40),
+    author: 'dev@example.com',
+    causeOfDeath: 'removed caching',
+    links: [],
+    revivals: revivals.map(
+      (r): RevivalRecord => ({
+        commit: 'b'.repeat(40),
+        date: r.date,
+        author: 'dev@example.com',
+        subject: r.isRevert ? 'Revert "remove caching"' : 'add caching back',
+        similarity: 1.0,
+        isRevert: r.isRevert ?? false,
+      }),
+    ),
+    deaths: [],
+  };
+}
+
+describe('computeStats', () => {
+  it('no tombstones → all counts zero, medianRevivalGapDays null', () => {
+    const stats = computeStats([], 10);
+    expect(stats).toEqual({
+      commits: 10,
+      tombstones: 0,
+      revivals: 0,
+      revivalsViaRevert: 0,
+      medianRevivalGapDays: null,
+    });
+  });
+
+  it('one tombstone, no revivals → revivals: 0, medianRevivalGapDays null', () => {
+    const stats = computeStats([makeTombstone('2024-01-01T00:00:00Z')], 5);
+    expect(stats.revivals).toBe(0);
+    expect(stats.medianRevivalGapDays).toBeNull();
+  });
+
+  it('two revivals with gaps of 5 and 11 days → medianRevivalGapDays: 8', () => {
+    const t = makeTombstone('2024-01-01T00:00:00Z', [
+      { date: '2024-01-06T00:00:00Z' }, // +5 days
+      { date: '2024-01-12T00:00:00Z' }, // +11 days
+    ]);
+    const stats = computeStats([t], 20);
+    expect(stats.revivals).toBe(2);
+    expect(stats.medianRevivalGapDays).toBe(8); // Math.round((5+11)/2)
+  });
+
+  it('revivalsViaRevert counts only isRevert: true entries', () => {
+    const t = makeTombstone('2024-01-01T00:00:00Z', [
+      { date: '2024-01-10T00:00:00Z', isRevert: true },
+      { date: '2024-01-20T00:00:00Z', isRevert: false },
+      { date: '2024-01-30T00:00:00Z', isRevert: true },
+    ]);
+    const stats = computeStats([t], 50);
+    expect(stats.revivals).toBe(3);
+    expect(stats.revivalsViaRevert).toBe(2);
+  });
+
+  it('odd number of gaps uses middle value', () => {
+    // gaps: 3, 7, 15 → sorted [3,7,15] → median = 7
+    const t = makeTombstone('2024-01-01T00:00:00Z', [
+      { date: '2024-01-04T00:00:00Z' }, // +3
+      { date: '2024-01-08T00:00:00Z' }, // +7
+      { date: '2024-01-16T00:00:00Z' }, // +15
+    ]);
+    const stats = computeStats([t], 100);
+    expect(stats.medianRevivalGapDays).toBe(7);
+  });
+
+  it('tombstones count matches array length', () => {
+    const tombstones = [
+      makeTombstone('2024-01-01T00:00:00Z'),
+      makeTombstone('2024-02-01T00:00:00Z'),
+      makeTombstone('2024-03-01T00:00:00Z'),
+    ];
+    const stats = computeStats(tombstones, 42);
+    expect(stats.tombstones).toBe(3);
+    expect(stats.commits).toBe(42);
+  });
+});
