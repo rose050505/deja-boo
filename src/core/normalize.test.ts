@@ -26,9 +26,16 @@ describe('normalizeBlock – unit', () => {
     expect(normalizeBlock(['a   b   c'], cfgOff)).toBe('a b c');
   });
 
-  it('strips the leading diff prefix (-/+)', () => {
-    expect(normalizeBlock(['-removed line'], cfgOff)).toBe('removed line');
-    expect(normalizeBlock(['+added line'], cfgOff)).toBe('added line');
+  it('does NOT strip single leading - or + as a diff prefix (caller strips it)', () => {
+    // The diff parser strips the single-char prefix; normalize must not corrupt
+    // real code such as '-1', '-count', or '+value'.
+    // Note: '--...' is correctly stripped as a SQL/Haskell/Lua comment.
+    expect(normalizeBlock(['-1'], cfgOff)).toBe('-1');
+    expect(normalizeBlock(['-count;'], cfgOff)).toBe('-count;');
+    expect(normalizeBlock(['+value'], cfgOff)).toBe('+value');
+    expect(normalizeBlock(['++i'], cfgOff)).toBe('++i');
+    // A line that already has its diff prefix stripped arrives as plain code.
+    expect(normalizeBlock(['removed line'], cfgOff)).toBe('removed line');
   });
 
   it('removes /* … */ block comments', () => {
@@ -154,6 +161,46 @@ describe('normalizeBlock – property tests', () => {
           const linesA = names1.slice(0, len).map(n => `let ${n} = 1`);
           const linesB = names2.slice(0, len).map(n => `let ${n} = 1`);
           return normalizeBlock(linesA, cfgOn) === normalizeBlock(linesB, cfgOn);
+        },
+      ),
+      { numRuns: 300 },
+    );
+  });
+
+  it('Property 5: lines starting with - or + survive normalization with leading char intact', () => {
+    // Real code like '-1' or '++i' must not be stripped by normalize.
+    // normalize does not strip diff prefixes — that is the diff parser's job.
+    fc.assert(
+      fc.property(
+        // Suffix must not start with '-' (would form '--', a comment) and must not be empty.
+        fc.string({ minLength: 1 }).filter(s => {
+          const t = s.trim();
+          return t.length > 0 && !t.startsWith('-') && !t.startsWith('+');
+        }),
+        suffix => {
+          const lineSingleMinus = `-${suffix.trim()}`;
+          const lineSinglePlus = `+${suffix.trim()}`;
+          const outMinus = normalizeBlock([lineSingleMinus], cfgOff);
+          const outPlus = normalizeBlock([lineSinglePlus], cfgOff);
+          // The line must survive and retain its leading character.
+          return outMinus.startsWith('-') && outPlus.startsWith('+');
+        },
+      ),
+      { numRuns: 300 },
+    );
+  });
+
+  it('Property 6: lines starting with ++ survive normalization with leading ++ intact', () => {
+    fc.assert(
+      fc.property(
+        fc.string({ minLength: 1 }).filter(s => {
+          const t = s.trim();
+          return t.length > 0 && !t.startsWith('-') && !t.startsWith('+');
+        }),
+        suffix => {
+          const line = `++${suffix.trim()}`;
+          const out = normalizeBlock([line], cfgOff);
+          return out.startsWith('++');
         },
       ),
       { numRuns: 300 },

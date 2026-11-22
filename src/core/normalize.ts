@@ -40,20 +40,23 @@ const IDENT_RE = /[A-Za-z_][A-Za-z0-9_]*/g;
  * Pipeline (in order):
  *   1. Strip block comments (`/* *\/`, `<!-- -->`, `{- -}`) across the whole block.
  *   2. For each line: strip single-line comments (`//`, `#`, `--`).
- *   3. Strip the leading `-` or `+` diff prefix from the *trimmed* line (defensive).
- *   4. Trim leading/trailing whitespace; drop now-empty lines.
- *   5. Collapse internal whitespace runs to a single space.
- *   6. Optionally replace non-reserved identifiers with `_ID_`.
- *   7. Join with `\n`.
+ *   3. Trim leading/trailing whitespace; drop now-empty lines.
+ *   4. Collapse internal whitespace runs to a single space.
+ *   5. Optionally replace non-reserved identifiers with `_ID_`.
+ *   6. Join with `\n`.
  *
- * Idempotent by construction: every step is idempotent, and after step 4 no
- * output line starts with `-` or `+`, so step 3 is a no-op on the second pass.
+ * Callers (parse-diff) are responsible for removing the single-character `-`/`+`
+ * diff prefix before passing lines to this function.  normalizeBlock does NOT
+ * strip leading `-` or `+` characters — doing so would corrupt real code such as
+ * `--count;`, `-1`, or `++i`.
+ *
+ * Idempotent by construction: every step is idempotent.
  */
 export function normalizeBlock(
   lines: string[],
   config: Pick<MinerConfig, 'renameIds'>,
 ): string {
-  // Steps 1–2: remove comments on the whole joined text first (handles multi-line blocks).
+  // Step 1: remove block comments on the whole joined text (handles multi-line blocks).
   const joined = lines.join('\n');
   const noBlockComments = removeBlockComments(joined);
   const linesSplit = noBlockComments.split('\n');
@@ -63,39 +66,22 @@ export function normalizeBlock(
     // Step 2: single-line comments.
     const noComment = removeSingleLineComment(line);
 
-    // Step 3: strip the diff prefix after comment removal so that "--" is already
-    // gone before we try to strip a leading '-'.  Operate on the trimmed content
-    // so "  -code" is treated the same as "-code".
-    // Strip ALL consecutive leading '-'/'+' characters so that e.g. "-+" becomes
-    // "" (dropped) rather than "+" which would be stripped again on a second pass.
-    const trimmedForPrefix = noComment.trim();
-    let prefixEnd = 0;
-    while (
-      prefixEnd < trimmedForPrefix.length &&
-      (trimmedForPrefix[prefixEnd] === '-' || trimmedForPrefix[prefixEnd] === '+')
-    ) {
-      prefixEnd++;
-    }
-    const afterPrefix = prefixEnd > 0
-      ? trimmedForPrefix.slice(prefixEnd)
-      : noComment;
-
-    // Step 4: trim; drop empty lines.
-    const trimmed = afterPrefix.trim();
+    // Step 3: trim; drop empty lines.
+    const trimmed = noComment.trim();
     if (trimmed.length > 0) {
       cleaned.push(trimmed);
     }
   }
 
-  // Step 5: collapse internal whitespace runs to a single space.
+  // Step 4: collapse internal whitespace runs to a single space.
   const collapsed = cleaned.map(l => l.replace(/\s+/g, ' '));
 
-  // Step 6: optionally replace identifiers with _ID_.
+  // Step 5: optionally replace identifiers with _ID_.
   const renamed = config.renameIds
     ? collapsed.map(l => l.replace(IDENT_RE, token => RESERVED.has(token) ? token : '_ID_'))
     : collapsed;
 
-  // Step 7: join with newline.
+  // Step 6: join with newline.
   return renamed.join('\n');
 }
 

@@ -80,3 +80,19 @@ alphabetic names, minimum length 4 to avoid short reserved words) with an explic
 against the full reserved-word set.
 
 **Status:** resolved (test fix only; implementation was correct)
+
+---
+
+## Finding 5 — `filterMoved` Property 2: indentation-only change survives when it should not
+
+**Property:** indentation-only change is not a death (Property 2, Task 9 move-filter PBT)
+
+**Shrunk input:** `[["{-  !","! !","! !","! !","! !"]]`
+
+**Observed:** `filterMoved([del], [add], cfg)` returned `[del]` (block survived) instead of `[]` (excluded as a move).
+
+**Cause:** The first line `{-  !` opens a Haskell/Lua block comment `{- -}`. The comment was never closed, so `removeBlockComments` consumed the rest of the block, leaving the normalized content empty. With an empty fingerprint, `kgramWinnow` returns `[]`. `filterMoved` has an early-out: `if (fp.length === 0) return true` (keep the block), so the block is not excluded despite being an exact re-indented copy.
+
+**Fix:** Changed the PBT generator for Properties 1 and 2 from `fc.string().filter(...)` to `fc.stringMatching(/^[a-z]{4} [a-z]{4} [a-z]{4}[a-z]*$/)`. These generated lines always have three or more tokens, never start with comment markers, and always produce non-empty fingerprints at the test's kgramSize of 3.
+
+**Status:** resolved (test generator fix; implementation is correct per spec — empty-fingerprint blocks are intentionally kept and discarded later by build-tombstone)

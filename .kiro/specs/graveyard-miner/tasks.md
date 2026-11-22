@@ -104,7 +104,7 @@ Export only `similarity`.
 
 ---
 
-## Task 5 — Language detection (`src/miner/language.ts`)
+## Task 5 — Language detection (`src/miner/language.ts`) ✅
 
 **File:** `src/miner/language.ts`
 
@@ -119,7 +119,7 @@ Export only `detectLanguage`.
 
 ---
 
-## Task 6 — Link parser (`src/miner/link-parser.ts`)
+## Task 6 — Link parser (`src/miner/link-parser.ts`) ✅
 
 **File:** `src/miner/link-parser.ts`
 
@@ -137,7 +137,7 @@ Export only `parseLinks`.
 
 ---
 
-## Task 7 — Diff parser (`src/miner/parse-diff.ts`)
+## Task 7 — Diff parser (`src/miner/parse-diff.ts`) ✅
 
 **File:** `src/miner/parse-diff.ts`
 
@@ -159,7 +159,7 @@ Export only `parseDiff`.
 
 ---
 
-## Task 8 — Block extractor (`src/miner/block-extract.ts`)
+## Task 8 — Block extractor (`src/miner/block-extract.ts`) ✅
 
 **File:** `src/miner/block-extract.ts`
 
@@ -187,7 +187,7 @@ Export only `extractBlocks`.
 
 ---
 
-## Task 9 — Move filter (`src/miner/move-filter.ts`)
+## Task 9 — Move filter (`src/miner/move-filter.ts`) ✅
 
 **File:** `src/miner/move-filter.ts`
 
@@ -215,7 +215,7 @@ Export only `filterMoved`.
 
 ---
 
-## Task 10 — Git log streamer (`src/miner/git-log.ts`)
+## Task 10 — Git log streamer (`src/miner/git-log.ts`) ✅
 
 **File:** `src/miner/git-log.ts`
 
@@ -243,7 +243,7 @@ Fixture scenarios:
 
 ---
 
-## Task 11 — Tombstone builder (`src/miner/build-tombstone.ts`)
+## Task 11 — Tombstone builder (`src/miner/build-tombstone.ts`) ✅
 
 **File:** `src/miner/build-tombstone.ts`
 
