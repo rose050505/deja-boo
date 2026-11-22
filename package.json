@@ -1,0 +1,21 @@
+{
+  "name": "deja-boo",
+  "version": "0.1.0",
+  "description": "Your codebase remembers what it buried.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc --project tsconfig.build.json",
+    "web": "vite web"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "fast-check": "^3.22.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

@@ -6,7 +6,7 @@ Tasks are ordered so each one builds on the previous. Complete them in sequence;
 
 ---
 
-## Task 1 — Core types
+## Task 1 — Core types ✅
 
 **File:** `src/core/types.ts`
 
@@ -30,7 +30,7 @@ Provide `DEFAULT_MINER_CONFIG: MinerConfig` with the default values from REQ-1 /
 
 ---
 
-## Task 2 — Normalize (`src/core/normalize.ts`)
+## Task 2 — Normalize (`src/core/normalize.ts`) ✅
 
 **File:** `src/core/normalize.ts`
 
@@ -53,7 +53,7 @@ Export nothing else from this file.
 
 ---
 
-## Task 3 — Fingerprint (`src/core/fingerprint.ts`)
+## Task 3 — Fingerprint (`src/core/fingerprint.ts`) ✅
 
 **File:** `src/core/fingerprint.ts`
 
@@ -81,7 +81,7 @@ Export both functions.
 
 ---
 
-## Task 4 — Match (`src/core/match.ts`)
+## Task 4 — Match (`src/core/match.ts`) ✅
 
 **File:** `src/core/match.ts`
 
