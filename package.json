@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Your codebase remembers what it buried.",
   "type": "module",
+  "bin": {
+    "deja-boo": "dist/cli/main.js"
+  },
   "engines": {
     "node": ">=24"
   },

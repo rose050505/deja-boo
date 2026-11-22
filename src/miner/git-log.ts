@@ -21,14 +21,17 @@ export class MinerError extends Error {
  * will not appear in normal commit messages or diff output.
  *
  * Format produces:
- *   ^^DJBOO-COMMIT^^<hash>^^<email>^^<iso-date>^^<subject>\n<body>^^DJBOO-END^^
+ *   ^^DJBOO-COMMIT^^<hash>^^<email>^^<iso-author-date>^^<committer-unix-ts>^^<subject>\n<body>^^DJBOO-END^^
  * followed immediately by the diff output from -p.
+ *
+ * %aI  = author date ISO 8601 (display only)
+ * %ct  = committer date as Unix timestamp (used for all date logic)
  */
 const COMMIT_SENTINEL = '^^DJBOO-COMMIT^^';
 const END_SENTINEL = '^^DJBOO-END^^';
 const FIELD_SEP = '^^';
 const FORMAT =
-  `${COMMIT_SENTINEL}%H${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%s%n%b${END_SENTINEL}`;
+  `${COMMIT_SENTINEL}%H${FIELD_SEP}%ae${FIELD_SEP}%aI${FIELD_SEP}%ct${FIELD_SEP}%s%n%b${END_SENTINEL}`;
 
 type ParseState = 'scan' | 'header' | 'diff';
 
@@ -36,6 +39,7 @@ interface Builder {
   hash: string;
   authorEmail: string;
   authorDate: string;
+  committerTimestamp: number;
   subject: string;
   bodyLines: string[];
   diffLines: string[];
@@ -49,13 +53,17 @@ function flushBuilder(b: Builder): RawCommit {
     subject: b.subject,
     body: b.bodyLines.join('\n').trimEnd(),
     authorDate: b.authorDate,
+    committerTimestamp: b.committerTimestamp,
     rawDiff: b.diffLines.join('\n'),
   };
 }
 
 /**
- * Stream commits from a git repository one at a time.
- * Yields RawCommit objects in reverse-chronological order (git default).
+ * Stream commits from a git repository one at a time, oldest-first.
+ * Uses --reverse --topo-order so committer dates are monotonically non-decreasing
+ * along the main line and merged branches appear after their merge base.
+ * Yields RawCommit objects with committerTimestamp for all date logic and
+ * authorDate as display-only metadata.
  * Throws MinerError if git is missing or the path is not a git repo.
  */
 export async function* spawnGitLog(
@@ -68,6 +76,8 @@ export async function* spawnGitLog(
 
   const args = [
     'log',
+    '--reverse',
+    '--topo-order',
     '-p',
     '--no-merges',
     '--no-color',
@@ -108,14 +118,15 @@ export async function* spawnGitLog(
       }
 
       // Parse the header fields from the sentinel line.
-      // Format after sentinel: hash^^email^^isodate^^subject
+      // Format after sentinel: hash^^email^^isoAuthorDate^^committerTs^^subject
       const headerPart = line.slice(sentinelIdx + COMMIT_SENTINEL.length);
       const fields = headerPart.split(FIELD_SEP);
       builder = {
         hash: fields[0] ?? '',
         authorEmail: fields[1] ?? '',
         authorDate: fields[2] ?? '',
-        subject: fields[3] ?? '',
+        committerTimestamp: parseInt(fields[3] ?? '0', 10),
+        subject: fields[4] ?? '',
         bodyLines: [],
         diffLines: [],
         state: 'header',

@@ -32,6 +32,7 @@ function makeTombstone(buriedAt: string, fingerprint: number[]): Tombstone {
     path: 'src/x.ts',
     language: 'typescript',
     buriedAt,
+    buriedAtTimestamp: Math.floor(new Date(buriedAt).getTime() / 1000),
     commit: 'a'.repeat(40),
     author: 'dev@example.com',
     causeOfDeath: 'removed caching',
@@ -59,6 +60,7 @@ function makeCommit(date: string, addedLines: string[]): ParsedCommit {
       subject: 'restore caching',
       body: '',
       authorDate: date,
+      committerTimestamp: Math.floor(new Date(date).getTime() / 1000),
     },
     hunks: [makeHunkWithLines(addedLines)],
   };

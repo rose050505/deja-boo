@@ -9,6 +9,7 @@ function makeCommit(rawDiff: string): RawCommit {
     subject: 'test commit',
     body: '',
     authorDate: '2024-01-01T00:00:00Z',
+    committerTimestamp: 1704067200,
     rawDiff,
   };
 }

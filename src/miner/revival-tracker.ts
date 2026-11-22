@@ -12,10 +12,10 @@ import { extractBlocks } from './block-extract.js';
 import { parseLinks } from './link-parser.js';
 
 /**
- * Append a RevivalRecord to tombstone.revivals (sorted by date asc).
+ * Append a RevivalRecord to tombstone.revivals (sorted by committer date asc).
  * Sets isRevert: true when the commit subject starts with "Revert".
  *
- * Invariant: every revival date is strictly after tombstone.buriedAt.
+ * Invariant: every revival committerTimestamp is strictly after tombstone.buriedAtTimestamp.
  */
 export function recordRevival(
   tombstone: Tombstone,
@@ -24,7 +24,7 @@ export function recordRevival(
 ): void {
   const record: RevivalRecord = {
     commit: meta.hash,
-    date: meta.authorDate,
+    date: new Date(meta.committerTimestamp * 1000).toISOString(),
     author: meta.authorEmail,
     subject: meta.subject,
     similarity: sim,
@@ -35,11 +35,11 @@ export function recordRevival(
 }
 
 /**
- * Append a DeathRecord to tombstone.deaths (sorted by date asc).
+ * Append a DeathRecord to tombstone.deaths (sorted by committer date asc).
  * The similarity is Jaccard between the re-deleted block and the tombstone's
  * original fingerprint.
  *
- * Invariant: every death date is strictly after the preceding revival date.
+ * Invariant: every death committerTimestamp is strictly after the preceding revival's.
  */
 export function recordReDeath(
   tombstone: Tombstone,
@@ -58,7 +58,7 @@ export function recordReDeath(
 
   const record: DeathRecord = {
     commit: meta.hash,
-    date: meta.authorDate,
+    date: new Date(meta.committerTimestamp * 1000).toISOString(),
     author: meta.authorEmail,
     causeOfDeath,
     links: parseLinks(`${meta.subject}\n${meta.body}`),

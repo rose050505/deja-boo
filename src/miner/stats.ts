@@ -16,9 +16,10 @@ export function computeStats(
     for (const r of t.revivals) {
       revivals++;
       if (r.isRevert) revivalsViaRevert++;
-      const buried = Date.parse(t.buriedAt);
-      const revived = Date.parse(r.date);
-      gaps.push(Math.floor((revived - buried) / 86_400_000));
+      // Use buriedAtTimestamp for the death side; revival date is derived from committerTimestamp.
+      const buriedMs = t.buriedAtTimestamp * 1000;
+      const revivedMs = Date.parse(r.date);
+      gaps.push(Math.floor((revivedMs - buriedMs) / 86_400_000));
     }
   }
 

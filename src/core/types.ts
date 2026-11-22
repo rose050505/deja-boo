@@ -78,8 +78,10 @@ export interface Tombstone {
   /** File path relative to repo root. */
   path: string;
   language: string;
-  /** ISO 8601 date of the deleting commit. */
+  /** ISO 8601 author date of the deleting commit — display only. */
   buriedAt: string;
+  /** Unix timestamp (seconds) of the deleting commit's committer date — used for all date logic. */
+  buriedAtTimestamp: number;
   /** Full 40-char commit hash. */
   commit: string;
   /** Author email. */
@@ -123,8 +125,10 @@ export interface RawCommit {
   authorEmail: string;
   subject: string;
   body: string;
-  /** ISO 8601 from --format=%aI */
+  /** ISO 8601 from --format=%aI — display-only; do not use for ordering. */
   authorDate: string;
+  /** Unix timestamp (seconds) from --format=%ct — use for all date logic. */
+  committerTimestamp: number;
   rawDiff: string;
 }
 

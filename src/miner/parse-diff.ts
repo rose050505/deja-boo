@@ -25,8 +25,13 @@ function shouldSkip(filePath: string, patterns: string[]): boolean {
       if (basename === pattern) return true;
       continue;
     }
-    // Simple glob: replace * with [^/]* and match against full path or basename
-    const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
+    // Simple glob: replace ** with .* (any path), * with [^/]* (within segment)
+    // Process in order: escape special chars first, then restore ** as .*, then * as [^/]*
+    const escaped = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')   // escape regex specials (but not *)
+      .replace(/\*\*/g, '\x00')                // temporarily replace ** with null byte
+      .replace(/\*/g, '[^/]*')                 // replace remaining * with within-segment match
+      .replace(/\x00/g, '.*');                 // restore ** as any-path match
     const re = new RegExp(`(^|/)${escaped}(/|$)`);
     if (re.test(normalized)) return true;
   }
@@ -47,6 +52,12 @@ export const DEFAULT_SKIP_PATTERNS: string[] = [
   'node_modules/', 'vendor/', 'third_party/', 'extern/', 'Pods/',
   // Build dirs
   'dist/', 'build/', 'out/', '__pycache__/', '.next/', '.nuxt/',
+  // Changelogs and history files (auto-generated prose, not logic)
+  'CHANGELOG*', 'HISTORY*',
+  // Snapshot files
+  '*.snap',
+  // Generated HTML docs (e.g. Doxygen, JSDoc output)
+  'docs/**/*.html',
 ];
 
 /** @internal Exported for testing. */
@@ -162,5 +173,5 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
   // Filter out empty hunks (sub-hunks created by context-line splits with no actual changes).
   const nonEmptyHunks = hunks.filter(h => h.deletedLines.length > 0 || h.addedLines.length > 0);
 
-  return { meta: { hash: commit.hash, authorEmail: commit.authorEmail, subject: commit.subject, body: commit.body, authorDate: commit.authorDate }, hunks: nonEmptyHunks };
+  return { meta: { hash: commit.hash, authorEmail: commit.authorEmail, subject: commit.subject, body: commit.body, authorDate: commit.authorDate, committerTimestamp: commit.committerTimestamp }, hunks: nonEmptyHunks };
 }

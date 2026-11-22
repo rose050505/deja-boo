@@ -39,15 +39,16 @@ export function applyGrace(
   if (addedUnion.size === 0) return [];
 
   const addedUnionArray = Array.from(addedUnion).sort((a, b) => a - b);
-  const commitDate = new Date(commit.meta.authorDate).getTime();
+  // Use committerTimestamp (seconds) for date math to avoid non-monotonic author dates.
+  const commitTimeMs = commit.meta.committerTimestamp * 1000;
   const toDrop: string[] = [];
 
   for (const [id, tombstone] of pendingTombstones) {
     // Grace window check (calendar days).
-    const buriedDate = new Date(tombstone.buriedAt).getTime();
+    const buriedTimeMs = tombstone.buriedAtTimestamp * 1000;
     // graceDays: 0 means the grace period is disabled entirely.
     if (config.graceDays <= 0) continue;
-    const daysDiff = (commitDate - buriedDate) / 86_400_000;
+    const daysDiff = (commitTimeMs - buriedTimeMs) / 86_400_000;
     if (daysDiff < 0 || daysDiff > config.graceDays) continue;
 
     // Similarity check.

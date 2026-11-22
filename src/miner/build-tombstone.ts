@@ -38,6 +38,7 @@ export function buildTombstone(
     path: block.filePath,
     language: detectLanguage(block.filePath),
     buriedAt: meta.authorDate,
+    buriedAtTimestamp: meta.committerTimestamp,
     commit: meta.hash,
     author: meta.authorEmail,
     causeOfDeath,

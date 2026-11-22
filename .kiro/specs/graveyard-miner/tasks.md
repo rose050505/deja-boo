@@ -1,5 +1,18 @@
 # Graveyard Miner — Tasks
 
+## Post-review fixes (smoke test on expressjs/express, 5,701 commits)
+
+### Fix 1 — Revival-before-death bug ✅
+**Root cause:** revivals were dated from `%aI` (author date). Branches make author dates non-monotonic — a commit authored weeks ago can be merged today, producing a revival timestamp that precedes the tombstone's burial date.
+
+**Fix:** added `committerTimestamp: number` (`%ct`) to `RawCommit` and `ParsedCommit.meta`; switched `git log` to `--reverse --topo-order`; all date arithmetic (grace window, revival date, re-death date, stats gap) now uses `committerTimestamp`. `buriedAtTimestamp: number` added to `Tombstone` for the same reason. `authorDate` is kept as display-only metadata. Added fixture-repo test with a merged side branch whose author dates go backwards, and a fast-check property that generates non-monotonic author dates.
+
+### Fix 2 — CLI entry point ✅
+Created `src/cli/main.ts` with shebang, `--help`, and subcommand dispatch (`index` now; `check`/`hook` reserved). Added `"bin": { "deja-boo": "dist/cli/main.js" }` to `package.json`. `node dist/cli/main.js index . --out /tmp/dejaboo-self.json` works after `npm run build`.
+
+### Fix 3 — Default skip list additions ✅
+Added `CHANGELOG*`, `HISTORY*`, `*.snap`, and `docs/**/*.html` to `DEFAULT_SKIP_PATTERNS` in `parse-diff.ts`. Updated `shouldSkip` glob handling to support `**` (matches across path separators).
+
 ## Implementation order
 
 Tasks are ordered so each one builds on the previous. Complete them in sequence; do not skip ahead.

@@ -39,14 +39,12 @@ export async function runIndexWithStats(
   repo: string,
   config: MinerConfig,
 ): Promise<{ graveyard: Graveyard; stats: IndexStats }> {
-  // Collect all raw commits; spawnGitLog yields newest-first.
-  // We need oldest-first for correct grace/revival tracking, so reverse.
+  // spawnGitLog now yields oldest-first (--reverse --topo-order).
   const rawCommits: RawCommit[] = [];
   for await (const rawCommit of spawnGitLog(repo, config)) {
     rawCommits.push(rawCommit);
   }
-  // Process oldest-first (reverse of git's default).
-  rawCommits.reverse();
+  // No reversal needed; commits arrive oldest-first.
 
   // Live map of tombstones: id → Tombstone.
   // Tombstones younger than graceDays stay in pendingGrace until they age out.
@@ -83,11 +81,11 @@ export async function runIndexWithStats(
     runStats.movesExcluded += deletedBlocks.length - survived.length;
 
     // Age-out pending tombstones whose grace window has expired before processing new ones.
-    // This ensures the grace window is computed relative to the current commit's date.
-    const commitTime = new Date(parsed.meta.authorDate).getTime();
+    // Use committerTimestamp for all date math to stay correct across non-monotonic author dates.
+    const commitTimeMs = parsed.meta.committerTimestamp * 1000;
     for (const [id, tombstone] of pendingGrace) {
-      const buriedTime = new Date(tombstone.buriedAt).getTime();
-      const daysDiff = (commitTime - buriedTime) / 86_400_000;
+      const buriedTimeMs = tombstone.buriedAtTimestamp * 1000;
+      const daysDiff = (commitTimeMs - buriedTimeMs) / 86_400_000;
       if (daysDiff > config.graceDays) {
         confirmed.set(id, tombstone);
         pendingGrace.delete(id);

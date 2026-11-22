@@ -17,6 +17,7 @@ function makeMeta(overrides: Partial<ParsedCommit['meta']> = {}): ParsedCommit['
     subject: 'remove old cache',
     body: '',
     authorDate: '2024-06-15T10:00:00Z',
+    committerTimestamp: 1718445600,
     ...overrides,
   };
 }

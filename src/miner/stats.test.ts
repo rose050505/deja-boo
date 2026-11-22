@@ -13,6 +13,7 @@ function makeTombstone(
     path: 'src/x.ts',
     language: 'typescript',
     buriedAt,
+    buriedAtTimestamp: Math.floor(new Date(buriedAt).getTime() / 1000),
     commit: 'a'.repeat(40),
     author: 'dev@example.com',
     causeOfDeath: 'removed caching',

@@ -25,6 +25,7 @@ const FULL_GRAVEYARD: Graveyard = {
       path: 'src/foo.ts',
       language: 'typescript',
       buriedAt: '2024-01-15T00:00:00Z',
+      buriedAtTimestamp: 1705276800,
       commit: 'a'.repeat(40),
       author: 'dev@example.com',
       causeOfDeath: 'removed legacy helper',
