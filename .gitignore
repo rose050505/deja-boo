@@ -1,0 +1,10 @@
+# NEVER add .kiro/ here — it is required for Kiroween judging.
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+*.log
+.DS_Store
+/.cache/
+/research/repos/
