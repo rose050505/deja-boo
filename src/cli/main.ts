@@ -6,10 +6,13 @@
  *   deja-boo index [repo] [options]   Mine git history and write a graveyard JSON.
  *   deja-boo --help                   Print this help.
  *
- * Subcommands `check` and `hook` are reserved for spec 2.
+ *   deja-boo check <file|->           Match a file (or stdin) against .deja-boo/graveyard.json.
+ *
+ * Subcommand `hook` is added by the next task.
  */
 
 import { runIndexCommand } from './index-command.js';
+import { runCheckCommand } from './check-command.js';
 
 const [, , subcommand, ...rest] = process.argv;
 
@@ -18,11 +21,14 @@ if (subcommand === 'index') {
     process.stderr.write(`deja-boo: unexpected error: ${String(err)}\n`);
     process.exit(1);
   });
+} else if (subcommand === 'check') {
+  runCheckCommand(rest);
 } else if (subcommand === '--help' || subcommand === '-h' || subcommand === undefined) {
   console.log(`deja-boo — your codebase remembers what it buried.
 
 Usage:
   deja-boo index [repo] [options]
+  deja-boo check <file|->     exit 0 clean, 1 warn, 2 block, 3 no graveyard
 
   repo                  Path to git repository (default: current directory)
 

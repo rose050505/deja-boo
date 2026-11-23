@@ -1,30 +1,30 @@
 # Revenant Watch: Tasks
 
-Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green. Nothing here is started yet.
+Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green. Tick `[x]` when a task is finished.
 
 ## Batch A: core (browser-safe)
 
-### Task 1: Configurable thresholds in `hauntLevel`
+### [x] Task 1: Configurable thresholds in `hauntLevel`
 - Add `Thresholds` and `WatchConfig` to `src/core/types.ts`.
 - Add the optional `thresholds` parameter to `hauntLevel` in `src/core/level.ts`. Defaults come from `WARN_THRESHOLD` and `BLOCK_THRESHOLD`.
 - Tests: existing level tests pass unchanged. Property: raising `warn` or `block` never raises the level (REQ-8.2). Property: aliveAtHead non-Revert is always `none` at any thresholds (REQ-8.5).
 - Covers: REQ-1, REQ-2, REQ-8.
 
-### Task 2: `findRevenants`, `newLines`, `acknowledgedIds`
-- Create `src/core/watch.ts` with the three pure functions from design.md, plus `RevenantHit`.
-- Tests: `newLines(x, x)` is empty; whitespace-only edits yield no new lines; `acknowledgedIds` returns every appended id; hits are sorted deterministically.
+### [x] Task 2: `findRevenants`, `addedLineNumbers`, `acknowledgedIds`
+- Create `src/core/watch.ts` with the three pure functions from design.md, plus `RevenantHit`. `findRevenants` takes an optional `added` set and keeps a hit only if at least half of its matched window is added.
+- Tests: `addedLineNumbers(x, x)` is empty; inserting k unique non-blank lines marks exactly those k; whitespace-only edits add nothing; the 16-25 window case (revenant sharing lines with live code) is reported; `acknowledgedIds` returns every appended id; hits are sorted deterministically.
 - Properties: `similarity` in [0, 1] and identity is 1; embedding a tombstone's lines gives similarity 1 via `matchWindowed`; monotonicity over `findRevenants`; aliveAtHead non-Revert tombstones are never reported (REQ-8.1, 8.2, 8.5).
-- Covers: REQ-1, REQ-4 (new code), REQ-8.
+- Covers: REQ-1, REQ-4 (added lines), REQ-8.
 
 ## Batch B: edge helpers and `check`
 
-### Task 3: Loading and formatting
+### [x] Task 3: Loading and formatting
 - Create `src/watch/load.ts`: `loadGraveyard(cwd)` and `loadConfig(cwd)` with the validation rules of REQ-2 (return a `notes: string[]` for `check`).
-- Create `src/watch/format.ts`: `causeText`, `linkText`, `formatHookMessage` (REQ-5 shape, at most 3 entries), `formatCheckReport` (REQ-3 fields, 20 deleted lines).
+- Create `src/watch/format.ts`: `causeText`, `linkText`, `formatHookMessage` (REQ-5 shape with the matched line range, at most 3 entries, under 1,200 characters each), `formatCheckReport` (REQ-3 fields, 20 deleted lines).
 - Tests: temp-dir config cases (missing, invalid JSON, `warn > block`, non-number); golden strings for the hook message, including empty cause (`cause of death unknown`) and no links.
 - Covers: REQ-2, REQ-3, REQ-5.
 
-### Task 4: `deja-boo check`
+### [x] Task 4: `deja-boo check`
 - Create `src/cli/check-command.ts` and dispatch `check` in `src/cli/main.ts` (also update `--help`).
 - Exit 0, 1, 2 by highest level; exit 3 when the graveyard is missing; `-` reads stdin; skip-list paths produce no revenants.
 - Tests: run `runCheckCommand` against a temp graveyard built from a small fixture, asserting exit codes and that the report has id, commit, date, verbatim cause, deleted lines, line range, similarity, and containment.
@@ -32,26 +32,27 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch C: hook
 
-### Task 5: `decideHook`
+### [ ] Task 5: `decideHook`
 - Create `src/cli/hook-command.ts` with the pure `decideHook`.
+- Builds the post-write text (`fs_write` text; `str_replace` applied to the disk file, first or all occurrences; missing file = all lines added), runs `addedLineNumbers`, exits 0 on no added lines, then `findRevenants`.
 - Handles `fs_write`, `str_replace`, other tools, skipped paths, invalid events, missing graveyard, and acknowledgement (partial acknowledgement lists only the remaining ids).
 - Properties: exit is 0 iff no unacknowledged revenant, else 2; acknowledging every matched id always gives 0 (REQ-8.3, 8.4). Unit tests for each branch in REQ-4.
 - Covers: REQ-4, REQ-5, REQ-8.
 
-### Task 6: Hook entry point and latency
+### [ ] Task 6: Hook entry point and latency
 - Add `runHookCommand` (stdin to `decideHook`, stderr, `process.exitCode`) and dispatch `hook` in `main.ts`.
 - Add a benchmark test: seeded synthetic graveyard with 1,500 tombstones, 300-line write, `decideHook` under 200 ms.
-- If the budget is missed, add the exact prefilter described in design.md ("Performance") with a property test that it never changes the hits. If it still cannot be shown equal, stop and ask the reviewer before capping candidate lines.
+- If the budget is missed, add the exact prefilter described in design.md ("Performance") with a property test that it never changes the hits. There is no candidate cap. If the budget is still missed, report the measured latency and continue.
 - Covers: REQ-4 (latency).
 
 ## Batch D: MCP
 
-### Task 7: Pure MCP handlers
+### [ ] Task 7: Pure MCP handlers
 - Create `src/mcp/tools.ts` with `checkSnippet`, `getTombstone`, `listGraveyard` returning plain objects (REQ-6 fields, `limit` default 20 and cap 100, path filter, unknown id error).
 - Tests: unit tests per tool; property: `list_graveyard` output length <= limit and sorted newest first.
 - Covers: REQ-6.
 
-### Task 8: MCP server wiring
+### [ ] Task 8: MCP server wiring
 - Run `npm install @modelcontextprotocol/sdk` (and `zod` only if the SDK needs it) and commit `package.json` and the lockfile.
 - Create `src/mcp/server.ts` (stdio, three tools, graveyard read once, stdout used only by the protocol).
 - Test: spawn `node dist/mcp/server.js` after build and call the three tools through the SDK client over stdio against a temp graveyard.
@@ -59,31 +60,31 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch E: dogfooding and demo
 
-### Task 9: Dogfood files
+### [ ] Task 9: Dogfood files
 - Add `.kiro/hooks/deja-boo-guard.json` and `.kiro/settings/mcp.json` exactly as in REQ-7, and `.deja-boo/config.json` with the default thresholds.
 - Add `.deja-boo/graveyard.json` to `.gitignore` and an `npm run bury` script (`npm run build && node dist/cli/main.js index . --out .deja-boo/graveyard.json`). Do not touch the `.kiro/` ignore rule.
 - Test: `src/kiro-config.test.ts` parses both `.kiro` files and asserts the shapes.
 - Covers: REQ-7.
 
-### Task 10: Demo acceptance test
-- Create `src/cli/demo-hook.test.ts`: build the `haunted-http` fixture, index it to `<repo>/.deja-boo/graveyard.json`, and feed event A (renamed native adapter, expect exit 2 and the Revert tombstone's id, commit7, and verbatim cause in stderr) and event B (the HEAD adapter, expect exit 0 and empty stderr).
+### [ ] Task 10: Demo acceptance test
+- Create `src/cli/demo-hook.test.ts`: build the `haunted-http` fixture, index it to `<repo>/.deja-boo/graveyard.json`, and feed event A (renamed native adapter, expect exit 2, the Revert tombstone's id, commit7, verbatim cause and `lines 16-25` in stderr), event B (the HEAD adapter, expect exit 0 and empty stderr) and event C (`str_replace` swapping the manual `else:` branch for the native call, expect exit 2).
 - Also spawn `node dist/cli/main.js hook` once with event A to prove the exit code 2 and stderr survive the process boundary.
 - Covers: REQ-9.
 
 ## Batch F: wrap-up
 
-### Task 11: Docs and measurement note
+### [ ] Task 11: Docs and measurement note
 - Add a short "Using the guard" section to `README.md`: `npm run bury`, `check`, the hook, MCP, the acknowledgement comment, and the config file.
 - Append a short section to `research/pbt-findings.md` for any shrunk counterexample found while writing these properties (skip if none).
 - Do not change defaults or thresholds. Covers: REQ-2 documentation.
 
-### Task 12: Final verification
+### [ ] Task 12: Final verification
 - Run `npm run build`, `npm test`, and `npx tsc --noEmit`. Run `npm run bury` and `node dist/cli/main.js check` on one file from this repository to confirm the dogfood loop.
 - Report test counts and the measured hook latency in the task notes.
 
-## Open questions for the reviewer
+## Reviewer decisions
 
-1. Should a missing graveyard make the hook exit 1 (fail open, current choice) or exit 2 (fail closed)? Exit 2 would block every write until `npm run bury` is run.
-2. Is the 300-line candidate cap acceptable as the last resort if the prefilter cannot be proven equal?
-3. Should `.deja-boo/graveyard.json` be committed for the demo instead of ignored? Current choice: ignored, rebuilt with `npm run bury`.
-4. `hauntLevel` gaining a third parameter touches `src/core`, which `graveyard-miner` finished. The change is backward compatible. Please confirm it is acceptable there.
+1. A missing graveyard or bad event makes the hook exit 1 (fail open). Agreed.
+2. The exact prefilter is the plan if the budget is missed. No silent 300-line cap: report the measured latency and continue.
+3. `.deja-boo/graveyard.json` is ignored and rebuilt with `npm run bury`. Agreed.
+4. `hauntLevel` gets a third `thresholds` parameter. Agreed.

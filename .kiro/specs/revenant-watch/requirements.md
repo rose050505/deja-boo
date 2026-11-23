@@ -8,11 +8,11 @@ It builds on the finished `graveyard-miner` spec. These already exist in `src/co
 
 - the shared tokenizer (`tokenize.ts`) and `fingerprintLines`
 - `matchWindowed(tombstone, candidateLines)`, which returns `{ similarity, matchedLines, containment }`
-- `hauntLevel(tombstone, similarity)`, which returns `'none' | 'warn' | 'block'`
+- `hauntLevel(tombstone, similarity)` (gains an optional `thresholds` parameter, REQ-2), which returns `'none' | 'warn' | 'block'`
 - `shouldSkip(path, patterns)`
 - `fromGraveyardJson`
 
-Terms: *new code* is the part of a write that adds lines. An *unacknowledged revenant* is a revenant whose tombstone id is not named by a `deja-boo: checked <id>` comment in the written content.
+Terms: *added lines* are the lines of the post-write text that a line diff against the file on disk marks as inserted or replaced (whitespace-only changes do not count). An *unacknowledged revenant* is a revenant whose tombstone id is not named by a `deja-boo: checked <id>` comment in the written content.
 
 ## Kiro facts this spec relies on
 
@@ -64,12 +64,15 @@ For each revenant the output contains:
 
 ### REQ-4: `deja-boo hook`
 
-**EARS:** When `deja-boo hook` receives a PreToolUse JSON event on stdin, the system shall check only the new code of the write and decide an exit code.
+**EARS:** When `deja-boo hook` receives a PreToolUse JSON event on stdin, the system shall match the full post-write text and report only revenants whose matched window is mostly added lines.
 
 **Which code is checked:**
 
-- `tool_name` `fs_write`: the lines of `tool_input.text` that are not already in the file at `tool_input.path` on disk. A line counts as already present when its trimmed text equals the trimmed text of any line on disk. Order is preserved. If the file does not exist, all lines are new. Lines that differ from disk only in whitespace are not new, because whitespace-only churn is not resurrection (`evidence-first`).
-- `tool_name` `str_replace`: the lines of `tool_input.newStr`.
+Trimmed-line set membership is rejected: a real revenant shares many lines with live code (measured on `haunted-http`: the Revert-buried block sits at lines 16-25 of the rewritten `adapter.py`, and 6 of its 10 lines already exist in the surviving non-chunked `urlopen` call). The rule is a line diff instead.
+
+1. **Post-write text.** `fs_write`: `tool_input.text`. `str_replace`: the file on disk with `oldStr` replaced by `newStr` (first occurrence, or every occurrence when `replace_all` is true). If the file does not exist, the disk text is empty and every line is added. A `str_replace` whose `oldStr` is not found on disk changes nothing, so it exits 0.
+2. **Added lines.** `addedLineNumbers(before, after)` runs a line diff (Myers, comparing trimmed lines) between the disk text and the post-write text. Lines in insert or replace hunks are added. A line that differs only in whitespace is matched by the diff, so it is not added (whitespace-only churn is not resurrection, `evidence-first`). No added lines: exit 0 without matching (fast path).
+3. **Matching.** Every tombstone is scored with `matchWindowed` over the full post-write text. A revenant is reported only if the level from `hauntLevel` is not `none` and at least half of the lines in its matched window (`matchedLines`) are added lines.
 - Any other `tool_name`: exit 0 with no output.
 - **EARS:** If `tool_input.path` matches the skip list, the system shall exit 0 with no output.
 
@@ -94,14 +97,15 @@ For each revenant the output contains:
 **EARS:** When the hook blocks, it shall write to stderr one entry per unacknowledged revenant (at most 3, then `… and N more buried things`), each in this shape, using facts from history only:
 
 ```
-👻 Déjà Boo: this code was buried on <date> in <commit7> — <cause of death> (<links>). Similarity <s> to tombstone <id>. Read it with the MCP tool get_tombstone. If the cause no longer applies, add the comment `deja-boo: checked <id>` near the code and write again.
+👻 Déjà Boo: this code was buried on <date> in <commit7> — <cause of death> (<links>). Similarity <s> to tombstone <id>, lines <from>-<to> of this write. Read it with the MCP tool get_tombstone. If the cause no longer applies, add the comment `deja-boo: checked <id>` near the code and write again.
 ```
 
+- `<from>-<to>` is the matched line range in the post-write text (`matchedLines`, 1-based).
 - `<date>` is the `YYYY-MM-DD` part of `buriedAt`. `<commit7>` is the first 7 characters of the commit. `<s>` has two decimals.
 - `<cause of death>` is the tombstone's `causeOfDeath` verbatim. If it is empty, the text is `cause of death unknown`. The message never states a reason that is not in history.
 - `(<links>)` is omitted when the tombstone has no links.
 - The ghost voice is limited to the 👻 prefix and the fixed sentences above. No claim is made beyond what the tombstone records.
-- A message is plain text, no color codes, and under 1,200 characters per entry.
+- A message is plain text, no color codes, and under 1,200 characters per entry (a long cause of death is cut with `…` so the entry fits; the cut never touches the id, commit, or line range).
 
 ### REQ-6: MCP server
 
@@ -129,7 +133,7 @@ Each property runs as a Vitest test with fast-check.
 
 1. For any fingerprints, `similarity` is in [0, 1]. For any non-empty fingerprint, `similarity(fp, fp) === 1`. For any candidate that embeds a tombstone's own lines, `matchWindowed(...).similarity === 1`.
 2. **Threshold monotonicity:** raising `warn` or `block` never adds a revenant and never raises a level.
-3. **Hook exit code:** the exit code is 0 if and only if there is no unacknowledged revenant. Otherwise it is 2.
+3. **Added lines:** `addedLineNumbers(x, x)` is empty; inserting k non-blank lines that are not whitespace variants of existing lines marks exactly those k lines. **Hook exit code:** the exit code is 0 if and only if there is no unacknowledged revenant. Otherwise it is 2.
 4. **Acknowledgement:** for any event, appending `deja-boo: checked <id>` for every matched id to the written content yields exit 0.
 5. **Alive at HEAD:** a tombstone with `aliveAtHead: true` and a non-Revert cause is never reported, whatever the candidate and thresholds.
 
@@ -138,7 +142,9 @@ Each property runs as a Vitest test with fast-check.
 **EARS:** When the test suite runs, it shall build the `haunted-http` fixture with `src/test-fixtures/haunted-http.sh`, index it, and feed the hook two events.
 
 - Event A: `fs_write` to `haunted_http/adapter.py`, whose `text` is the native-chunked `adapter.py` (from the commit "Use the pool's native chunked mode for uploads") with `\braw\b` replaced by `response`. Expected: exit 2, and stderr contains the Revert tombstone's id, its first 7 commit characters, and its cause of death verbatim (`Revert "Use the pool's native chunked mode for uploads"`).
-- Event B: `fs_write` to the same path, whose `text` is the current manual-chunk `adapter.py` at HEAD, unchanged. Expected: exit 0 and empty stderr.
+- Event B: `fs_write` to the same path, whose `text` is the current manual-chunk `adapter.py` at HEAD, unchanged (the disk file is the HEAD file). Expected: exit 0 and empty stderr.
+- Event C: `str_replace` on the HEAD `adapter.py` that swaps the manual `else:` branch for the native chunked call (`oldStr` is the manual branch, `newStr` is the native call from the same commit). Expected: exit 2 with the same evidence as event A.
+- For event A the matched window is lines 16-25 of the new text, and the test asserts that at least half of those lines are added lines.
 - The event's `cwd` is the fixture repo. The graveyard is written to `<repo>/.deja-boo/graveyard.json`.
 - The test runs the real entry point (`runHook` against stdin text and a working directory) and also one spawned `node dist/cli/main.js hook` run to prove exit codes survive the process boundary.
 

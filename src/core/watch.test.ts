@@ -1,0 +1,112 @@
+import { describe, it, expect } from 'vitest';
+import * as fc from 'fast-check';
+import { acknowledgedIds, addedLineNumbers, findRevenants } from './watch.js';
+import { fingerprintLines } from './match.js';
+import { hauntLevel } from './level.js';
+import type { Graveyard, Thresholds, Tombstone } from './types.js';
+
+const word = fc.stringMatching(/^[a-z]{5,9}$/);
+const blockArb = fc
+  .array(fc.tuple(word, word, word, fc.integer({ min: 0, max: 999 })), { minLength: 8, maxLength: 16 })
+  .map(rows => rows.map(([a, b, c, n], i) => `  const ${a}${i} = ${b}${i}(${c}${i}, ${n}, opts.${b});`));
+const padArb = fc.array(word, { minLength: 3, maxLength: 12 }).map(ws => ws.map((w, i) => `let pad_${w}_${i} = zzz${i}(${i});`));
+
+function stone(id: string, lines: string[], over: Partial<Tombstone> = {}): Tombstone {
+  return {
+    id, fingerprint: fingerprintLines(lines), lines, path: 'a.ts', language: 'typescript',
+    buriedAt: '2026-03-02T00:00:00Z', buriedAtTimestamp: 0, commit: 'c'.repeat(40), author: 'x@y',
+    causeOfDeath: 'Revert "x"', links: [], revivals: [], deaths: [], ...over,
+  };
+}
+const yard = (...tombstones: Tombstone[]): Graveyard => ({ tombstones, stats: {} as Graveyard['stats'] });
+const T: Thresholds = { warn: 0.5, block: 0.7 };
+
+describe('addedLineNumbers', () => {
+  it('unit: insert, replace, whitespace-only, empty before', () => {
+    expect([...addedLineNumbers('a\nb\nc', 'a\nX\nb\nc')]).toEqual([2]);
+    expect([...addedLineNumbers('a\nb\nc', 'a\nY\nc')]).toEqual([2]);
+    expect([...addedLineNumbers('a\n  b\nc', 'a\n\tb  \nc')]).toEqual([]);
+    expect([...addedLineNumbers('', 'a\nb')]).toEqual([1, 2]);
+    expect([...addedLineNumbers('a\nb', '')]).toEqual([]);
+  });
+  it('unit: a repeated line is added where the diff says, not where it merely exists elsewhere', () => {
+    const before = ['x = 1', 'y = 2', 'z = 3'].join('\n');
+    const after = ['p()', 'x = 1', 'y = 2', 'z = 3', 'x = 1', 'y = 2'].join('\n');
+    expect([...addedLineNumbers(before, after)].sort()).toEqual([1, 5, 6]);
+  });
+  it('property: addedLineNumbers(x, x) is empty', () => {
+    fc.assert(fc.property(fc.array(fc.string(), { maxLength: 30 }), ls => addedLineNumbers(ls.join('\n'), ls.join('\n')).size === 0));
+  });
+  it('property: inserting k unique non-blank lines marks exactly those k lines', () => {
+    fc.assert(fc.property(
+      fc.array(fc.stringMatching(/^[a-c ]{0,4}$/), { maxLength: 25 }).filter(b => !(b.length === 1 && b[0] === '')), // [''] and [] both join to the empty file
+      fc.array(fc.nat(), { minLength: 1, maxLength: 8 }),
+      (base, slots) => {
+        const out = [...base];
+        const expected: number[] = [];
+        slots.forEach((s, i) => out.splice(s % (out.length + 1), 0, `INSERTED_${i}`));
+        out.forEach((l, i) => { if (l.startsWith('INSERTED_')) expected.push(i + 1); });
+        const got = [...addedLineNumbers(base.join('\n'), out.join('\n'))].sort((a, b) => a - b);
+        return JSON.stringify(got) === JSON.stringify(expected);
+      },
+    ), { numRuns: 300 });
+  });
+  it('property: whitespace-only edits add nothing', () => {
+    fc.assert(fc.property(fc.array(word, { minLength: 1, maxLength: 20 }), ws => {
+      const before = ws.join('\n');
+      const after = ws.map(w => `  ${w}\t`).join('\n');
+      return addedLineNumbers(before, after).size === 0;
+    }));
+  });
+});
+
+describe('acknowledgedIds', () => {
+  it('property: includes every appended id', () => {
+    fc.assert(fc.property(fc.array(fc.stringMatching(/^[0-9a-f]{40}$/), { maxLength: 5 }), fc.string(), (ids, code) => {
+      const text = code + ids.map(i => `\n// deja-boo: checked ${i}`).join('');
+      const got = acknowledgedIds(text);
+      return ids.every(i => got.has(i));
+    }));
+  });
+});
+
+describe('findRevenants', () => {
+  it('property: embedding a tombstone scores 1; similarity in [0,1]', () => {
+    fc.assert(fc.property(blockArb, padArb, padArb, (block, pre, post) => {
+      const hits = findRevenants(yard(stone('a'.repeat(40), block)), [...pre, ...block, ...post], T);
+      return hits.length === 1 && hits[0]!.similarity === 1 && hits[0]!.matchedLines[0] === pre.length + 1;
+    }), { numRuns: 100 });
+  });
+  it('property: raising a threshold never adds a hit', () => {
+    fc.assert(fc.property(blockArb, padArb, fc.double({ min: 0.05, max: 0.9, noNaN: true }), fc.double({ min: 0, max: 0.1, noNaN: true }), (block, pad, w, dw) => {
+      const g = yard(stone('b'.repeat(40), block));
+      const cand = [...pad, ...block.slice(1), ...pad];
+      const lo = findRevenants(g, cand, { warn: w, block: Math.max(w, 0.7) }).length;
+      const hi = findRevenants(g, cand, { warn: Math.min(1, w + dw), block: Math.max(Math.min(1, w + dw), 0.7) + dw / 2 }).length;
+      return hi <= lo;
+    }), { numRuns: 100 });
+  });
+  it('property: aliveAtHead non-Revert tombstones are never reported', () => {
+    fc.assert(fc.property(blockArb, padArb, (block, pad) => {
+      const t = stone('c'.repeat(40), block, { aliveAtHead: true, causeOfDeath: 'drop cache', links: [{ type: 'pr', ref: '1' }] });
+      return findRevenants(yard(t), [...pad, ...block], { warn: 0.01, block: 0.01 }).length === 0;
+    }));
+  });
+  it('unit: hits sorted by similarity desc then id asc', () => {
+    const block = Array.from({ length: 8 }, (_, i) => `  const v${i} = fn${i}(arg${i}, ${i}, opts.k${i});`);
+    const g = yard(stone('f'.repeat(40), block), stone('1'.repeat(40), block));
+    expect(findRevenants(g, block, T).map(h => h.tombstone.id[0])).toEqual(['1', 'f']);
+  });
+  it('unit: a window mostly of existing lines is dropped; one mostly added is kept', () => {
+    const block = Array.from({ length: 10 }, (_, i) => `  const v${i} = fn${i}(arg${i}, ${i}, opts.k${i});`);
+    const g = yard(stone('d'.repeat(40), block));
+    expect(findRevenants(g, block, T, new Set([1, 2, 3, 4])).length).toBe(0);
+    expect(findRevenants(g, block, T, new Set([1, 2, 3, 4, 5])).length).toBe(1);
+  });
+  it('unit: hauntLevel with thresholds', () => {
+    const t = { aliveAtHead: false, causeOfDeath: 'x', links: [{ type: 'pr' as const, ref: '1' }] };
+    expect(hauntLevel(t, 0.6)).toBe('warn');
+    expect(hauntLevel(t, 0.6, { warn: 0.5, block: 0.6 })).toBe('block');
+    expect(hauntLevel(t, 0.6, { warn: 0.65, block: 0.9 })).toBe('none');
+  });
+});

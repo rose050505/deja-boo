@@ -140,6 +140,29 @@ export interface WindowedMatch {
   containment: number;
 }
 
+// ─── Watch ───────────────────────────────────────────────────────────────────
+
+/** Similarity cut-offs for `hauntLevel`; 0 < warn <= block <= 1. */
+export interface Thresholds {
+  warn: number;
+  block: number;
+}
+
+/** Contents of `.deja-boo/config.json`. */
+export interface WatchConfig {
+  thresholds: Thresholds;
+}
+
+/** A revenant found by the watcher: a tombstone plus how strongly and where the candidate matches it. */
+export interface RevenantHit {
+  tombstone: Tombstone;
+  level: 'warn' | 'block';
+  similarity: number;
+  containment: number;
+  /** 1-based inclusive line range in the candidate. */
+  matchedLines: [number, number];
+}
+
 // ─── Internal miner types ─────────────────────────────────────────────────────
 
 export interface RawCommit {

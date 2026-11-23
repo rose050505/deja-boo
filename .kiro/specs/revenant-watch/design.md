@@ -6,7 +6,7 @@
 src/core/
   level.ts            # + optional `thresholds` param on hauntLevel (defaults unchanged)
   types.ts            # + Thresholds, WatchConfig, RevenantHit
-  watch.ts            # NEW, pure: findRevenants, acknowledgedIds, newLines  (browser-safe)
+  watch.ts            # NEW, pure: findRevenants, acknowledgedIds, addedLineNumbers  (browser-safe)
 
 src/watch/            # NEW, Node edge shared by cli and mcp
   load.ts             # loadGraveyard(cwd), loadConfig(cwd): fs reads, validation
@@ -38,14 +38,15 @@ hook-command.ts ── parse + validate ──► tool_name? ──(other)──
    │ fs_write: read current file from disk (missing => empty)
    ▼
 core/watch.ts
-   newLines(disk, text)  | newStr lines
+   after = text | disk.replace(oldStr, newStr)
+   added = addedLineNumbers(disk, after)      empty -> exit 0
    │
    ▼
-findRevenants(index, lines, thresholds)
+findRevenants(graveyard, afterLines, thresholds, added)
    for each tombstone:
-     m = matchWindowed(t, lines)          (src/core/match.ts)
+     m = matchWindowed(t, afterLines)          (src/core/match.ts)
      level = hauntLevel(t, m.similarity, thresholds)   (src/core/level.ts)
-     keep when level != 'none'
+     keep when level != 'none' and added lines >= half of m.matchedLines
    │
    ▼
 acknowledgedIds(content) ──► drop acknowledged revenants
@@ -54,7 +55,7 @@ acknowledgedIds(content) ──► drop acknowledged revenants
    └─ some left ──► formatHookMessage ─► stderr, exit 2
 ```
 
-`check` and MCP `check_snippet` use the same `findRevenants`, with the whole input as the candidate. This is the only place a revenant is decided, so the three surfaces cannot disagree.
+`check` and MCP `check_snippet` use the same `findRevenants`, with the whole input as the candidate and `added` omitted (every line counts as added). This is the only place a revenant is decided, so the three surfaces cannot disagree.
 
 ## Key interfaces
 
@@ -78,11 +79,14 @@ export function hauntLevel(
 ): HauntLevel;
 
 // core/watch.ts
-/** Lines of `next` whose trimmed text is not a line of `current`, order kept. Invariant: newLines(x, x) is empty. */
-export function newLines(current: string, next: string): string[];
+/**
+ * 1-based line numbers of `after` that a line diff against `before` marks as inserted or replaced; trimmed lines are compared.
+ * Invariant: addedLineNumbers(x, x) is empty; inserting k non-blank lines that are not whitespace variants of existing lines marks exactly those k lines.
+ */
+export function addedLineNumbers(before: string, after: string): Set<number>;
 
-/** All tombstones with level != 'none', sorted by similarity desc, id asc. Invariant: raising a threshold never adds a hit. */
-export function findRevenants(graveyard: Graveyard, candidate: string[], thresholds: Thresholds): RevenantHit[];
+/** All tombstones with level != 'none', sorted by similarity desc, id asc. With `added`, a hit needs at least half of its matched window in `added`. Invariant: raising a threshold never adds a hit. */
+export function findRevenants(graveyard: Graveyard, candidate: string[], thresholds: Thresholds, added?: ReadonlySet<number>): RevenantHit[];
 
 /** Ids named by `deja-boo: checked <40 hex>` in `content`. Invariant: includes every id appended in that form. */
 export function acknowledgedIds(content: string): Set<string>;
@@ -111,7 +115,7 @@ Relative `tool_input.path` values resolve against the event's `cwd`.
 
 **Exit 2 for warn in the hook.** The facts say only exit 2 reaches the headless agent, so a "soft" warn cannot exist in the hook. The warn level is kept in the message text, and the acknowledgement comment is the way through. In `check`, warn is exit 1 as specified. This is the one place where "when unsure, warn instead of block" is bent by the platform. The acknowledgement rule keeps the cost of a false alarm at one extra write.
 
-**New lines only for `fs_write`.** An agent usually rewrites a whole file. Checking the whole text would flag code that is already on disk (including the old tombstone-like code that `aliveAtHead` was built to suppress). Comparing trimmed lines against the disk file drops unchanged and whitespace-only lines. The filtered lines are matched as one candidate, which makes them contiguous for windowing. A rename like `raw` to `response` makes the line new, so the demo still fires. The known limit from `research/matching-eval.md` stays: lines that already exist elsewhere on disk are not checked.
+**Added lines by line diff, matching on the full text.** An agent usually rewrites a whole file, and checking all of it would flag code already on disk. The first design kept only lines whose trimmed text is absent from the disk file. That fails on the demo: the revenant shares `method=request.method,`, `url=request.path,` and similar lines with live code, so only 4 of its 10 lines survived and the windowed score collapsed. The rule now is: score tombstones over the full post-write text, then require at least half of the matched window to be added lines. Added lines come from a Myers line diff on trimmed lines, so a window that sits in genuinely new lines is reported even when its lines repeat elsewhere, and unchanged or whitespace-only lines are never "added". The old trimmed-set limit from `research/matching-eval.md` no longer applies. A `str_replace` is expanded to the post-write text first, so it uses the same path.
 
 **Acknowledgement scans the whole written content.** If the file already carries `deja-boo: checked <id>` and the agent rewrites the file, the old acknowledgement still applies. It names one id, is visible in the code, and is easy to remove.
 
@@ -119,15 +123,10 @@ Relative `tool_input.path` values resolve against the event's `cwd`.
 
 **Performance.** Cost is tombstones × windows × `fingerprintLines`. For 1,500 tombstones and a 300-line write this may exceed 200 ms, because `matchWindowed` re-fingerprints every window. Plan:
 
-1. Task 6 measures it with a benchmark test (synthetic 1,500-tombstone graveyard, 300-line write).
-2. If it exceeds the budget, add an exact prefilter in `findRevenants`: skip a tombstone when its fingerprint shares no hash with the set of all k-gram hashes of the candidate (every window hash is a k-gram hash of lines inside the candidate). It must not change results, and a property test (prefilter on versus off gives equal hits on generated inputs) guards that.
+1. Task 6 measures it with a benchmark test (synthetic 1,500-tombstone graveyard, 300-line write). Matching now runs over the full text, so this is the common case.
+2. If it exceeds the budget, add an exact prefilter in `findRevenants`: skip a tombstone when its fingerprint shares no hash with the set of all k-gram hashes of the post-write text. It must not change results, and a property test (prefilter on versus off gives equal hits on generated inputs, including comment lines) guards that.
 3. Do not change `matchWindowed` semantics or thresholds.
-
-If the prefilter cannot be proven equal, the fallback is to cap the candidate at the 300 newest lines and say so in the README. That is a reviewer decision.
-
-**Config location.** `.deja-boo/config.json` and `.deja-boo/graveyard.json` sit side by side. The config schema is `{ "thresholds": { "warn": 0.5, "block": 0.7 } }`. The graveyard is generated, so `.deja-boo/graveyard.json` is added to `.gitignore` and built by `npm run bury`. The config file is committed.
-
-**MCP SDK.** `@modelcontextprotocol/sdk` is not installed yet. Task 9 adds it, with `zod` only if the SDK requires it as a peer. It is the only new runtime dependency.
+4. There is no candidate cap. If the budget is still missed, report the measured latency in the task notes and continue.
 
 ## Error handling
 
@@ -144,7 +143,7 @@ If the prefilter cannot be proven equal, the fallback is to cap the candidate at
 ## Testing strategy
 
 - Property tests (REQ-8) in `src/core/watch.test.ts`, `src/core/level.test.ts`, and `src/cli/hook-command.test.ts`. Generators build small graveyards (tombstones with random fingerprints, causes, links, `aliveAtHead`) and candidates that embed tombstone lines.
-- Unit tests: message format golden strings, `cause of death unknown`, link formatting, config validation, `check` report, MCP handlers.
+- Unit tests: `addedLineNumbers` cases (insert, replace, whitespace-only, missing file), message format golden strings (with the line range), `cause of death unknown`, link formatting, config validation, `check` report, MCP handlers.
 - Acceptance (REQ-9) in `src/cli/demo-hook.test.ts`, reusing the builder as `src/miner/haunted-http.test.ts` does. It needs `dist/` for the spawned run. A `beforeAll` runs `tsc --project tsconfig.build.json` only if `dist/cli/main.js` is older than its source, to keep `npm test` self-contained.
 - Dogfood test (REQ-7) parses both `.kiro` files.
 - Latency test (REQ-4) uses a seeded synthetic graveyard and asserts `decideHook` takes under 200 ms.
