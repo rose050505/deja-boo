@@ -35,5 +35,15 @@ How well the matcher catches rewritten dead code, and how often it is wrong, is 
 5. **Acknowledge.** If the cause no longer applies, add a comment containing `deja-boo: checked <tombstone id>` (any comment syntax) to the code you write. Only that id is silenced.
 6. **Config.** `.deja-boo/config.json`: `{"thresholds": {"warn": 0.5, "block": 0.7}}` with `0 < warn <= block <= 1`. An invalid file falls back to these defaults. The defaults come from [`research/matching-eval.md`](research/matching-eval.md).
 
+## Haunted graveyard (web)
+
+A static page that draws the graveyard and runs the detector in the browser.
+
+    npm run web                                # dev server
+    npm run web:build && npm run web:preview   # production build, served locally
+    npm run web:data -- <requests> <express> <axios> <flask> <got> <cli>   # rebuild web/public/graveyards from local clones
+
+`.github/workflows/pages.yml` deploys `web/` to GitHub Pages under `/deja-boo/`.
+
 ## License
 [MIT](LICENSE)
