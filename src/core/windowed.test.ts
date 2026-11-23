@@ -120,8 +120,15 @@ describe('hauntLevel', () => {
     expect(hauntLevel({ ...plain, links: [{ type: 'pr', ref: '#4' }] }, 0.7)).toBe('block');
     expect(hauntLevel({ ...plain, links: [{ type: 'pr', ref: '#4' }] }, 0.69)).toBe('warn');
   });
-  it('property: tombstones alive at HEAD are never flagged', () => {
-    fc.assert(fc.property(fc.double({ min: 0, max: 1, noNaN: true }), s =>
-      hauntLevel({ ...plain, causeOfDeath: 'Revert x', aliveAtHead: true }, s) === 'none'));
+  it('property: a non-Revert tombstone alive at HEAD is always none', () => {
+    fc.assert(fc.property(fc.double({ min: 0, max: 1, noNaN: true }), fc.string(), (sim, why) =>
+      hauntLevel({ ...plain, causeOfDeath: `fix ${why}`, aliveAtHead: true, links: [{ type: 'pr', ref: '#4' }] }, sim) === 'none'));
+  });
+  it('property: an aliveAtHead Revert tombstone at similarity >= 0.7 is block', () => {
+    fc.assert(fc.property(fc.double({ min: 0.7, max: 1, noNaN: true }), fc.constantFrom('Revert "x"', 'revert x', 'REVERT: y'), (s, cause) =>
+      hauntLevel({ ...plain, causeOfDeath: cause, aliveAtHead: true }, s) === 'block'));
+  });
+  it('unit: an aliveAtHead Revert tombstone below 0.5 stays none', () => {
+    expect(hauntLevel({ ...plain, causeOfDeath: 'Revert "x"', aliveAtHead: true }, 0.49)).toBe('none');
   });
 });

@@ -77,6 +77,27 @@ A tombstone counts as alive at HEAD when at least 80% of its fingerprint occurs 
 | B, whole file | 0.26 |
 | B, windowed | **0.94**, best window at line 15 |
 
+## 5. Which "alive at HEAD" rule? (after post-review fixes 2)
+
+Post-review fixes 2 flagged **both** demo tombstones as alive. The Revert-buried `urlopen(..., chunked=chunked)` block shares more than 80% of its fingerprint with the surviving non-chunked `urlopen(...)` call, so the guard could never fire. Real reverts often look like this, because the reverted variant overlaps with the code that survived.
+
+We compared rules on non-revived tombstones. False alarms are counted per 40-line window of live HEAD code, with windowed Jaccard ≥ 0.6 and 40 windows per repo.
+
+| Repo | No filter | Suppress C80 (≥ 80% of fingerprint anywhere in HEAD) | Suppress W90 (a HEAD window with Jaccard ≥ 0.9) | Suppress C80 **except Reverts** |
+|---|---|---|---|---|
+| axios | 0.23 | 0.00 | 0.15 | **0.00** |
+| httpie/cli | 0.03 | 0.00 | 0.03 | **0.00** |
+| express | 0.15 | 0.03 | 0.10 | **0.03** |
+| flask | 0.05 | 0.00 | 0.05 | **0.00** |
+| got | 0.10 | 0.07 | 0.10 | **0.07** |
+| requests | 0.03 | 0.03 | 0.03 | **0.03** |
+
+Exempting Reverts costs nothing: only 84 of 7,052 stones are Reverts. Exempting every stone with an issue/PR link instead brings the noise back, because axios and got put a PR number in almost every subject.
+
+**Rule now in `hauntLevel`:** `aliveAtHead` suppresses a tombstone unless its cause of death is a Revert. With this rule the demo returns `block` at 0.94.
+
+**Known limit:** the guard checks only the lines a write *adds*. Copying the surviving non-chunked call to a new place would still match the Revert stone at about 0.78.
+
 ## Recommendations (sent to Kiro as review comments)
 
 1. Tokenize identifiers, numbers and punctuation separately, with k = 5. Miner and check must share the same tokenizer.

@@ -87,7 +87,7 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
     console.log(`Tombstones added : ${stats.tombstonesAdded}`);
     console.log(`Revivals found   : ${stats.revivals}`);
     console.log(`Merge artifacts  : ${stats.mergeArtifacts} (excluded from revivals)`);
-    console.log(`Alive at HEAD    : ${stats.aliveAtHead}`);
+    console.log(`Alive at HEAD    : ${stats.aliveAtHead} (${graveyard.stats.aliveAtHeadReverts} Reverts stay watched)`);
     console.log(`Output           : ${out}`);
   } catch (err) {
     if (err instanceof MinerError) {

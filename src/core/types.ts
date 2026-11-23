@@ -111,6 +111,8 @@ export interface GraveyardStats {
   mergeArtifactRevivals: number;
   /** Tombstones whose code is still at HEAD; counted in `tombstones` too. */
   aliveAtHead: number;
+  /** Alive tombstones that stay watched because their cause of death is a Revert; subset of `aliveAtHead`. */
+  aliveAtHeadReverts: number;
   medianRevivalGapDays: number | null;
 }
 

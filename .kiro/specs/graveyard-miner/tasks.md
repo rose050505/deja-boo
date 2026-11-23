@@ -501,6 +501,7 @@ Source: reviewer comments and `research/matching-eval.md`.
 - [x] `aliveAtHead`: `src/miner/head-tree.ts` fingerprints the HEAD tree with the same skip list; tombstones >= 80% contained are flagged; stats count them.
 - [x] `src/core/level.ts`: warn >= 0.5, block >= 0.7 only with a Revert or issue/PR link, never for `aliveAtHead`.
 - [x] Properties: one-identifier rename keeps windowed similarity >= 0.6; embedding never lowers the score by more than 0.05; verbatim HEAD content is always alive.
+- [x] `hauntLevel`: `aliveAtHead` suppresses only non-Revert tombstones (cause starts with "Revert", case-insensitive); Reverts are judged by similarity. `stats.aliveAtHeadReverts` counts them; `aliveAtHead` itself is unchanged. Properties plus a `haunted-http` fixture test (`src/test-fixtures/haunted-http.sh`): 2 tombstones, 1 Revert revival, renamed re-landing yields `block`.
 - [ ] Re-run the 6-repo measurement (sections 1-3 of `research/matching-eval.md`) with the new code. Not done here: the reviewer's scripts and repo checkouts are not in this workspace.
 
 ---

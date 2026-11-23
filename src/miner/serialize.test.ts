@@ -12,6 +12,7 @@ function makeGraveyard(overrides: Partial<Graveyard> = {}): Graveyard {
       revivalsViaRevert: 0,
       mergeArtifactRevivals: 0,
       aliveAtHead: 0,
+      aliveAtHeadReverts: 0,
       medianRevivalGapDays: null,
     },
     ...overrides,
@@ -64,6 +65,7 @@ const FULL_GRAVEYARD: Graveyard = {
     revivalsViaRevert: 0,
     mergeArtifactRevivals: 0,
     aliveAtHead: 0,
+    aliveAtHeadReverts: 0,
     medianRevivalGapDays: 36,
   },
 };

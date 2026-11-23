@@ -43,6 +43,7 @@ describe('computeStats', () => {
       revivalsViaRevert: 0,
       mergeArtifactRevivals: 0,
       aliveAtHead: 0,
+      aliveAtHeadReverts: 0,
       medianRevivalGapDays: null,
     });
   });

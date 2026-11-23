@@ -1,3 +1,4 @@
+import { isRevertCause } from '../core/level.js';
 import type { GraveyardStats, Tombstone } from '../core/types.js';
 
 /**
@@ -14,10 +15,14 @@ export function computeStats(
   let revivalsViaRevert = 0;
   let mergeArtifactRevivals = 0;
   let aliveAtHead = 0;
+  let aliveAtHeadReverts = 0;
   const gaps: number[] = [];
 
   for (const t of tombstones) {
-    if (t.aliveAtHead === true) aliveAtHead++;
+    if (t.aliveAtHead === true) {
+      aliveAtHead++;
+      if (isRevertCause(t.causeOfDeath)) aliveAtHeadReverts++;
+    }
     for (const r of t.revivals) {
       if (r.isMergeArtifact) {
         mergeArtifactRevivals++;
@@ -50,6 +55,7 @@ export function computeStats(
     revivalsViaRevert,
     mergeArtifactRevivals,
     aliveAtHead,
+    aliveAtHeadReverts,
     medianRevivalGapDays,
   };
 }
