@@ -146,10 +146,32 @@ function sharedCount(fingerprint: number[], grams: ReadonlySet<number>): number 
   return n;
 }
 
+/** Minimum share of a tombstone's distinct hashes that a write must bring back for the one-line-difference rule. */
+export const RECOVERY_SHARE = 0.5;
+
+/**
+ * Fingerprint hashes of `tombstone` absent from the k-gram hash set of `beforeText` (distinct), and how many of those the k-gram hash set of `afterText` contains (recovered).
+ * Invariant: recovered <= distinct, and recovered is 0 when afterText equals beforeText.
+ */
+export function distinctRecovery(tombstone: Pick<Tombstone, 'fingerprint'>, beforeText: string, afterText: string): { distinct: number; recovered: number } {
+  const grams = (text: string): Set<number> =>
+    kgramHashSet(normalizeBlock(text === '' ? [] : text.split('\n'), DEFAULT_MINER_CONFIG), DEFAULT_MINER_CONFIG.kgramSize);
+  const inBefore = grams(beforeText);
+  const inAfter = grams(afterText);
+  let distinct = 0;
+  let recovered = 0;
+  for (const h of tombstone.fingerprint) {
+    if (inBefore.has(h)) continue;
+    distinct++;
+    if (inAfter.has(h)) recovered++;
+  }
+  return { distinct, recovered };
+}
+
 /**
  * All tombstones with level != 'none', sorted by similarity desc, id asc.
  * With `before` (the lines on disk, empty for a new file), a hit is kept only if the write makes it worse: its level on `before` is 'none',
- * or its similarity rose by at least WORSE_BY. Unchanged or unrelated edits never raise a score, so they never fire.
+ * its similarity rose by at least WORSE_BY, or the write recovers at least RECOVERY_SHARE of the tombstone's hashes missing from `before` (distinctRecovery). Unchanged or unrelated edits never raise a score, so they never fire.
  * Invariant: raising a threshold never adds a hit; with `before` equal to `candidate` there are no hits.
  */
 export function findRevenants(
@@ -174,7 +196,10 @@ export function findRevenants(
       const skipBefore = beforeGrams && sharedCount(tombstone.fingerprint, beforeGrams) < thresholds.warn * tombstone.fingerprint.length - 1e-9;
       if (!skipBefore) {
         const sBefore = matchWindowedIndexed(tombstone, before, beforeCache).similarity;
-        if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) continue;
+        if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) {
+          const { distinct, recovered } = distinctRecovery(tombstone, before.join('\n'), candidate.join('\n'));
+          if (!(distinct >= 1 && recovered / distinct >= RECOVERY_SHARE)) continue;
+        }
       }
     }
     hits.push({ tombstone, level, similarity: m.similarity, containment: m.containment, matchedLines: m.matchedLines });

@@ -98,6 +98,13 @@ describe('demo acceptance (REQ-9)', () => {
     expectEvidence(r.stderr);
   });
 
+  it('event D: copying the surviving non-chunked call into a new method is silent', () => {
+    const start = head.indexOf('        raw = conn.urlopen(');
+    const call = head.slice(start, head.indexOf('        else:', start)).replace(/^ {4}/gm, '');
+    const copy = `${head.trimEnd()}\n\n    def send_again(self, request, timeout=None):\n        conn = self.pool.connection_for(request.url)\n${call}\n        return Response.from_raw(raw, request)\n`;
+    expect(run(ev('fs_write', { path: 'haunted_http/adapter.py', text: copy }))).toEqual({ exitCode: 0, stderr: '' });
+  });
+
   it('event A through a spawned `node dist/cli/main.js hook`: exit 2 and stderr survive the process', () => {
     const p = spawnSync(process.execPath, [MAIN, 'hook'], { cwd: repo, input: eventA, encoding: 'utf8' });
     expect(p.status).toBe(2);

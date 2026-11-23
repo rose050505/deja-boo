@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { acknowledgedIds, addedLineNumbers, findRevenants, matchWindowedIndexed } from './watch.js';
+import { acknowledgedIds, addedLineNumbers, distinctRecovery, findRevenants, matchWindowedIndexed } from './watch.js';
 import type { WindowIndex } from './watch.js';
 import { fingerprintLines, matchWindowed } from './match.js';
 import { hauntLevel } from './level.js';
@@ -193,5 +193,39 @@ describe('findRevenants with `before` ("this write makes it worse")', () => {
     const disk = [...block.slice(0, 7), 'a();', 'b();', 'c();'];
     expect(findRevenants(g, [...disk, 'unrelated();'], T, disk)).toEqual([]);
     expect(findRevenants(g, [...disk, block[0] as string], T, disk)).toEqual([]);
+  });
+});
+
+describe('distinctRecovery', () => {
+  it('property: when after equals before, nothing is recovered, and recovered <= distinct', () => {
+    fc.assert(fc.property(blockArb, padArb, blockArb, (block, pad, other) => {
+      const t = stone('a'.repeat(40), block);
+      const text = [...pad, ...other].join('\n');
+      const same = distinctRecovery(t, text, text);
+      expect(same.recovered).toBe(0);
+      const grown = distinctRecovery(t, text, [...pad, ...block].join('\n'));
+      expect(grown.recovered).toBeLessThanOrEqual(grown.distinct);
+    }), { numRuns: 100 });
+  });
+  it('unit: one-line difference from live code (modeled on the requests revert) fires when that line is written back', () => {
+    const live = [
+      'resp = conn.urlopen(', '  method=request.method,', '  url=url,', '  body=request.body,', '  headers=request.headers,',
+      '  redirect=False,', '  assert_same_host=False,', '  preload_content=False,', '  decode_content=False,', '  retries=self.max_retries,',
+      '  timeout=timeout,',
+      ...Array.from({ length: 12 }, (_, i) => `  option_${i}=settings.value_${i},`),
+    ];
+    const buried = [...live, '  chunked=chunked,', ')'];
+    const g = yard(stone('9'.repeat(40), buried));
+    const disk = [...live, ')'];
+    const after = [...live, '  chunked=chunked,', ')'];
+    const sBefore = matchWindowed(g.tombstones[0] as Tombstone, disk).similarity;
+    const sAfter = matchWindowed(g.tombstones[0] as Tombstone, after).similarity;
+    expect(sAfter).toBeLessThan(sBefore + 0.1); // the old rule stays silent
+    expect(findRevenants(g, after, T, disk).length).toBe(1);
+    const r = distinctRecovery(g.tombstones[0] as Tombstone, disk.join('\n'), after.join('\n'));
+    expect(r.distinct).toBeGreaterThanOrEqual(1);
+    expect(r.recovered / r.distinct).toBeGreaterThanOrEqual(0.5);
+    expect(findRevenants(g, [...disk, 'def other(): pass'], T, disk)).toEqual([]); // unrelated write
+    expect(findRevenants(g, [...disk, '', ...disk], T, disk)).toEqual([]); // copying the live call elsewhere
   });
 });

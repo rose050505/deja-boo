@@ -47,7 +47,8 @@ findRevenants(graveyard, afterLines, thresholds, beforeLines)
      m = matchWindowed(t, afterLines)          (src/core/match.ts)
      level = hauntLevel(t, m.similarity, thresholds)   (src/core/level.ts)
      s_before = matchWindowed(t, beforeLines).similarity   (0 if no file)
-     keep when level_after != 'none' and (level_before == 'none' or s_after >= s_before + 0.1)
+     keep when level_after != 'none' and (level_before == 'none' or s_after >= s_before + 0.1
+                  or (distinct >= 1 and recovered / distinct >= 0.5))   (distinctRecovery, core/watch.ts)
    │
    ▼
 acknowledgedIds(content) ──► drop acknowledged revenants
@@ -86,6 +87,9 @@ export function hauntLevel(
  */
 export function addedLineNumbers(before: string, after: string): Set<number>;
 
+/** Hashes of the tombstone absent from `beforeText` (distinct) and how many `afterText` contains (recovered). Invariant: recovered is 0 when after == before. */
+export function distinctRecovery(tombstone: Pick<Tombstone, 'fingerprint'>, beforeText: string, afterText: string): { distinct: number; recovered: number };
+
 /** All tombstones with level != 'none', sorted by similarity desc, id asc. With `before`, a hit must be made worse by the write (level_before none, or similarity up by 0.1). Invariant: raising a threshold never adds a hit. */
 export function findRevenants(graveyard: Graveyard, candidate: string[], thresholds: Thresholds, before?: string[]): RevenantHit[];
 
@@ -116,7 +120,7 @@ Relative `tool_input.path` values resolve against the event's `cwd`.
 
 **Exit 2 for warn in the hook.** The facts say only exit 2 reaches the headless agent, so a "soft" warn cannot exist in the hook. The warn level is kept in the message text, and the acknowledgement comment is the way through. In `check`, warn is exit 1 as specified. This is the one place where "when unsure, warn instead of block" is bent by the platform. The acknowledgement rule keeps the cost of a false alarm at one extra write.
 
-**"This write makes it worse", compared by score.** An agent usually rewrites a whole file, and checking all of it would flag code already on disk. Two earlier rules failed on the demo. Trimmed-line set membership collapsed the score because the revenant shares lines with live code. The "at least half of the matched window is added lines" rule also failed: the Revert block scores 0.94 at lines 15-24, but a trimmed-line diff aligns the rewritten `method=request.method,` lines with the identical lines of the surviving non-chunked call, so only 2 of 10 window lines were added and the hit was dropped (hook exit 0, expected 2). Any rewrite that reuses live lines would be missed the same way. The rule now scores each tombstone on the disk text and on the post-write text and reports it when the level after is not `none` and either the level before was `none` or the similarity rose by at least 0.1. Unchanged or unrelated edits never raise a score, so event B and copying the surviving call elsewhere (0.78 stays 0.78) stay silent, while a rewrite toward the buried variant (0.78 to 0.94) fires. `addedLineNumbers` stays as the fast path: no added lines, exit 0. A `str_replace` is expanded to the post-write text first, so it uses the same path. Cost: one extra windowed pass over the disk text per tombstone that passes the prefilter on the post-write text.
+**"This write makes it worse", compared by score.** An agent usually rewrites a whole file, and checking all of it would flag code already on disk. Two earlier rules failed on the demo. Trimmed-line set membership collapsed the score because the revenant shares lines with live code. The "at least half of the matched window is added lines" rule also failed: the Revert block scores 0.94 at lines 15-24, but a trimmed-line diff aligns the rewritten `method=request.method,` lines with the identical lines of the surviving non-chunked call, so only 2 of 10 window lines were added and the hit was dropped (hook exit 0, expected 2). Any rewrite that reuses live lines would be missed the same way. The rule now scores each tombstone on the disk text and on the post-write text and reports it when the level after is not `none` and either the level before was `none` or the similarity rose by at least 0.1. Unchanged or unrelated edits never raise a score, so event B and copying the surviving call elsewhere (0.78 stays 0.78) stay silent, while a rewrite toward the buried variant (0.78 to 0.94) fires. `addedLineNumbers` stays as the fast path: no added lines, exit 0. A `str_replace` is expanded to the post-write text first, so it uses the same path. **One-line reverts.** A real revert can differ from live code by a single line, so the score barely moves. On psf/requests at `26bea1e4^`, tombstone `a36a5b61` scores s_before 0.90 and s_after 0.95 for the real re-landing (`26bea1e4`), under the +0.1 margin, and the hook exited 0. `distinctRecovery` adds a second route: of the tombstone hashes missing from the k-gram set of the disk text (`distinct`), the share the post-write text brings back (`recovered`) must be at least 0.5. Measured: real re-landing 1 of 1 (1.00, fires), demo rewrite 1 of 2 (0.50, fires), copy of the surviving call into a new method 0 of 2 (0.00, silent). With `after == before` nothing is recovered. Cost: one extra windowed pass over the disk text per tombstone that passes the prefilter on the post-write text.
 
 **Acknowledgement scans the whole written content.** If the file already carries `deja-boo: checked <id>` and the agent rewrites the file, the old acknowledgement still applies. It names one id, is visible in the code, and is easy to remove.
 
