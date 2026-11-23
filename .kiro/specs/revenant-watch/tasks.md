@@ -63,27 +63,28 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch E: dogfooding and demo
 
-### [ ] Task 9: Dogfood files
+### [x] Task 9: Dogfood files
 - Add `.kiro/hooks/deja-boo-guard.json` and `.kiro/settings/mcp.json` exactly as in REQ-7, and `.deja-boo/config.json` with the default thresholds.
 - Add `.deja-boo/graveyard.json` to `.gitignore` and an `npm run bury` script (`npm run build && node dist/cli/main.js index . --out .deja-boo/graveyard.json`). Do not touch the `.kiro/` ignore rule.
 - Test: `src/kiro-config.test.ts` parses both `.kiro` files and asserts the shapes.
 - Covers: REQ-7.
 
-### [ ] Task 10: Demo acceptance test
+### [x] Task 10: Demo acceptance test
 - Create `src/cli/demo-hook.test.ts`: build the `haunted-http` fixture, index it to `<repo>/.deja-boo/graveyard.json`, and feed event A (renamed native adapter, expect exit 2, the Revert tombstone's id, commit7, verbatim cause and `lines 16-25` in stderr), event B (the HEAD adapter, expect exit 0 and empty stderr) and event C (`str_replace` swapping the manual `else:` branch for the native call, expect exit 2).
 - Also spawn `node dist/cli/main.js hook` once with event A to prove the exit code 2 and stderr survive the process boundary.
 - Covers: REQ-9.
 
 ## Batch F: wrap-up
 
-### [ ] Task 11: Docs and measurement note
+### [x] Task 11: Docs and measurement note
 - Add a short "Using the guard" section to `README.md`: `npm run bury`, `check`, the hook, MCP, the acknowledgement comment, and the config file.
 - Append a short section to `research/pbt-findings.md` for any shrunk counterexample found while writing these properties (skip if none).
 - Do not change defaults or thresholds. Covers: REQ-2 documentation.
 
-### [ ] Task 12: Final verification
+### [x] Task 12: Final verification
 - Run `npm run build`, `npm test`, and `npx tsc --noEmit`. Run `npm run bury` and `node dist/cli/main.js check` on one file from this repository to confirm the dogfood loop.
 - Report test counts and the measured hook latency in the task notes.
+- **Measured (Task 12):** `npm run build`, `npm test` (27 files, 297 tests) and `npx tsc --noEmit` are green. `npm run bury` indexed this repository (17 commits, 4 tombstones). `node dist/cli/main.js check src/cli/hook-command.ts` exits 0; feeding a tombstone's own lines on stdin exits 1 with the full report. `decideHook` on 1,500 tombstones and a 300-line write took 17 ms (200 ms budget).
 
 ## Reviewer decisions
 

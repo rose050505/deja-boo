@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "deja-boo": {
+      "command": "node",
+      "args": ["dist/mcp/server.js"],
+      "disabled": false,
+      "autoApprove": ["check_snippet", "get_tombstone", "list_graveyard"]
+    }
+  }
+}

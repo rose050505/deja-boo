@@ -64,7 +64,7 @@ export function decideHook(rawEvent: string, deps: HookDeps): HookResult {
   if (!deps.graveyard) return bad('no graveyard at .deja-boo/graveyard.json; not checking. Create it with: deja-boo index . --out .deja-boo/graveyard.json');
 
   const acked = acknowledgedIds(written);
-  const hits = findRevenants(deps.graveyard, after.split('\n'), deps.config.thresholds, added)
+  const hits = findRevenants(deps.graveyard, after.split('\n'), deps.config.thresholds, disk === '' ? [] : disk.split('\n'))
     .filter(h => !acked.has(h.tombstone.id));
   if (hits.length === 0) return ok;
   return { exitCode: 2, stderr: formatHookMessage(hits) };

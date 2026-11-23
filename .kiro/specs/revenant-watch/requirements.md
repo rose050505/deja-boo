@@ -64,15 +64,15 @@ For each revenant the output contains:
 
 ### REQ-4: `deja-boo hook`
 
-**EARS:** When `deja-boo hook` receives a PreToolUse JSON event on stdin, the system shall match the full post-write text and report only revenants whose matched window is mostly added lines.
+**EARS:** When `deja-boo hook` receives a PreToolUse JSON event on stdin, the system shall match the full post-write text and report only revenants that the write makes worse than the file on disk.
 
 **Which code is checked:**
 
-Trimmed-line set membership is rejected: a real revenant shares many lines with live code (measured on `haunted-http`: the Revert-buried block sits at lines 16-25 of the rewritten `adapter.py`, and 6 of its 10 lines already exist in the surviving non-chunked `urlopen` call). The rule is a line diff instead.
+Trimmed-line set membership and a per-window "added share" are both rejected: a real revenant shares many lines with live code (measured on `haunted-http`: the Revert-buried block sits at lines 15-24 of the rewritten `adapter.py` with similarity 0.94, but a trimmed-line diff aligns the rewritten `method=request.method,` lines with the identical lines of the surviving non-chunked call, so only 2 of 10 window lines count as added and the hook stayed silent). The rule compares scores before and after the write instead.
 
 1. **Post-write text.** `fs_write`: `tool_input.text`. `str_replace`: the file on disk with `oldStr` replaced by `newStr` (first occurrence, or every occurrence when `replace_all` is true). If the file does not exist, the disk text is empty and every line is added. A `str_replace` whose `oldStr` is not found on disk changes nothing, so it exits 0.
 2. **Added lines.** `addedLineNumbers(before, after)` runs a line diff (Myers, comparing trimmed lines) between the disk text and the post-write text. Lines in insert or replace hunks are added. A line that differs only in whitespace is matched by the diff, so it is not added (whitespace-only churn is not resurrection, `evidence-first`). No added lines: exit 0 without matching (fast path).
-3. **Matching.** Every tombstone is scored with `matchWindowed` over the full post-write text. A revenant is reported only if the level from `hauntLevel` is not `none` and at least half of the lines in its matched window (`matchedLines`) are added lines.
+3. **Matching ("this write makes it worse").** Let `before` be the disk text and `after` the post-write text. For each tombstone, `s_after` is `matchWindowed` over `after` and `s_before` is `matchWindowed` over `before` (0 when the file does not exist). `level_after` and `level_before` come from `hauntLevel` with the configured thresholds. A tombstone is reported only if `level_after != 'none'` and (`level_before == 'none'` or `s_after >= s_before + 0.1`). An unchanged or unrelated edit never raises a score, so it never fires; a rewrite toward the buried variant does (demo: 0.78 to 0.94). The exact prefilter applies to both `before` and `after`.
 - Any other `tool_name`: exit 0 with no output.
 - **EARS:** If `tool_input.path` matches the skip list, the system shall exit 0 with no output.
 
@@ -133,7 +133,7 @@ Each property runs as a Vitest test with fast-check.
 
 1. For any fingerprints, `similarity` is in [0, 1]. For any non-empty fingerprint, `similarity(fp, fp) === 1`. For any candidate that embeds a tombstone's own lines, `matchWindowed(...).similarity === 1`.
 2. **Threshold monotonicity:** raising `warn` or `block` never adds a revenant and never raises a level.
-3. **Added lines:** `addedLineNumbers(x, x)` is empty; inserting k non-blank lines that are not whitespace variants of existing lines marks exactly those k lines. **Hook exit code:** the exit code is 0 if and only if there is no unacknowledged revenant. Otherwise it is 2.
+3. **Added lines:** `addedLineNumbers(x, x)` is empty; inserting k non-blank lines that are not whitespace variants of existing lines marks exactly those k lines. **Hook exit code:** the exit code is 0 if and only if there is no unacknowledged revenant. Otherwise it is 2. **Worse-only:** a write whose post-write text equals the disk text never fires; any tombstone embedded verbatim into a file that did not contain it fires unless it is acknowledged or alive at HEAD with a non-Revert cause.
 4. **Acknowledgement:** for any event, appending `deja-boo: checked <id>` for every matched id to the written content yields exit 0.
 5. **Alive at HEAD:** a tombstone with `aliveAtHead: true` and a non-Revert cause is never reported, whatever the candidate and thresholds.
 
@@ -144,7 +144,7 @@ Each property runs as a Vitest test with fast-check.
 - Event A: `fs_write` to `haunted_http/adapter.py`, whose `text` is the native-chunked `adapter.py` (from the commit "Use the pool's native chunked mode for uploads") with `\braw\b` replaced by `response`. Expected: exit 2, and stderr contains the Revert tombstone's id, its first 7 commit characters, and its cause of death verbatim (`Revert "Use the pool's native chunked mode for uploads"`).
 - Event B: `fs_write` to the same path, whose `text` is the current manual-chunk `adapter.py` at HEAD, unchanged (the disk file is the HEAD file). Expected: exit 0 and empty stderr.
 - Event C: `str_replace` on the HEAD `adapter.py` that swaps the manual `else:` branch for the native chunked call (`oldStr` is the manual branch, `newStr` is the native call from the same commit). Expected: exit 2 with the same evidence as event A.
-- For event A the matched window is lines 16-25 of the new text, and the test asserts that at least half of those lines are added lines.
+- For event A the matched window is the level block of the new text (lines 15-24 measured; the test asserts the lines printed in stderr), and the test asserts `s_after >= s_before + 0.1` (measured 0.78 to 0.94).
 - The event's `cwd` is the fixture repo. The graveyard is written to `<repo>/.deja-boo/graveyard.json`.
 - The test runs the real entry point (`runHook` against stdin text and a working directory) and also one spawned `node dist/cli/main.js hook` run to prove exit codes survive the process boundary.
 

@@ -5,8 +5,8 @@ import { normalizeBlock } from './normalize.js';
 import { DEFAULT_MINER_CONFIG } from './types.js';
 import { hauntLevel } from './level.js';
 
-/** Share of a matched window that must be added lines for a hit to count. */
-export const ADDED_SHARE = 0.5;
+/** Minimum rise in similarity, versus the file on disk, for a tombstone that already scored at or above warn to count as made worse. */
+export const WORSE_BY = 0.1;
 
 /**
  * Indices of `b` that belong to a longest common subsequence with `a` (Myers O(ND) diff).
@@ -148,18 +148,21 @@ function sharedCount(fingerprint: number[], grams: ReadonlySet<number>): number 
 
 /**
  * All tombstones with level != 'none', sorted by similarity desc, id asc.
- * With `added`, a hit needs at least half of its matched window in `added`.
- * Invariant: raising a threshold never adds a hit.
+ * With `before` (the lines on disk, empty for a new file), a hit is kept only if the write makes it worse: its level on `before` is 'none',
+ * or its similarity rose by at least WORSE_BY. Unchanged or unrelated edits never raise a score, so they never fire.
+ * Invariant: raising a threshold never adds a hit; with `before` equal to `candidate` there are no hits.
  */
 export function findRevenants(
   graveyard: Graveyard,
   candidate: string[],
   thresholds: Thresholds,
-  added?: ReadonlySet<number>,
+  before?: string[],
 ): RevenantHit[] {
   const hits: RevenantHit[] = [];
   const cache = new Map<number, WindowIndex>();
   const grams = candidateKgrams(candidate);
+  const beforeCache = new Map<number, WindowIndex>();
+  const beforeGrams = before ? candidateKgrams(before) : undefined;
   for (const tombstone of graveyard.tombstones) {
     // Exact prefilter: a window scores Jaccard >= warn only if it shares >= warn * |fingerprint| hashes with the tombstone,
     // and every window hash is in `grams`. Fewer shared hashes mean level 'none' for every window.
@@ -167,11 +170,12 @@ export function findRevenants(
     const m = matchWindowedIndexed(tombstone, candidate, cache);
     const level = hauntLevel(tombstone, m.similarity, thresholds);
     if (level === 'none') continue;
-    if (added) {
-      const [from, to] = m.matchedLines;
-      let n = 0;
-      for (let i = from; i <= to; i++) if (added.has(i)) n++;
-      if (n / (to - from + 1) < ADDED_SHARE) continue;
+    if (before) {
+      const skipBefore = beforeGrams && sharedCount(tombstone.fingerprint, beforeGrams) < thresholds.warn * tombstone.fingerprint.length - 1e-9;
+      if (!skipBefore) {
+        const sBefore = matchWindowedIndexed(tombstone, before, beforeCache).similarity;
+        if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) continue;
+      }
     }
     hits.push({ tombstone, level, similarity: m.similarity, containment: m.containment, matchedLines: m.matchedLines });
   }

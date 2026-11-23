@@ -8,3 +8,6 @@ coverage/
 .DS_Store
 /.cache/
 /research/repos/
+
+# Rebuilt with: npm run bury
+.deja-boo/graveyard.json

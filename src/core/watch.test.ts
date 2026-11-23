@@ -98,11 +98,13 @@ describe('findRevenants', () => {
     const g = yard(stone('f'.repeat(40), block), stone('1'.repeat(40), block));
     expect(findRevenants(g, block, T).map(h => h.tombstone.id[0])).toEqual(['1', 'f']);
   });
-  it('unit: a window mostly of existing lines is dropped; one mostly added is kept', () => {
+  it('unit: a write that raises the score by 0.1 or more fires; one that does not, does not', () => {
     const block = Array.from({ length: 10 }, (_, i) => `  const v${i} = fn${i}(arg${i}, ${i}, opts.k${i});`);
     const g = yard(stone('d'.repeat(40), block));
-    expect(findRevenants(g, block, T, new Set([1, 2, 3, 4])).length).toBe(0);
-    expect(findRevenants(g, block, T, new Set([1, 2, 3, 4, 5])).length).toBe(1);
+    const partial = [...block.slice(0, 7), 'other();', 'other2();', 'other3();'];
+    expect(findRevenants(g, block, T, partial).length).toBe(1); // score rises toward the buried variant
+    expect(findRevenants(g, [...block, 'tail();'], T, block).length).toBe(0); // already there, unchanged
+    expect(findRevenants(g, block, T, []).length).toBe(1); // new file
   });
   it('unit: hauntLevel with thresholds', () => {
     const t = { aliveAtHead: false, causeOfDeath: 'x', links: [{ type: 'pr' as const, ref: '1' }] };
@@ -165,5 +167,31 @@ describe('findRevenants prefilter', () => {
         }
       }
     }), { numRuns: 300 });
+  });
+});
+
+describe('findRevenants with `before` ("this write makes it worse")', () => {
+  it('property (a): a candidate equal to the disk text never fires', () => {
+    fc.assert(fc.property(blockArb, padArb, padArb, (block, pre, post) => {
+      const g = yard(stone('a'.repeat(40), block), stone('b'.repeat(40), block.slice(2)));
+      for (const file of [[...pre, ...block, ...post], block, pre]) {
+        expect(findRevenants(g, file, { warn: 0.3, block: 0.6 }, file)).toEqual([]);
+      }
+    }), { numRuns: 100 });
+  });
+  it('property (b): a tombstone embedded verbatim into a file that lacked it is reported unless alive non-Revert', () => {
+    fc.assert(fc.property(blockArb, padArb, padArb, fc.boolean(), fc.boolean(), (block, pre, post, alive, revert) => {
+      const t = stone('c'.repeat(40), block, { aliveAtHead: alive, causeOfDeath: revert ? 'Revert "x"' : 'leaked' });
+      const before = [...pre, ...post];
+      const hits = findRevenants(yard(t), [...pre, ...block, ...post], T, before);
+      expect(hits.length).toBe(alive && !revert ? 0 : 1);
+    }), { numRuns: 100 });
+  });
+  it('unit: copying a live line elsewhere does not raise the score, so no hit', () => {
+    const block = Array.from({ length: 10 }, (_, i) => `  const v${i} = fn${i}(arg${i}, ${i}, opts.k${i});`);
+    const g = yard(stone('e'.repeat(40), block));
+    const disk = [...block.slice(0, 7), 'a();', 'b();', 'c();'];
+    expect(findRevenants(g, [...disk, 'unrelated();'], T, disk)).toEqual([]);
+    expect(findRevenants(g, [...disk, block[0] as string], T, disk)).toEqual([]);
   });
 });

@@ -141,3 +141,17 @@ against the full reserved-word set.
 
 **Status:** resolved (new property test; implementation was correct)
 
+---
+
+## Finding 9 — The hook missed the demo: "mostly added lines" rejected a real revenant
+
+**Found by:** the end-to-end demo run (a spawned `node dist/cli/main.js hook` on the `haunted-http` fixture), not by a shrunk property. No property covered a rewrite that reuses live lines.
+
+**Observed:** Event A (the native-chunked `adapter.py` with `raw` renamed to `response`) exited 0. `matchWindowed` gave the Revert tombstone similarity 0.94 at lines 15-24, but `addedLineNumbers` marked only 4 lines of the file (3, 16, 24, 27), so only 2 of the 10 window lines counted and the added-share rule dropped the hit.
+
+**Cause:** the line diff on trimmed lines aligns the rewritten `method=request.method,` ... lines with the identical lines of the surviving non-chunked call. Any rewrite that reuses live lines would be missed the same way.
+
+**Fix:** report a tombstone only if the write makes it worse: `level_after != none` and (`level_before == none` or `s_after >= s_before + 0.1`). On the fixture the score goes from 0.78 to 0.94. Properties added: (a) a write whose post-write text equals the disk text never fires; (b) a tombstone embedded verbatim into a file that lacked it fires unless alive-non-Revert.
+
+**Status:** resolved
+

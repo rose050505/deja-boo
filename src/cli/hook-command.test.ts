@@ -52,6 +52,21 @@ describe('decideHook', () => {
     expect(decideHook(ev('fs_write', { path: 'src/a.ts', text: has + '\n// tail' }), deps({ [path]: has }, G)).exitCode).toBe(0);
   });
 
+  it('property (a): a write whose post-write text equals the disk text never fires', () => {
+    fc.assert(fc.property(fc.array(fc.constantFrom(...A, ...B, ...live), { maxLength: 30 }), lines => {
+      const text = lines.join('\n');
+      expect(decideHook(ev('fs_write', { path: 'src/a.ts', text }), deps({ '/repo/src/a.ts': text }, G))).toEqual({ exitCode: 0, stderr: '' });
+    }), { numRuns: 100 });
+  });
+
+  it('a rewrite that reuses live lines but moves toward the buried variant fires; an unrelated edit to the same file does not', () => {
+    const path = '/repo/src/a.ts';
+    const disk = [...live, ...A.slice(0, 7), 'tail1();', 'tail2();', 'tail3();'].join('\n');
+    const toward = [...live, ...A].join('\n');
+    expect(decideHook(ev('fs_write', { path: 'src/a.ts', text: toward }), deps({ [path]: disk }, G)).exitCode).toBe(2);
+    expect(decideHook(ev('fs_write', { path: 'src/a.ts', text: disk + '\nmore();' }), deps({ [path]: disk }, G)).exitCode).toBe(0);
+  });
+
   it('fs_write that only changes whitespace: exit 0', () => {
     const path = '/repo/src/a.ts';
     const has = [...live, ...A].join('\n');
