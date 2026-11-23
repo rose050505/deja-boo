@@ -15,9 +15,15 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 See [`.kiro/steering/product.md`](.kiro/steering/product.md) for the product brief.
 
 ## Why it matters
-We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, flask, got and requests. That is 19,908 commits and 7,094 tombstones.
-- Deleted code came back more than a week later **44 times**.
-- We judged all 44 by hand. **12 are clearly real**: 6 reverts, plus 6 re-introductions that the commit message admits. Nine are noise, and the rest need a closer look.
+We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, flask, got and requests. That is 19,908 commits and 6,301 tombstones.
+- Deleted code came back more than a week after its death **50 times**, 6 of them by Revert.
+- In an earlier run with 44 such comebacks, we judged every one by hand. **12 were clearly real**: 6 reverts, plus 6 re-introductions that the commit message admits.
+
+**We also tried it on real history.** We checked out psf/requests as it was in April 2023 and asked Kiro to "simplify" the upload code.
+- **Without Déjà Boo:** Kiro re-wrote exactly the code requests had reverted in 2020.
+- **With Déjà Boo:** the guard stopped it with the tombstone, and Kiro checked why the code had died before deciding.
+
+Details are in [`research/matching-eval.md`](research/matching-eval.md), section 7.
 
 Two real examples:
 - **requests** replaced its hand-rolled chunked upload with `urlopen(chunked=...)` in 2019. The change was reverted 7 months later. The same idea landed again in 2023, once urllib3 had fixed the underlying bug.
@@ -30,7 +36,12 @@ How well the matcher catches rewritten dead code, and how often it is wrong, is 
 ## Using the guard
 1. **Bury.** `npm run bury` builds the CLI and writes `.deja-boo/graveyard.json` (ignored by git, rebuild it whenever history changes).
 2. **Check a file.** `node dist/cli/main.js check src/some-file.ts` (or `-` for stdin). Exit 0 clean, 1 warn, 2 block, 3 no graveyard. The report shows the tombstone id, commit, date, the cause of death verbatim, the deleted lines and the matched line range.
-3. **Hook.** `.kiro/hooks/deja-boo-guard.json` runs `node dist/cli/main.js hook` before every write tool. It scores each tombstone on the file on disk and on the post-write text, and exits 2 (with the evidence on stderr) only when the write makes a tombstone worse: it was below warn before, or its similarity rose by 0.1 or more. Unchanged or unrelated edits stay silent. A broken setup (no graveyard, bad event) exits 1 and never blocks. The write hook catches tool writes before they land. A second entry, a `Stop` hook running the same command, catches everything else (shell edits, generated files): when the agent finishes, it diffs the working tree against `HEAD` and, if the changes resurrect buried code, prints `{"decision":"block","reason":...}` so the agent takes another turn. It blocks at most once per session for the same set of tombstones (state in `.deja-boo/stop-state.json`, ignored by git), so an agent that disagrees is never trapped.
+3. **Hook.** `.kiro/hooks/deja-boo-guard.json` runs `node dist/cli/main.js hook` before every write tool. It scores each tombstone twice: on the file as it is on disk, and on the text after the write. It exits 2, with the evidence on stderr, only when the write makes a tombstone worse:
+   - the tombstone was below warn before, or
+   - its similarity rose by 0.1 or more, or
+   - the write brings back at least half of the tombstone's fingerprint that is missing from the file today (one decisive line counts).
+
+   Unchanged or unrelated edits stay silent. A broken setup (no graveyard, bad event) exits 1 and never blocks. The write hook catches tool writes before they land. A second entry, a `Stop` hook running the same command, catches everything else (shell edits, generated files): when the agent finishes, it diffs the working tree against `HEAD` and, if the changes resurrect buried code, prints `{"decision":"block","reason":...}` so the agent takes another turn. It blocks at most once per session for the same set of tombstones (state in `.deja-boo/stop-state.json`, ignored by git), so an agent that disagrees is never trapped.
 4. **MCP.** `.kiro/settings/mcp.json` registers `dist/mcp/server.js` with `check_snippet`, `get_tombstone` and `list_graveyard`, so the agent can read why something died.
 5. **Acknowledge.** If the cause no longer applies, add a comment containing `deja-boo: checked <tombstone id>` (any comment syntax) to the code you write. Only that id is silenced.
 6. **Config.** `.deja-boo/config.json`: `{"thresholds": {"warn": 0.5, "block": 0.7}}` with `0 < warn <= block <= 1`. An invalid file falls back to these defaults. The defaults come from [`research/matching-eval.md`](research/matching-eval.md).

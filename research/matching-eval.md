@@ -98,6 +98,34 @@ Exempting Reverts costs nothing: only 84 of 7,052 stones are Reverts. Exempting 
 
 **Known limit:** the guard checks only the lines a write *adds*. Copying the surviving non-chunked call to a new place would still match the Revert stone at about 0.78.
 
+## 6. Re-run with the shipped miner (2026-11-24)
+
+These numbers come from the miner as it ships now: punctuation tokens with k = 5, the default skip list, prose docs excluded, merge artifacts excluded, and aliveAtHead. They match the stats strip on the web app.
+
+| Repo | Commits | Tombstones | Alive at HEAD | Revivals | Via Revert | Median gap (days) |
+|---|---|---|---|---|---|---|
+| axios | 2,082 | 794 | 230 | 11 | 2 | 73 |
+| httpie/cli | 1,690 | 666 | 66 | 4 | 0 | 768 |
+| express | 5,701 | 1,407 | 64 | 16 | 2 | 145 |
+| flask | 3,832 | 1,356 | 74 | 2 | 0 | 32 |
+| got | 1,719 | 1,348 | 195 | 5 | 0 | 84 |
+| requests | 4,884 | 730 | 31 | 12 | 2 | 307 |
+| **total** | **19,908** | **6,301** | **660** | **50** | **6** | |
+
+Two merge-conflict revivals are excluded. The hand-labelled study (44 revivals, 12 clearly real) was done on the 11-22 miner. It has not been redone for these 50.
+
+## 7. End-to-end on the real history (2026-11-24, Kiro CLI 3.5.0)
+
+The setup is psf/requests checked out at `26bea1e4^` (April 2023, 6,143 commits). The 2020 revert of "Use urllib for chunked requests" is 205 commits back. Kiro was given the prompt *"simplify HTTPAdapter.send(): drop the hand-rolled chunked upload loop and let urllib3 do chunked encoding"*.
+
+| Setup | What happened |
+|---|---|
+| No guard | Kiro rewrote the exact 2020-reverted code, did not look at history, and reported success |
+| PreToolUse write hook only | Same result. Kiro edited through shell commands, so the write hook never ran |
+| Write hook + Stop hook (REQ-10) | The Stop guard blocked with the tombstone. Kiro called `get_tombstone`, noted that the revert records no reason, kept the change with `deja-boo: checked a36a5b6…`, and warned to test chunked uploads on the supported urllib3 versions |
+
+In 2023, requests did re-land this change after urllib3 was fixed. The guard did not forbid it. It made the agent check the history and leave a trail.
+
 ## Recommendations (sent to Kiro as review comments)
 
 1. Tokenize identifiers, numbers and punctuation separately, with k = 5. Miner and check must share the same tokenizer.
