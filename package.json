@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build": "tsc --project tsconfig.build.json",
+    "prepare": "npm run build",
     "bury": "npm run build && node dist/cli/main.js index . --out .deja-boo/graveyard.json",
     "web": "vite web",
     "web:data": "npm run build && node web/scripts/build-data.ts",

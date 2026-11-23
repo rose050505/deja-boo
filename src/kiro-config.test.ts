@@ -35,4 +35,20 @@ describe('dogfood files (REQ-7)', () => {
     expect(lines).toContain('.deja-boo/graveyard.json');
     expect(lines.filter(l => !l.startsWith('#')).some(l => /^\/?\.kiro\/?\*?$/.test(l))).toBe(false);
   });
+
+  it('power bundle files have the agreed shape', () => {
+    const plugin = json('power/plugin.json') as { name: string; version: string };
+    expect([plugin.name, plugin.version]).toEqual(['deja-boo', '0.1.0']);
+    expect(json('power/mcp.json')).toMatchObject({ mcpServers: { 'deja-boo': { type: 'stdio', command: 'npx', args: ['-y', 'github:rose050505/deja-boo', 'mcp'] } } });
+    const guard = json('power/hooks/deja-boo-guard.json') as { hooks: { trigger: string; action: { command: string } }[] };
+    expect(guard.hooks.map(h => h.trigger)).toEqual(['PreToolUse', 'Stop']);
+    for (const h of guard.hooks) expect(h.action.command).toBe('npx -y github:rose050505/deja-boo hook');
+    expect(readFileSync(root + 'power/skills/check-before-resurrecting/SKILL.md', 'utf8')).toMatch(/^---\nname: check-before-resurrecting\ndescription: .+\n---/);
+  });
+
+  it('agent and hooks are valid JSON with the requested triggers', () => {
+    expect(json('.kiro/agents/graveyard-keeper.json')).toMatchObject({ tools: ['read', 'shell', '@deja-boo'], includeMcpJson: true });
+    expect(json('.kiro/hooks/test-on-save.json')).toMatchObject({ hooks: [{ trigger: 'PostFileSave', matcher: '^src/.*\\.ts$' }] });
+    expect(json('.kiro/hooks/session-brief.json')).toMatchObject({ hooks: [{ trigger: 'SessionStart' }] });
+  });
 });

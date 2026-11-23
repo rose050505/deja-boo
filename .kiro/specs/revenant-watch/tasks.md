@@ -107,3 +107,11 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 2. The exact prefilter is the plan if the budget is missed. No silent 300-line cap: report the measured latency and continue.
 3. `.deja-boo/graveyard.json` is ignored and rebuilt with `npm run bury`. Agreed.
 4. `hauntLevel` gets a third `thresholds` parameter. Agreed.
+
+## kiro-packaging (no spec)
+
+- `power/`: `plugin.json`, `mcp.json` (npx from GitHub), skill `check-before-resurrecting`, `README.md`, and `hooks/deja-boo-guard.json` (PreToolUse write + Stop, copied by the user into `.kiro/hooks/`).
+- CLI: `deja-boo mcp` starts the MCP server; `prepare` script builds `dist/` on install from GitHub.
+- `.kiro/agents/graveyard-keeper.json`: diff review agent (read, shell, @deja-boo; shell limited to `git *` and `node dist/cli/main.js *`).
+- Hooks: `test-on-save.json` (PostFileSave), `session-brief.json` (SessionStart). No separate graveyard-refresh Stop hook, and no PostTaskExec hook (bury builds and re-mines, not cheap). `npm run bury` documented in the README.
+- Tests: `src/kiro-config.test.ts` covers the new files.

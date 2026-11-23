@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "session-brief",
+      "trigger": "SessionStart",
+      "action": {
+        "type": "command",
+        "command": "node -e \"let n=0;try{n=JSON.parse(require('fs').readFileSync('.deja-boo/graveyard.json','utf8')).tombstones.length}catch{};console.log('This repository has a Déjà Boo graveyard ('+n+' tombstones). Before re-adding code that was removed, call the MCP tool check_snippet.')\""
+      }
+    }
+  ]
+}

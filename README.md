@@ -35,6 +35,9 @@ How well the matcher catches rewritten dead code, and how often it is wrong, is 
 5. **Acknowledge.** If the cause no longer applies, add a comment containing `deja-boo: checked <tombstone id>` (any comment syntax) to the code you write. Only that id is silenced.
 6. **Config.** `.deja-boo/config.json`: `{"thresholds": {"warn": 0.5, "block": 0.7}}` with `0 < warn <= block <= 1`. An invalid file falls back to these defaults. The defaults come from [`research/matching-eval.md`](research/matching-eval.md).
 
+7. **Kiro Power.** `power/` packages the MCP server, a skill and a copy-ready guard hook. See [`power/README.md`](power/README.md). `deja-boo mcp` starts the MCP server; `npm run bury` refreshes the graveyard after history changes (no automatic refresh hook: it builds and re-mines, which is too slow to run on every task).
+8. **Review agent.** `.kiro/agents/graveyard-keeper.json` reviews the branch diff against the graveyard before merge.
+
 ## Haunted graveyard (web)
 
 A static page that draws the graveyard and runs the detector in the browser.

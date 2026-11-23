@@ -1,0 +1,22 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "deja-boo-guard",
+      "trigger": "PreToolUse",
+      "matcher": "write",
+      "action": {
+        "type": "command",
+        "command": "npx -y github:rose050505/deja-boo hook"
+      }
+    },
+    {
+      "name": "deja-boo-stop-guard",
+      "trigger": "Stop",
+      "action": {
+        "type": "command",
+        "command": "npx -y github:rose050505/deja-boo hook"
+      }
+    }
+  ]
+}

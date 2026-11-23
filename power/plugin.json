@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "deja-boo",
+  "version": "0.1.0",
+  "description": "Your codebase remembers what it buried. Stops AI agents from resurrecting code that was deliberately deleted, and tells them when and why it died.",
+  "author": { "name": "rose050505" },
+  "license": "MIT",
+  "repository": "https://github.com/rose050505/deja-boo",
+  "keywords": ["revert", "reverted", "deleted", "removed", "regression", "history", "why was this removed", "dead code", "resurrect"]
+}
