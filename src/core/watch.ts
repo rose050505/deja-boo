@@ -1,5 +1,8 @@
-import type { Graveyard, RevenantHit, Thresholds } from './types.js';
-import { matchWindowed } from './match.js';
+import type { Graveyard, RevenantHit, Thresholds, Tombstone, WindowedMatch } from './types.js';
+import { containment, fingerprintLines, similarity } from './match.js';
+import { kgramHashSet } from './fingerprint.js';
+import { normalizeBlock } from './normalize.js';
+import { DEFAULT_MINER_CONFIG } from './types.js';
 import { hauntLevel } from './level.js';
 
 /** Share of a matched window that must be added lines for a hit to count. */
@@ -77,6 +80,72 @@ export function acknowledgedIds(content: string): Set<string> {
   return ids;
 }
 
+export type WindowIndex = { fps: number[][]; byHash: Map<number, number[]> };
+
+/** Fingerprints of every width-`width` window of `candidate`, plus hash -> ascending window starts. */
+function indexWindows(candidate: string[], width: number): WindowIndex {
+  const fps: number[][] = [];
+  const byHash = new Map<number, number[]>();
+  for (let start = 0; start + width <= candidate.length; start++) {
+    const fp = fingerprintLines(candidate.slice(start, start + width));
+    fps.push(fp);
+    for (const h of fp) {
+      const list = byHash.get(h);
+      if (list) list.push(start);
+      else byHash.set(h, [start]);
+    }
+  }
+  return { fps, byHash };
+}
+
+/**
+ * `matchWindowed(t, candidate)` computed from shared window fingerprints. Only windows that share a hash with the tombstone are scored,
+ * because every other window has Jaccard 0 and can never beat the "no match" result.
+ * Invariant: equals matchWindowed(t, candidate) for every input.
+ */
+export function matchWindowedIndexed(
+  t: Pick<Tombstone, 'lines' | 'fingerprint'>,
+  candidate: string[],
+  cache: Map<number, WindowIndex>,
+): WindowedMatch {
+  const none: WindowedMatch = { similarity: 0, matchedLines: [0, 0], containment: 0 };
+  const size = t.lines.length;
+  if (size === 0 || candidate.length === 0 || t.fingerprint.length === 0) return none;
+  const width = Math.min(size, candidate.length);
+  let index = cache.get(width);
+  if (!index) cache.set(width, (index = indexWindows(candidate, width)));
+  const starts = new Set<number>();
+  for (const h of t.fingerprint) for (const s of index.byHash.get(h) ?? []) starts.add(s);
+  let best = none;
+  let bestSim = 0;
+  for (const start of [...starts].sort((a, b) => a - b)) {
+    const fp = index.fps[start] as number[];
+    const sim = similarity(t.fingerprint, fp);
+    if (sim > bestSim) {
+      bestSim = sim;
+      best = { similarity: sim, matchedLines: [start + 1, start + width], containment: containment(t.fingerprint, fp) };
+    }
+  }
+  return best;
+}
+
+/**
+ * Hashes of all token k-grams of the whole candidate, or undefined when the candidate has a block-comment opener
+ * (`/*`, `<!--`, `{-`). Without openers, a window normalizes to a contiguous run of the candidate's normalized lines, so
+ * every window k-gram is a candidate k-gram. With openers, a window can start inside a comment, so no prefilter is used.
+ */
+function candidateKgrams(candidate: string[]): Set<number> | undefined {
+  const raw = candidate.join('\n');
+  if (raw.includes('/*') || raw.includes('<!--') || raw.includes('{-')) return undefined;
+  return kgramHashSet(normalizeBlock(candidate, DEFAULT_MINER_CONFIG), DEFAULT_MINER_CONFIG.kgramSize);
+}
+
+function sharedCount(fingerprint: number[], grams: ReadonlySet<number>): number {
+  let n = 0;
+  for (const h of fingerprint) if (grams.has(h)) n++;
+  return n;
+}
+
 /**
  * All tombstones with level != 'none', sorted by similarity desc, id asc.
  * With `added`, a hit needs at least half of its matched window in `added`.
@@ -89,8 +158,13 @@ export function findRevenants(
   added?: ReadonlySet<number>,
 ): RevenantHit[] {
   const hits: RevenantHit[] = [];
+  const cache = new Map<number, WindowIndex>();
+  const grams = candidateKgrams(candidate);
   for (const tombstone of graveyard.tombstones) {
-    const m = matchWindowed(tombstone, candidate);
+    // Exact prefilter: a window scores Jaccard >= warn only if it shares >= warn * |fingerprint| hashes with the tombstone,
+    // and every window hash is in `grams`. Fewer shared hashes mean level 'none' for every window.
+    if (grams && sharedCount(tombstone.fingerprint, grams) < thresholds.warn * tombstone.fingerprint.length - 1e-9) continue;
+    const m = matchWindowedIndexed(tombstone, candidate, cache);
     const level = hauntLevel(tombstone, m.similarity, thresholds);
     if (level === 'none') continue;
     if (added) {

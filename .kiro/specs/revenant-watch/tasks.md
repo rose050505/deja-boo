@@ -32,30 +32,33 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch C: hook
 
-### [ ] Task 5: `decideHook`
+### [x] Task 5: `decideHook`
 - Create `src/cli/hook-command.ts` with the pure `decideHook`.
 - Builds the post-write text (`fs_write` text; `str_replace` applied to the disk file, first or all occurrences; missing file = all lines added), runs `addedLineNumbers`, exits 0 on no added lines, then `findRevenants`.
 - Handles `fs_write`, `str_replace`, other tools, skipped paths, invalid events, missing graveyard, and acknowledgement (partial acknowledgement lists only the remaining ids).
 - Properties: exit is 0 iff no unacknowledged revenant, else 2; acknowledging every matched id always gives 0 (REQ-8.3, 8.4). Unit tests for each branch in REQ-4.
 - Covers: REQ-4, REQ-5, REQ-8.
 
-### [ ] Task 6: Hook entry point and latency
+### [x] Task 6: Hook entry point and latency
 - Add `runHookCommand` (stdin to `decideHook`, stderr, `process.exitCode`) and dispatch `hook` in `main.ts`.
 - Add a benchmark test: seeded synthetic graveyard with 1,500 tombstones, 300-line write, `decideHook` under 200 ms.
 - If the budget is missed, add the exact prefilter described in design.md ("Performance") with a property test that it never changes the hits. There is no candidate cap. If the budget is still missed, report the measured latency and continue.
 - Covers: REQ-4 (latency).
+- **Measured (Task 6):** the naive path took 27,000 ms for 1,500 tombstones and a 300-line write. Per-width window indexing alone gave 470 ms. The exact prefilter (`candidateKgrams` plus `sharedCount` in `src/core/watch.ts`) brings it to **7 ms**. It skips a tombstone that shares fewer than `warn * |fingerprint|` hashes with the candidate's k-gram set, which is exact because a window's hashes are a subset of the candidate's when the candidate has no block-comment opener (`/*`, `<!--`, `{-`). Equality with the unfiltered path is a property test (comment lines and openers included, two threshold sets).
+- **Known miss:** a write that contains a block-comment opener disables the prefilter and takes **~475 ms** with the same graveyard (window indexing only). Reported, not capped, per reviewer decision 2.
 
 ## Batch D: MCP
 
-### [ ] Task 7: Pure MCP handlers
+### [x] Task 7: Pure MCP handlers
 - Create `src/mcp/tools.ts` with `checkSnippet`, `getTombstone`, `listGraveyard` returning plain objects (REQ-6 fields, `limit` default 20 and cap 100, path filter, unknown id error).
 - Tests: unit tests per tool; property: `list_graveyard` output length <= limit and sorted newest first.
 - Covers: REQ-6.
 
-### [ ] Task 8: MCP server wiring
+### [x] Task 8: MCP server wiring
 - Run `npm install @modelcontextprotocol/sdk` (and `zod` only if the SDK needs it) and commit `package.json` and the lockfile.
 - Create `src/mcp/server.ts` (stdio, three tools, graveyard read once, stdout used only by the protocol).
 - Test: spawn `node dist/mcp/server.js` after build and call the three tools through the SDK client over stdio against a temp graveyard.
+- Done: `zod` added as a direct dependency (the SDK lists it as a peer and the server imports it). The test also covers the missing-graveyard error and checks that every stdout line is a JSON-RPC frame.
 - Covers: REQ-6.
 
 ## Batch E: dogfooding and demo

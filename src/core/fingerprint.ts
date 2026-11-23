@@ -16,6 +16,17 @@ export function fnv1a32(text: string): number {
 }
 
 /**
+ * Hashes of every token k-gram of `text`, before winnowing.
+ * Invariant: every hash returned by kgramWinnow(text, config) is in this set.
+ */
+export function kgramHashSet(text: string, kgramSize: number): Set<number> {
+  const tokens = tokenize(text);
+  const out = new Set<number>();
+  for (let i = 0; i + kgramSize <= tokens.length; i++) out.add(fnv1a32(tokens.slice(i, i + kgramSize).join(' ')));
+  return out;
+}
+
+/**
  * Returns sorted, deduplicated winnowed k-gram hashes for the given text.
  * A text with fewer than kgramSize tokens returns [].
  * The result is deterministic and sorted ascending.

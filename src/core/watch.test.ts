@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { acknowledgedIds, addedLineNumbers, findRevenants } from './watch.js';
-import { fingerprintLines } from './match.js';
+import { acknowledgedIds, addedLineNumbers, findRevenants, matchWindowedIndexed } from './watch.js';
+import type { WindowIndex } from './watch.js';
+import { fingerprintLines, matchWindowed } from './match.js';
 import { hauntLevel } from './level.js';
 import type { Graveyard, Thresholds, Tombstone } from './types.js';
 
@@ -108,5 +109,61 @@ describe('findRevenants', () => {
     expect(hauntLevel(t, 0.6)).toBe('warn');
     expect(hauntLevel(t, 0.6, { warn: 0.5, block: 0.6 })).toBe('block');
     expect(hauntLevel(t, 0.6, { warn: 0.65, block: 0.9 })).toBe('none');
+  });
+});
+
+describe('matchWindowedIndexed (exact prefilter)', () => {
+  const noisy = fc.array(
+    fc.oneof(
+      word.map(w => `  call_${w}(${w}, 1);`),
+      word.map(w => `// note ${w}`),
+      word.map(w => `/* ${w}`),
+      word.map(w => `${w} */`),
+      fc.constant(''),
+      fc.constant('  # comment'),
+    ),
+    { minLength: 0, maxLength: 40 },
+  );
+  it('property: equals matchWindowed for tombstones, comment lines and candidates of any size', () => {
+    fc.assert(fc.property(noisy, noisy, noisy, (tl, pre, post) => {
+      const t = { lines: tl, fingerprint: fingerprintLines(tl) };
+      for (const candidate of [[...pre, ...tl, ...post], pre, tl, post]) {
+        const cache = new Map<number, WindowIndex>();
+        expect(matchWindowedIndexed(t, candidate, cache)).toEqual(matchWindowed(t, candidate));
+        expect(matchWindowedIndexed(t, candidate, cache)).toEqual(matchWindowed(t, candidate)); // warm cache
+      }
+    }), { numRuns: 300 });
+  });
+});
+
+describe('findRevenants prefilter', () => {
+  const lineArb = fc.oneof(
+    word.map(w => `  call_${w}(${w}, 1, opts.${w});`),
+    word.map(w => `// note ${w}`),
+    word.map(w => `/* ${w}`),
+    word.map(w => `${w} */`),
+    word.map(w => `# ${w}`),
+    fc.constant(''),
+  );
+  const linesArb = fc.array(lineArb, { minLength: 0, maxLength: 40 });
+  /** Reference: every tombstone through matchWindowed and hauntLevel, no shortcuts. */
+  function naive(g: Graveyard, cand: string[], th: Thresholds): string[] {
+    const ids: string[] = [];
+    for (const t of g.tombstones) {
+      const m = matchWindowed(t, cand);
+      if (hauntLevel(t, m.similarity, th) !== 'none') ids.push(t.id + m.matchedLines.join('-') + m.similarity);
+    }
+    return ids.sort();
+  }
+  it('property: prefilter on versus off gives equal hits, with and without comment lines', () => {
+    fc.assert(fc.property(linesArb, linesArb, linesArb, linesArb, (a, b, pre, post) => {
+      const g = yard(stone('1'.repeat(40), a), stone('2'.repeat(40), b), stone('3'.repeat(40), [...a, ...b]));
+      for (const cand of [[...pre, ...a, ...post], [...pre, ...b, ...a], pre, [...post, ...b]]) {
+        for (const th of [T, { warn: 0.2, block: 0.9 }]) {
+          const got = findRevenants(g, cand, th).map(h => h.tombstone.id + h.matchedLines.join('-') + h.similarity).sort();
+          expect(got).toEqual(naive(g, cand, th));
+        }
+      }
+    }), { numRuns: 300 });
   });
 });

@@ -8,11 +8,12 @@
  *
  *   deja-boo check <file|->           Match a file (or stdin) against .deja-boo/graveyard.json.
  *
- * Subcommand `hook` is added by the next task.
+ *   deja-boo hook                     Kiro PreToolUse adapter: event JSON on stdin, exit 2 blocks.
  */
 
 import { runIndexCommand } from './index-command.js';
 import { runCheckCommand } from './check-command.js';
+import { runHookCommand } from './hook-command.js';
 
 const [, , subcommand, ...rest] = process.argv;
 
@@ -23,12 +24,15 @@ if (subcommand === 'index') {
   });
 } else if (subcommand === 'check') {
   runCheckCommand(rest);
+} else if (subcommand === 'hook') {
+  runHookCommand();
 } else if (subcommand === '--help' || subcommand === '-h' || subcommand === undefined) {
   console.log(`deja-boo — your codebase remembers what it buried.
 
 Usage:
   deja-boo index [repo] [options]
   deja-boo check <file|->     exit 0 clean, 1 warn, 2 block, 3 no graveyard
+  deja-boo hook              Kiro PreToolUse adapter (event JSON on stdin): exit 2 blocks, 1 fails open
 
   repo                  Path to git repository (default: current directory)
 
