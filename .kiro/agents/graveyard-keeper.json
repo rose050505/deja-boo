@@ -2,13 +2,36 @@
   "name": "graveyard-keeper",
   "description": "Reviews a diff against the graveyard before merge",
   "prompt": "You are the graveyard keeper. For the current branch's diff against its base branch (use `git diff` / `git merge-base`), run `node dist/cli/main.js check` on every added hunk (write the added lines to a temporary stdin pipe with `-`, or check the changed file) and write a short report. For each warning or block give the evidence: tombstone id, commit hash, date, the deleted lines, and the cause of death verbatim from the commit message or linked PR. If there is no clear reason in history, say 'cause of death unknown'. Never invent a cause. A block moved to another file is not a death. When unsure, warn instead of block. If a graveyard is missing, run `npm run bury` first.",
-  "tools": ["read", "shell", "@deja-boo"],
-  "toolsSettings": {
-    "shell": {
-      "allowedCommands": ["git *", "node dist/cli/main.js *"]
-    }
-  },
-  "allowedTools": ["read", "@deja-boo"],
-  "resources": ["file://.kiro/steering/**/*.md"],
-  "includeMcpJson": true
+  "tools": [
+    "read",
+    "shell",
+    "@deja-boo"
+  ],
+  "resources": [
+    "file://.kiro/steering/**/*.md"
+  ],
+  "includeMcpJson": true,
+  "permissions": {
+    "rules": [
+      {
+        "capability": "shell",
+        "match": [
+          "git *",
+          "node dist/cli/main.js *"
+        ],
+        "effect": "allow"
+      },
+      {
+        "capability": "fs_read",
+        "effect": "allow"
+      },
+      {
+        "capability": "mcp",
+        "match": [
+          "deja-boo/*"
+        ],
+        "effect": "allow"
+      }
+    ]
+  }
 }
