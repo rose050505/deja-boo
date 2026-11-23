@@ -1,67 +1,8 @@
 import type { RawCommit, Hunk, ParsedCommit } from '../core/types.js';
 
-/**
- * Check whether a file path should be skipped according to the skip-pattern list.
- * Handles: directory prefix (e.g. "node_modules/"), exact basename, and
- * simple wildcard patterns with "*" matching within a path segment.
- * Does not add a dependency on micromatch/minimatch.
- */
-function shouldSkip(filePath: string, patterns: string[]): boolean {
-  if (patterns.length === 0) return false;
-  const normalized = filePath.replace(/\\/g, '/');
-  const basename = normalized.slice(normalized.lastIndexOf('/') + 1);
+import { DEFAULT_SKIP_PATTERNS, shouldSkip, isSkippedPath } from '../core/skip.js';
 
-  for (const pattern of patterns) {
-    // Directory prefix: ends with /
-    if (pattern.endsWith('/')) {
-      if (
-        normalized.startsWith(pattern) ||
-        normalized.includes(`/${pattern}`)
-      ) return true;
-      continue;
-    }
-    // Exact basename
-    if (!pattern.includes('/') && !pattern.includes('*')) {
-      if (basename === pattern) return true;
-      continue;
-    }
-    // Simple glob: replace ** with .* (any path), * with [^/]* (within segment)
-    // Process in order: escape special chars first, then restore ** as .*, then * as [^/]*
-    const escaped = pattern
-      .replace(/[.+^${}()|[\]\\]/g, '\\$&')   // escape regex specials (but not *)
-      .replace(/\*\*/g, '\x00')                // temporarily replace ** with null byte
-      .replace(/\*/g, '[^/]*')                 // replace remaining * with within-segment match
-      .replace(/\x00/g, '.*');                 // restore ** as any-path match
-    const re = new RegExp(`(^|/)${escaped}(/|$)`);
-    if (re.test(normalized)) return true;
-  }
-  return false;
-}
-
-/** Default skip patterns from REQ-2. */
-export const DEFAULT_SKIP_PATTERNS: string[] = [
-  // Binary extensions
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico',
-  '.woff', '.woff2', '.ttf', '.eot', '.pdf',
-  '.zip', '.tar', '.gz', '.bin', '.exe', '.dll', '.so', '.dylib',
-  // Lockfiles (exact basename)
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Gemfile.lock',
-  'poetry.lock', 'Cargo.lock', 'go.sum', 'composer.lock',
-  // Generated/minified — handled by special checks in shouldSkip
-  // Vendored dirs
-  'node_modules/', 'vendor/', 'third_party/', 'extern/', 'Pods/',
-  // Build dirs
-  'dist/', 'build/', 'out/', '__pycache__/', '.next/', '.nuxt/',
-  // Changelogs and history files (auto-generated prose, not logic)
-  'CHANGELOG*', 'HISTORY*',
-  // Snapshot files
-  '*.snap',
-  // Generated HTML docs (e.g. Doxygen, JSDoc output)
-  'docs/**/*.html',
-];
-
-/** @internal Exported for testing. */
-export { shouldSkip };
+export { DEFAULT_SKIP_PATTERNS, shouldSkip };
 
 /** @internal Parse `@@ -oldStart,oldLen +newStart,newLen @@` header. */
 function parseHunkHeader(line: string): { oldStart: number; newStart: number } | null {
@@ -104,14 +45,7 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
       // Strip `b/` prefix added by git diff
       const filePath = rawPath.startsWith('b/') ? rawPath.slice(2) : rawPath;
       currentFile = filePath === '/dev/null' ? null : filePath;
-      skipCurrentFile = currentFile !== null && shouldSkip(currentFile, skipPatterns);
-      // Check generated/minified patterns not covered by directory prefix
-      if (currentFile !== null && !skipCurrentFile) {
-        const bn = currentFile.slice(currentFile.lastIndexOf('/') + 1);
-        if (bn.includes('.min.') || bn.endsWith('.map')) {
-          skipCurrentFile = true;
-        }
-      }
+      skipCurrentFile = currentFile !== null && isSkippedPath(currentFile, skipPatterns);
       continue;
     }
 

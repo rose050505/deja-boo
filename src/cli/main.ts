@@ -29,14 +29,16 @@ Usage:
 Options for \`index\`:
   --out <file>          Output JSON path (default: graveyard.json)
   --min-block-lines <n> Minimum deleted lines per block (default: 4)
-  --kgram-size <n>      k-gram width for fingerprinting (default: 7)
+  --kgram-size <n>      k-gram width for fingerprinting (default: 5)
   --window-size <n>     Winnowing window size (default: 4)
   --rename-ids          Normalise identifier names before fingerprinting
   --move-threshold <n>  Jaccard threshold for move detection (default: 0.9)
-  --grace-days <n>      Days after deletion within which a re-add drops the tombstone (default: 7)
+  --grace-days <n>      Days after deletion within which a re-add drops the tombstone (default: 5)
   --since <date>        Only walk commits after this date
   --until <date>        Only walk commits before this date
-  --skip <pattern>      Skip files matching this glob (repeatable)
+  --skip <pattern>      Also skip files matching this glob (repeatable; adds to the defaults)
+  --no-default-skip     Do not apply the default skip list (lockfiles, dist/, vendored, certs, ...)
+  --include-docs        Also mine prose docs (*.md, *.rst, *.txt), skipped by default
 `);
 } else {
   process.stderr.write(`deja-boo: unknown subcommand '${subcommand}'. Run 'deja-boo --help'.\n`);

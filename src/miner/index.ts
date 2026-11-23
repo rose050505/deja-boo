@@ -7,6 +7,8 @@ import { buildTombstone } from './build-tombstone.js';
 import { applyGrace } from './grace-filter.js';
 import { scanForRevivals } from './revival-tracker.js';
 import { computeStats } from './stats.js';
+import { fingerprintHead } from './head-tree.js';
+import { isAliveAtHead } from '../core/match.js';
 import type { RawCommit } from '../core/types.js';
 
 export interface IndexStats {
@@ -18,6 +20,8 @@ export interface IndexStats {
   skippedEmpty: number;
   tombstonesAdded: number;
   revivals: number;
+  mergeArtifacts: number;
+  aliveAtHead: number;
 }
 
 /**
@@ -60,6 +64,8 @@ export async function runIndexWithStats(
     skippedEmpty: 0,
     tombstonesAdded: 0,
     revivals: 0,
+    mergeArtifacts: 0,
+    aliveAtHead: 0,
   };
 
   for (const rawCommit of rawCommits) {
@@ -126,7 +132,10 @@ export async function runIndexWithStats(
 
   // Count total revivals across all tombstones.
   for (const t of confirmed.values()) {
-    runStats.revivals += t.revivals.length;
+    for (const r of t.revivals) {
+      if (r.isMergeArtifact) runStats.mergeArtifacts++;
+      else runStats.revivals++;
+    }
   }
 
   // Sort tombstones: buriedAt asc, then id asc for determinism.
@@ -139,6 +148,13 @@ export async function runIndexWithStats(
   for (const t of tombstones) {
     t.revivals.sort((a, b) => a.date.localeCompare(b.date));
     t.deaths.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // Mark tombstones whose code is still in the HEAD tree (same skip list as the walk).
+  const head = await fingerprintHead(repo, config);
+  for (const t of tombstones) {
+    t.aliveAtHead = head !== null && isAliveAtHead(t.fingerprint, head);
+    if (t.aliveAtHead) runStats.aliveAtHead++;
   }
 
   const stats = computeStats(tombstones, runStats.commitsWalked);

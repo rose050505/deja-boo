@@ -10,6 +10,8 @@ function makeGraveyard(overrides: Partial<Graveyard> = {}): Graveyard {
       tombstones: 0,
       revivals: 0,
       revivalsViaRevert: 0,
+      mergeArtifactRevivals: 0,
+      aliveAtHead: 0,
       medianRevivalGapDays: null,
     },
     ...overrides,
@@ -38,6 +40,7 @@ const FULL_GRAVEYARD: Graveyard = {
           subject: 'restore foo helper',
           similarity: 0.95,
           isRevert: false,
+          isMergeArtifact: false,
         },
       ],
       deaths: [
@@ -59,6 +62,8 @@ const FULL_GRAVEYARD: Graveyard = {
     tombstones: 1,
     revivals: 1,
     revivalsViaRevert: 0,
+    mergeArtifactRevivals: 0,
+    aliveAtHead: 0,
     medianRevivalGapDays: 36,
   },
 };

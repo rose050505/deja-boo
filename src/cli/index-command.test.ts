@@ -99,4 +99,62 @@ describe('runIndexCommand', () => {
     expect(tombstone).toBeDefined();
     expect(tombstone!.revivals.length).toBeGreaterThanOrEqual(1);
   });
+
+  describe('default skip list (end to end)', () => {
+    const CODE = Array.from({ length: 8 }, (_, i) => `const value${i} = compute${i}(input, ${i});`).join('\n') + '\n';
+    const paths = ['package-lock.json', 'Pipfile.lock', 'dist/bundle.js', 'docs/api.html', 'docs/v2/ref.html', 'certs/cacert.pem', 'pkg/packages/vendored.py', 'NOTES.md', 'real/app.ts'];
+
+    function buryAll(): void {
+      for (const p of paths) timedCommit(repo, p, CODE, `add ${p}`, '2024-01-01T00:00:00Z');
+      for (const p of paths) timedCommit(repo, p, '// gone\n', `remove ${p}`, '2024-02-01T00:00:00Z');
+    }
+    async function index(...extra: string[]): Promise<string[]> {
+      const out = join(outDir, 'g.json');
+      await runIndexCommand([repo, '--out', out, ...extra]);
+      const json = JSON.parse(readFileSync(out, 'utf8')) as { tombstones: Array<{ path: string }> };
+      return json.tombstones.map(t => t.path).sort();
+    }
+
+    it('with defaults, only real source yields tombstones', async () => {
+      buryAll();
+      expect(await index()).toEqual(['real/app.ts']);
+    });
+
+    it('--skip adds to the defaults', async () => {
+      buryAll();
+      expect(await index('--skip', 'real/')).toEqual([]);
+    });
+
+    it('--no-default-skip mines everything (minified and maps still skipped)', async () => {
+      buryAll();
+      expect(await index('--no-default-skip')).toEqual([...paths].sort());
+    });
+
+    it('--include-docs mines prose docs but still skips lockfiles', async () => {
+      buryAll();
+      expect(await index('--include-docs')).toEqual(['NOTES.md', 'real/app.ts']);
+    });
+  });
+
+  it('marks tombstones whose code is still at HEAD as aliveAtHead and counts them in stats', async () => {
+    const live = Array.from({ length: 8 }, (_, i) => `const live${i} = keep${i}(arg, ${i});`).join('\n') + '\n';
+    const dead = Array.from({ length: 8 }, (_, i) => `const dead${i} = drop${i}(arg, ${i});`).join('\n') + '\n';
+    timedCommit(repo, 'a.ts', live + dead, 'add both', '2024-01-01T00:00:00Z');
+    timedCommit(repo, 'a.ts', live, 'drop dead', '2024-02-01T00:00:00Z');
+    // `live` block is deleted from a.ts but re-created verbatim in b.ts in a later commit.
+    timedCommit(repo, 'b.ts', live, 'copy live elsewhere', '2024-03-01T00:00:00Z');
+    timedCommit(repo, 'a.ts', '// nothing\n', 'drop live', '2024-04-01T00:00:00Z');
+
+    const out = join(outDir, 'g.json');
+    await runIndexCommand([repo, '--out', out]);
+    const json = JSON.parse(readFileSync(out, 'utf8')) as {
+      tombstones: Array<{ lines: string[]; aliveAtHead: boolean }>;
+      stats: { aliveAtHead: number; tombstones: number };
+    };
+    const deadT = json.tombstones.find(t => t.lines.some(l => l.includes('drop0')));
+    const liveT = json.tombstones.find(t => t.lines.some(l => l.includes('keep0')));
+    expect(deadT?.aliveAtHead).toBe(false);
+    expect(liveT?.aliveAtHead).toBe(true);
+    expect(json.stats.aliveAtHead).toBe(1);
+  });
 });

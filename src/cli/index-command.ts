@@ -3,6 +3,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { MinerConfig } from '../core/types.js';
 import { DEFAULT_MINER_CONFIG } from '../core/types.js';
+import { resolveSkipPatterns } from '../core/skip.js';
 import { runIndexWithStats } from '../miner/index.js';
 import { toGraveyardJson } from '../miner/serialize.js';
 import { MinerError } from '../miner/git-log.js';
@@ -26,6 +27,8 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       since: { type: 'string' },
       until: { type: 'string' },
       skip: { type: 'string', multiple: true },
+      'no-default-skip': { type: 'boolean', default: false },
+      'include-docs': { type: 'boolean', default: false },
     },
   });
 
@@ -56,7 +59,11 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       values['grace-days'] !== undefined
         ? parseInt(values['grace-days'] as string, 10)
         : DEFAULT_MINER_CONFIG.graceDays,
-    skipPatterns: (values['skip'] as string[] | undefined) ?? DEFAULT_MINER_CONFIG.skipPatterns,
+    skipPatterns: resolveSkipPatterns({
+      extra: (values['skip'] as string[] | undefined) ?? [],
+      defaults: values['no-default-skip'] !== true,
+      includeDocs: values['include-docs'] === true,
+    }),
   };
 
   // Add optional date filters only when provided (exactOptionalPropertyTypes: true).
@@ -79,6 +86,8 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
     console.log(`Grace dropped    : ${stats.graceDropped}`);
     console.log(`Tombstones added : ${stats.tombstonesAdded}`);
     console.log(`Revivals found   : ${stats.revivals}`);
+    console.log(`Merge artifacts  : ${stats.mergeArtifacts} (excluded from revivals)`);
+    console.log(`Alive at HEAD    : ${stats.aliveAtHead}`);
     console.log(`Output           : ${out}`);
   } catch (err) {
     if (err instanceof MinerError) {

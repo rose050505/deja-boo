@@ -3,6 +3,8 @@
  * No runtime code except DEFAULT_MINER_CONFIG; no Node.js imports.
  */
 
+import { resolveSkipPatterns } from './skip.js';
+
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 export interface MinerConfig {
@@ -28,12 +30,12 @@ export interface MinerConfig {
 
 export const DEFAULT_MINER_CONFIG: MinerConfig = {
   minBlockLines: 4,
-  kgramSize: 7,
+  kgramSize: 5,
   windowSize: 4,
   renameIds: false,
   moveThreshold: 0.9,
   graceDays: 7,
-  skipPatterns: [],
+  skipPatterns: resolveSkipPatterns(),
 };
 
 // ─── Link ────────────────────────────────────────────────────────────────────
@@ -53,6 +55,8 @@ export interface RevivalRecord {
   subject: string;
   similarity: number;
   isRevert: boolean;
+  /** True when the commit subject starts with "merge" (conflict-resolution commit); excluded from stats by default. */
+  isMergeArtifact: boolean;
 }
 
 export interface DeathRecord {
@@ -92,6 +96,8 @@ export interface Tombstone {
   revivals: RevivalRecord[];
   /** Re-deaths after the first deletion, ordered chronologically. */
   deaths: DeathRecord[];
+  /** True when >= 80% of the fingerprint occurs in the HEAD tree; `check` ignores these. Set by `index`. */
+  aliveAtHead?: boolean;
 }
 
 // ─── Graveyard ───────────────────────────────────────────────────────────────
@@ -101,6 +107,10 @@ export interface GraveyardStats {
   tombstones: number;
   revivals: number;
   revivalsViaRevert: number;
+  /** Revivals from commits whose subject starts with "merge"; not counted in `revivals`. */
+  mergeArtifactRevivals: number;
+  /** Tombstones whose code is still at HEAD; counted in `tombstones` too. */
+  aliveAtHead: number;
   medianRevivalGapDays: number | null;
 }
 
@@ -116,6 +126,16 @@ export interface Revenant {
   /** Jaccard similarity of fingerprint sets, in [0, 1]. */
   similarity: number;
   matchedLines: string[];
+}
+
+/** Result of sliding a tombstone-sized window over candidate lines. */
+export interface WindowedMatch {
+  /** Best window Jaccard, in [0, 1]. The only score that may trigger a warning or block. */
+  similarity: number;
+  /** 1-based inclusive line range of the best window in the candidate; [0, 0] when nothing matched. */
+  matchedLines: [number, number];
+  /** |T ∩ W| / |T| for the best window. Evidence only; never triggers. */
+  containment: number;
 }
 
 // ─── Internal miner types ─────────────────────────────────────────────────────

@@ -1,3 +1,4 @@
+import { tokenize } from './tokenize.js';
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { fnv1a32, kgramWinnow } from './fingerprint.js';
@@ -128,7 +129,7 @@ describe('kgramWinnow – property tests', () => {
     );
   });
 
-  it('Property 5: short-text empty – fewer tokens than k yields []', () => {
+  it('Property 5: short-text empty – fewer lexical tokens than k yields []', () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 2, max: 8 }),
@@ -138,7 +139,7 @@ describe('kgramWinnow – property tests', () => {
           maxLength: 7,
         }),
         (k, w, tokens) => {
-          if (tokens.length >= k) return true; // skip: not the short case
+          if (tokenize(tokens.join(' ')).length >= k) return true; // skip: not the short case
           const fp = kgramWinnow(tokens.join(' '), { kgramSize: k, windowSize: w });
           return fp.length === 0;
         },

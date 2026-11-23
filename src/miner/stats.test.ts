@@ -4,7 +4,7 @@ import type { Tombstone, RevivalRecord } from '../core/types.js';
 
 function makeTombstone(
   buriedAt: string,
-  revivals: Array<{ date: string; isRevert?: boolean }> = [],
+  revivals: Array<{ date: string; isRevert?: boolean; isMergeArtifact?: boolean }> = [],
 ): Tombstone {
   return {
     id: 'abc',
@@ -26,6 +26,7 @@ function makeTombstone(
         subject: r.isRevert ? 'Revert "remove caching"' : 'add caching back',
         similarity: 1.0,
         isRevert: r.isRevert ?? false,
+        isMergeArtifact: r.isMergeArtifact ?? false,
       }),
     ),
     deaths: [],
@@ -40,6 +41,8 @@ describe('computeStats', () => {
       tombstones: 0,
       revivals: 0,
       revivalsViaRevert: 0,
+      mergeArtifactRevivals: 0,
+      aliveAtHead: 0,
       medianRevivalGapDays: null,
     });
   });
@@ -91,5 +94,23 @@ describe('computeStats', () => {
     const stats = computeStats(tombstones, 42);
     expect(stats.tombstones).toBe(3);
     expect(stats.commits).toBe(42);
+  });
+
+  it('merge-artifact revivals are excluded by default and counted separately', () => {
+    const t = makeTombstone('2024-01-01T00:00:00Z', [
+      { date: '2024-01-10T00:00:00Z' },
+      { date: '2024-01-20T00:00:00Z', isMergeArtifact: true },
+    ]);
+    const stats = computeStats([t], 5);
+    expect(stats.revivals).toBe(1);
+    expect(stats.mergeArtifactRevivals).toBe(1);
+    expect(computeStats([t], 5, { includeMergeArtifacts: true }).revivals).toBe(2);
+  });
+
+  it('aliveAtHead tombstones are counted separately but stay in tombstones', () => {
+    const t = { ...makeTombstone('2024-01-01T00:00:00Z'), aliveAtHead: true };
+    const stats = computeStats([t, makeTombstone('2024-02-01T00:00:00Z')], 5);
+    expect(stats.tombstones).toBe(2);
+    expect(stats.aliveAtHead).toBe(1);
   });
 });

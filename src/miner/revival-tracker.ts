@@ -29,6 +29,7 @@ export function recordRevival(
     subject: meta.subject,
     similarity: sim,
     isRevert: meta.subject.startsWith('Revert'),
+    isMergeArtifact: /^merge/i.test(meta.subject),
   };
   tombstone.revivals.push(record);
   tombstone.revivals.sort((a, b) => a.date.localeCompare(b.date));

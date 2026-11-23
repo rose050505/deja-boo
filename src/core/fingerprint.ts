@@ -1,4 +1,5 @@
 import type { MinerConfig } from './types.js';
+import { tokenize } from './tokenize.js';
 
 /**
  * FNV-1a 32-bit hash. Deterministic, inline, no dependencies.
@@ -24,7 +25,7 @@ export function kgramWinnow(
   config: Pick<MinerConfig, 'kgramSize' | 'windowSize'>,
 ): number[] {
   const { kgramSize: k, windowSize: w } = config;
-  const tokens = text.split(/\s+/).filter(Boolean);
+  const tokens = tokenize(text);
 
   if (tokens.length < k) return [];
 

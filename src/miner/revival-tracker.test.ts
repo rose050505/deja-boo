@@ -93,6 +93,14 @@ describe('recordRevival', () => {
     expect(t.revivals[0]!.isRevert).toBe(false);
   });
 
+  it('subject starting with "merge" (any case) sets isMergeArtifact: true', () => {
+    const t = makeTombstone('2024-01-01T00:00:00Z');
+    recordRevival(t, makeMeta('2024-01-20T00:00:00Z', 'Merge branch "x" into main'), 1.0);
+    recordRevival(t, makeMeta('2024-01-21T00:00:00Z', 'merge conflict fix'), 1.0);
+    recordRevival(t, makeMeta('2024-01-22T00:00:00Z', 'add caching back'), 1.0);
+    expect(t.revivals.map(r => r.isMergeArtifact)).toEqual([true, true, false]);
+  });
+
   it('multiple revivals are ordered by date ascending', () => {
     const t = makeTombstone('2024-01-01T00:00:00Z');
     recordRevival(t, makeMeta('2024-03-01T00:00:00Z'), 0.9);

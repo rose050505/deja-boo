@@ -489,6 +489,22 @@ This is a manual/CI smoke test, not a Vitest test. Add a note to `README.md` (or
 
 ---
 
+## Post-review fixes 2
+
+Source: reviewer comments and `research/matching-eval.md`.
+
+- [x] Skip list moved to `src/core/skip.ts` (pure). `docs/**/*.html` matches `docs/api.html`; binary extensions are now `*.ext` globs (the bare `.png` form never matched); added `Pipfile.lock`, `*.pem`, `*.crt`, `*/packages/`; prose docs `*.md`, `*.rst`, `*.txt` skipped unless `--include-docs`.
+- [x] `DEFAULT_MINER_CONFIG.skipPatterns` now holds the defaults. CLI: `--skip` adds, `--no-default-skip` disables, `--include-docs` opts in. End-to-end test on a fixture repo: lockfiles, `dist/`, generated docs, certs and vendored `packages/` yield no tombstones.
+- [x] `RevivalRecord.isMergeArtifact` (subject starts with "merge", case-insensitive); excluded from `stats.revivals`, counted in `stats.mergeArtifactRevivals`.
+- [x] Shared tokenizer `src/core/tokenize.ts` (identifiers, numbers, single punctuation); `kgramWinnow` uses it; default k = 5, w = 4.
+- [x] `matchWindowed`, `containment`, `fingerprintLines` in `src/core/match.ts`; containment is evidence only.
+- [x] `aliveAtHead`: `src/miner/head-tree.ts` fingerprints the HEAD tree with the same skip list; tombstones >= 80% contained are flagged; stats count them.
+- [x] `src/core/level.ts`: warn >= 0.5, block >= 0.7 only with a Revert or issue/PR link, never for `aliveAtHead`.
+- [x] Properties: one-identifier rename keeps windowed similarity >= 0.6; embedding never lowers the score by more than 0.05; verbatim HEAD content is always alive.
+- [ ] Re-run the 6-repo measurement (sections 1-3 of `research/matching-eval.md`) with the new code. Not done here: the reviewer's scripts and repo checkouts are not in this workspace.
+
+---
+
 ## Dependency notes
 
 No new npm dependencies are introduced by this spec beyond what is already in the project. The implementation uses only:
