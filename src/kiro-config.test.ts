@@ -10,7 +10,10 @@ describe('dogfood files (REQ-7)', () => {
   it('hook file guards write tools with the hook command', () => {
     expect(json('.kiro/hooks/deja-boo-guard.json')).toEqual({
       version: 'v1',
-      hooks: [{ name: 'deja-boo-guard', trigger: 'PreToolUse', matcher: 'write', action: { type: 'command', command: 'node dist/cli/main.js hook' } }],
+      hooks: [
+        { name: 'deja-boo-guard', trigger: 'PreToolUse', matcher: 'write', action: { type: 'command', command: 'node dist/cli/main.js hook' } },
+        { name: 'deja-boo-stop-guard', trigger: 'Stop', action: { type: 'command', command: 'node dist/cli/main.js hook' } },
+      ],
     });
   });
 

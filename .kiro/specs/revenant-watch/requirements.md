@@ -148,6 +148,18 @@ Each property runs as a Vitest test with fast-check.
 - The event's `cwd` is the fixture repo. The graveyard is written to `<repo>/.deja-boo/graveyard.json`.
 - The test runs the real entry point (`runHook` against stdin text and a working directory) and also one spawned `node dist/cli/main.js hook` run to prove exit codes survive the process boundary.
 
+### REQ-10: Stop hook (changes made outside the write tools)
+
+**EARS:** When `deja-boo hook` receives an event whose `hook_event_name` is `Stop` (stdin `{"session_id","hook_event_name":"Stop","cwd"}`), the system shall check the working tree against `HEAD` and, on a hit, print `{"decision":"block","reason":"..."}` on stdout and exit 0. Verified channel: Kiro CLI 3.5.0 takes another turn and acts on the reason. This catches shell edits and generated files that never reach the PreToolUse write hook.
+
+- Changed files: `git diff --name-only HEAD` plus `git ls-files --others --exclude-standard`, run in the event `cwd`, with the skip list applied (and `.deja-boo/`). **EARS:** If `cwd` is not a git repo, git is missing, or there is no graveyard, the system shall exit 0 with no output.
+- Per file: before = `git show HEAD:<path>` (empty for a new file), after = the working-tree text. The decision is the PreToolUse one: `findRevenants` ("makes it worse" and distinct-recovery rules) and the acknowledgement scan of the after text.
+- `reason`: the REQ-5 entries (same facts, at most 3, then `… and N more buried things`), each naming the file path in place of "this write", followed by: `These changes resurrect buried code. Read the tombstone with get_tombstone; either take another approach or, if the cause no longer applies, add deja-boo: checked <id> near the code and explain why.`
+- **Loop guard:** blocked tombstone ids are stored per `session_id` in `.deja-boo/stop-state.json` (gitignored). **EARS:** If a Stop event in the same session yields the same set of unacknowledged ids that was blocked before, the system shall exit 0 and print nothing, so a disagreeing agent is never trapped.
+- Latency: the same prefilter; under 1 s for 10 changed files.
+- Dogfood: `.kiro/hooks/deja-boo-guard.json` gains a second entry `{"name":"deja-boo-stop-guard","trigger":"Stop","action":{"type":"command","command":"node dist/cli/main.js hook"}}`.
+- REQ-5 cosmetic: no period is added after a cause (or links) that already ends with one.
+
 ## Out of scope
 
 - Blocking on containment alone.

@@ -20,13 +20,15 @@ function day(iso: string): string {
 }
 
 /** One hook entry (REQ-5), prefixed with its level; the cause is cut with `…` so the entry stays under 1,200 characters. Invariant: length <= 1200. */
-export function formatHookEntry(hit: RevenantHit): string {
+export function formatHookEntry(hit: RevenantHit, file?: string): string {
   const t = hit.tombstone;
   const links = linkText(t.links);
-  const build = (cause: string): string =>
-    `[${hit.level}] 👻 Déjà Boo: this code was buried on ${day(t.buriedAt)} in ${t.commit.slice(0, 7)} — ${cause}${links ? ` (${links})` : ''}. ` +
-    `Similarity ${hit.similarity.toFixed(2)} to tombstone ${t.id}, lines ${hit.matchedLines[0]}-${hit.matchedLines[1]} of this write. ` +
-    `Read it with the MCP tool get_tombstone. If the cause no longer applies, add the comment \`deja-boo: checked ${t.id}\` near the code and write again.`;
+  const build = (cause: string): string => {
+    const head = `[${hit.level}] 👻 Déjà Boo: this code was buried on ${day(t.buriedAt)} in ${t.commit.slice(0, 7)} — ${cause}${links ? ` (${links})` : ''}`;
+    return `${head}${head.endsWith('.') ? '' : '.'} ` +
+      `Similarity ${hit.similarity.toFixed(2)} to tombstone ${t.id}, lines ${hit.matchedLines[0]}-${hit.matchedLines[1]} of ${file ?? 'this write'}. ` +
+      `Read it with the MCP tool get_tombstone. If the cause no longer applies, add the comment \`deja-boo: checked ${t.id}\` near the code${file ? '.' : ' and write again.'}`;
+  };
   let cause = causeText(t);
   const full = build(cause);
   if (full.length <= MAX_ENTRY) return full;
@@ -36,8 +38,8 @@ export function formatHookEntry(hit: RevenantHit): string {
 }
 
 /** Hook stderr text: at most 3 entries, then "… and N more buried things". The level is stated per entry. */
-export function formatHookMessage(hits: RevenantHit[]): string {
-  const shown = hits.slice(0, MAX_HOOK_ENTRIES).map(formatHookEntry);
+export function formatHookMessage(hits: RevenantHit[], files?: string[]): string {
+  const shown = hits.slice(0, MAX_HOOK_ENTRIES).map((h, i) => formatHookEntry(h, files?.[i]));
   if (hits.length > MAX_HOOK_ENTRIES) shown.push(`… and ${hits.length - MAX_HOOK_ENTRIES} more buried things`);
   return shown.join('\n') + '\n';
 }

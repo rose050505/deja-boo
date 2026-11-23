@@ -5,6 +5,7 @@ import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { acknowledgedIds, addedLineNumbers, findRevenants } from '../core/watch.js';
 import { loadConfig, loadGraveyard } from '../watch/load.js';
 import { formatHookMessage } from '../watch/format.js';
+import { decideStop, gitStopDeps } from './stop-command.js';
 
 export interface HookResult { exitCode: 0 | 1 | 2; stderr: string }
 
@@ -92,6 +93,15 @@ export function runHookCommand(): void {
   try {
     const c = (JSON.parse(raw) as { cwd?: unknown }).cwd;
     if (typeof c === 'string') cwd = c;
+  } catch { /* decideHook reports the invalid JSON */ }
+  try {
+    const ev = JSON.parse(raw) as { hook_event_name?: unknown; session_id?: unknown };
+    if (ev.hook_event_name === 'Stop') {
+      const r = decideStop(typeof ev.session_id === 'string' ? ev.session_id : '', gitStopDeps(cwd));
+      process.stdout.write(r.stdout);
+      process.exitCode = 0;
+      return;
+    }
   } catch { /* decideHook reports the invalid JSON */ }
   const r = decideHook(raw, { readFile: readOrUndefined, graveyard: loadGraveyard(cwd), config: loadConfig(cwd).config });
   process.stderr.write(r.stderr);

@@ -86,6 +86,21 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 - Report test counts and the measured hook latency in the task notes.
 - **Measured (Task 12):** `npm run build`, `npm test` (27 files, 297 tests) and `npx tsc --noEmit` are green. `npm run bury` indexed this repository (17 commits, 4 tombstones). `node dist/cli/main.js check src/cli/hook-command.ts` exits 0; feeding a tombstone's own lines on stdin exits 1 with the full report. `decideHook` on 1,500 tombstones and a 300-line write took 17 ms (200 ms budget).
 
+## Batch G: Stop hook (REQ-10)
+
+### [x] Task 13: Stop hook
+- Add `src/cli/stop-command.ts` (`decideStop` plus git edge `gitStopDeps`), dispatch `Stop` events from `deja-boo hook`, loop guard in `.deja-boo/stop-state.json` (gitignored).
+- `formatHookEntry` takes an optional file path; no `..` after a cause ending with a period.
+- Covers: REQ-10, REQ-5 cosmetic.
+
+### [x] Task 14: Stop hook dogfood and docs
+- Second entry in `.kiro/hooks/deja-boo-guard.json`, update `src/kiro-config.test.ts`, README "Using the guard".
+- Covers: REQ-10, REQ-7.
+
+### [x] Task 15: Stop hook tests
+- `src/cli/stop-command.test.ts` on the `haunted-http` fixture: shell-style edit to the native adapter blocks naming the Revert tombstone; unchanged tree silent; second Stop same session silent; acknowledged silent; trailing-period message.
+- Covers: REQ-10.
+
 ## Reviewer decisions
 
 1. A missing graveyard or bad event makes the hook exit 1 (fail open). Agreed.
