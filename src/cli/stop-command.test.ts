@@ -85,6 +85,27 @@ describe('Stop hook (REQ-10)', () => {
     rmSync(join(repo, 'extra.py'));
   });
 
+  it('with an obituary file the Stop reason carries the obituary line; an invalid file is ignored silently', () => {
+    const file = join(repo, '.deja-boo/obituaries.json');
+    const line = 'Obituary (PR #5353, https://github.com/psf/requests/pull/5353): "A number of PRs were merged without review."';
+    try {
+      reset();
+      writeFileSync(adapter(), native);
+      writeFileSync(file, JSON.stringify({ [revert.commit]: { fetchedAt: '2026-05-01T00:00:00Z', issues: [], pr: {
+        number: 5353, url: 'https://github.com/psf/requests/pull/5353', title: 't', excerpt: 'A number of PRs were merged without review.', truncated: false } } }));
+      const reason = (JSON.parse(stop('o1').stdout) as { reason: string }).reason;
+      expect(reason.split('\n')).toContain(line);
+      reset();
+      writeFileSync(adapter(), native);
+      writeFileSync(file, '{bad');
+      const plain = (JSON.parse(stop('o2').stdout) as { reason: string }).reason;
+      expect(plain).not.toContain('Obituary');
+    } finally {
+      rmSync(file, { force: true });
+      reset();
+    }
+  });
+
   it('not a git repo: no output', () => {
     const plain = mkdtempSync(join(tmpdir(), 'deja-boo-plain-'));
     try {

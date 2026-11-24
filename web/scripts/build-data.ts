@@ -7,11 +7,12 @@
  * Needs `npm run build` first (the npm script does that).
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Graveyard, GraveyardStats, Tombstone } from '../../src/core/types.ts';
+import { parseObituaryFile } from '../../src/core/obituary.ts';
 import { isWatched, stripGraveyard, type Fingerprinter } from './strip.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -56,6 +57,20 @@ function indexRepo(repo: string, outFile: string): Graveyard {
   return JSON.parse(readFileSync(outFile, 'utf8')) as Graveyard;
 }
 
+/** Attach `<clone>/.deja-boo/obituaries.json` entries to tombstones by death commit; returns how many tombstones gained one. A missing file changes nothing; an invalid one is an error. */
+function attachObituaries(clone: string, tombstones: Tombstone[]): number {
+  const file = join(clone, '.deja-boo/obituaries.json');
+  if (!existsSync(file)) return 0;
+  const parsed = parseObituaryFile(JSON.parse(readFileSync(file, 'utf8')));
+  if (parsed === null) throw new Error(`${file} is not a valid obituary file`);
+  let n = 0;
+  for (const t of tombstones) {
+    const o = parsed[t.commit];
+    if (o !== undefined) { t.obituary = o; n++; }
+  }
+  return n;
+}
+
 async function main(): Promise<void> {
   const clones = process.argv.slice(2).map(parseClone);
   if (clones.length === 0) {
@@ -93,6 +108,7 @@ async function main(): Promise<void> {
 
     for (const { name, path } of sources) {
       const full = indexRepo(path, join(tmp, `${name}.json`));
+      const withObit = attachObituaries(path, full.tombstones);
       perRepo[name] = full.stats;
       if (name !== 'haunted-http') {
         publicTombstones.push(...full.tombstones);
@@ -106,7 +122,7 @@ async function main(): Promise<void> {
       if (bytes >= MAX_BYTES) throw new Error(`${name}.json is ${bytes} bytes; limit is ${MAX_BYTES}`);
       writeFileSync(join(OUT, `${name}.json`), text);
       index.push({ name, github: SLUGS[name] ?? null, tombstones: stripped.length, mined: full.tombstones.length });
-      console.log(`${name.padEnd(13)} mined ${String(full.tombstones.length).padStart(5)}  kept ${String(stripped.length).padStart(5)}  ${(bytes / 1024).toFixed(0)} KB`);
+      console.log(`${name.padEnd(13)} mined ${String(full.tombstones.length).padStart(5)}  kept ${String(stripped.length).padStart(5)}  ${(bytes / 1024).toFixed(0)} KB${withObit > 0 ? `  obituaries on ${withObit}` : ''}`);
     }
 
     const total = statsMod.computeStats(publicTombstones, publicCommits);

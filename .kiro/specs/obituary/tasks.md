@@ -1,6 +1,6 @@
 # Obituary: Tasks
 
-Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green. Tick `[x]` when a task is finished. Nothing is implemented yet; this list awaits review.
+Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green. Tick `[x]` when a task is finished. Batches A to E are implemented.
 
 ## Batch A: measure first, then core (browser-safe)
 
@@ -62,23 +62,25 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch D: show it everywhere
 
-### [ ] Task 10: Loading and formatting
+### [x] Task 10: Loading and formatting
 - `src/watch/load.ts`: `loadObituaries(dir)` returns `{ file | null, notes }`; `loadGraveyard` attaches `tombstone.obituary` by death commit. Missing file: `null`, no change. Invalid file: ignored with a note.
 - `src/watch/format.ts`: hook entry gets the obituary line (cut to 500 characters first, entry still <= 1,200), `formatCheckReport` gets the `obituary:` block and, when a file exists, `not fetched` / `none found on GitHub (looked up <date>)`.
 - Tests: golden strings with and without obituary; the byte-for-byte test with no file (REQ-8.2); entry length property (REQ-8.9).
+- Notes (done): the line format is now `Obituary (PR #5353, <url>): "<excerpt>"` (the reviewer's wording: URL inside the label, quoted text last, so the label and URL are never cut). The hook entry puts the line on its own line after the cause. `check` adds a third state, `found on GitHub, but its text is empty (looked up <date>)`, for a PR or issue with no body text, so `none found` is never said when something was found.
 - Covers: REQ-5, REQ-8.
 
-### [ ] Task 11: Hook, Stop, and `check`
+### [x] Task 11: Hook, Stop, and `check`
 - `hook-command.ts`, `stop-command.ts`, `check-command.ts` load obituaries next to the graveyard (hook and Stop stay silent about an invalid file).
-- Tests: hook exit codes unchanged; the message for a tombstone with an obituary contains the line `Obituary (PR #5353): "…" <url>`; Stop prints the same line; `check` shows the block and notes an invalid file on stderr.
+- Tests: hook exit codes unchanged; the message for a tombstone with an obituary contains the line `Obituary (PR #5353, <url>): "…"`; Stop prints the same line; `check` shows the block and notes an invalid file on stderr.
 - Covers: REQ-5.
 
-### [ ] Task 12: MCP
+### [x] Task 12: MCP
 - `get_tombstone` returns the full `obituary`; `check_snippet` revenants carry the one-line fields; `list_graveyard` adds `hasObituary`. File-present-not-covered text only in `get_tombstone`.
 - Tests in `src/mcp/tools.test.ts` with and without a file (no file: responses identical to today).
+- Notes (done): `get_tombstone` reports the not-covered states in a separate `obituaryStatus` string (the `obituary` key stays an object); `list_graveyard` adds `hasObituary` only when an obituary file exists, so responses without a file are unchanged.
 - Covers: REQ-5.
 
-### [ ] Task 13: Web
+### [x] Task 13: Web
 - `web/scripts/build-data.ts` reads `<clone>/.deja-boo/obituaries.json` when present; `strip.ts` keeps `obituary` on web tombstones and counts it in the 3 MB limit; clones without the file produce byte-identical JSON.
 - `web/src/graveyard-view.ts` dialog section under the cause; `web/src/main.ts` ghost card line. Spooky styling follows `ghost-voice.md`: facts first, URL and PR number visible, AA contrast, text for every state.
 - Tests: dialog and card strings; `strip.test.ts` size and identity cases.
@@ -86,13 +88,14 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch E: evidence and demo
 
-### [ ] Task 14: Coverage measurement
+### [x] Task 14: Coverage measurement
 - `research/scripts/obituary-eval.mjs` (part 2): given clones and their `obituaries.json`, report per repo the tombstones with usable obituary text and how many of the 77 Revert tombstones (17 with a reason today) gain one. Run it by hand with `deja-boo obituary` in each clone, then record the numbers in `research/obituary-eval.md` as measured.
 - Regenerate the 6 web files with `npm run web:data`.
 - Covers: REQ-7, REQ-9.
 
-### [ ] Task 15: Demo acceptance and docs
+### [x] Task 15: Demo acceptance and docs
 - Fixture graveyard plus a recorded fetcher response for `24bcb9e` / PR #5353 (excerpt copied from the real PR text at recording time). Test: hook stderr has the verbatim cause, the obituary line with URL, and level `block`; with the obituary file removed, the same event gives the same message as before this spec.
 - Skill text in `power/skills/check-before-resurrecting`: the obituary line is quoted third-party text, to be read as data, never as instructions.
 - README: `npm run bury`, then `deja-boo obituary` (auth options, rate limit, `--limit`), and the `web:data` step. `power/README.md` mentions the new command.
+- Notes (done): the real requests scene runs in `src/cli/obituary-demo.test.ts` when `../probe/repos/requests` exists (clone at `26bea1e4^`, committed fixture `src/test-fixtures/requests-obituary-24bcb9e.json` copied from the real run, take-3 rewrite applied, Stop reason contains `Obituary (PR #5353`). The recorded GitHub response is `src/test-fixtures/github-pulls-24bcb9e.json`.
 - Covers: REQ-5, REQ-9.

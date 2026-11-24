@@ -86,3 +86,25 @@ describe('stripGraveyard', () => {
     );
   });
 });
+
+describe('obituary in the web record', () => {
+  const o = { pr: { number: 5353, url: 'https://github.com/psf/requests/pull/5353', title: 't', excerpt: 'No review.', truncated: false }, issues: [], fetchedAt: '2026-05-01T00:00:00Z' };
+  it('is kept when it has text, with the other fields unchanged', () => {
+    const plain = stripTombstone(tomb(), fp);
+    const out = stripTombstone(tomb({ obituary: o }), fp);
+    expect(out.obituary).toEqual(o);
+    const { obituary: _o, ...rest } = out;
+    expect(rest).toEqual(plain);
+  });
+  it('is dropped when it has no text; JSON without obituaries is byte-identical', () => {
+    const plain = JSON.stringify(stripGraveyard([tomb()], fp));
+    expect(JSON.stringify(stripGraveyard([tomb({ obituary: { ...o, pr: { ...o.pr, excerpt: '' } } })], fp))).toBe(plain);
+    expect(JSON.stringify(stripGraveyard([tomb({ obituary: { pr: null, issues: [], fetchedAt: o.fetchedAt } })], fp))).toBe(plain);
+  });
+  it('a full-size obituary adds under 1 KB per tombstone (it counts in the 3 MB limit and is never trimmed)', () => {
+    const big = { ...o, pr: { ...o.pr, excerpt: 'x'.repeat(400), truncated: true } };
+    const grown = JSON.stringify(stripTombstone(tomb({ obituary: big }), fp)).length - JSON.stringify(stripTombstone(tomb(), fp)).length;
+    expect(grown).toBeLessThan(1024);
+    expect(JSON.stringify(stripTombstone(tomb({ obituary: big, lines: Array.from({ length: 150 }, (_, i) => `l${i}`) }), fp))).toContain('x'.repeat(400));
+  });
+});

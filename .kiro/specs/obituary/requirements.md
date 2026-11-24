@@ -80,7 +80,7 @@ Terms: the *death commit* of a tombstone is `tombstone.commit`. An *obituary ent
 
 | Surface | What is shown |
 |---|---|
-| Hook message and Stop message | One extra line per entry: `Obituary (PR #5353): "<excerpt>" <url>`. A truncated excerpt ends with `…` before the closing quote. With no PR, the first linked issue is used: `Obituary (issue #12): ...`. |
+| Hook message and Stop message | One extra line per entry: `Obituary (PR #5353, <url>): "<excerpt>"`. A truncated excerpt ends with `…` before the closing quote. With no PR, the first linked issue is used: `Obituary (issue #12, <url>): "..."`. |
 | MCP `get_tombstone` | The full record under `obituary`: `pr`, `issues`, `fetchedAt` (titles included). |
 | MCP `check_snippet`, `list_graveyard` | `obituary` (the same one-line fields: kind, number, url, excerpt) in `check_snippet` revenants. `list_graveyard` adds only `hasObituary: boolean`. |
 | `deja-boo check` | An `obituary:` block under `cause:` with kind, number, url, title, and the excerpt. |
@@ -130,7 +130,7 @@ Terms: the *death commit* of a tombstone is `tombstone.commit`. An *obituary ent
 
 - **Revert predicate impact.** Before changing it, a script in `research/` counts, on the 6 research repos, tombstones whose Revert status or level changes and revivals whose `isRevert` changes. The numbers go into `research/obituary-eval.md` with the commit subjects of the changed cases (`evidence-first`: show, do not guess).
 - **Coverage.** The same script reports, per repo, tombstones with a usable obituary after `obituary --limit 300`, and how many of the 17-of-77 reasonless Reverts gain one. Results are recorded as measured, whatever they are. Live runs are manual and not part of `npm test`.
-- **Demo acceptance (offline).** A fixture graveyard plus a recorded fetcher response for `24bcb9e` / PR #5353 drives the hook for the `a36a5b6` tombstone: stderr contains the cause of death verbatim, the `Obituary (PR #5353): "A number of PRs were merged back in September …" https://github.com/psf/requests/pull/5353` line, and the tombstone is `block` at similarity >= 0.7. The recorded excerpt is copied from the real PR text at recording time.
+- **Demo acceptance (offline).** A fixture graveyard plus a recorded fetcher response for `24bcb9e` / PR #5353 drives the hook for the `a36a5b6` tombstone: stderr contains the cause of death verbatim, the `Obituary (PR #5353, https://github.com/psf/requests/pull/5353): "A number of PRs were merged back in September …"` line, and the tombstone is `block` at similarity >= 0.7. The recorded excerpt is copied from the real PR text at recording time.
 - Core purity: `src/core` has no Node imports and no network. `src/obituary/` is the only place with `fetch`, `gh`, or `git remote`.
 
 ## Out of scope

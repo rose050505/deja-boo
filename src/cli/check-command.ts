@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { findRevenants } from '../core/watch.js';
 import { DEFAULT_MIN_HASHES } from '../core/types.js';
-import { loadConfig, loadGraveyard, NO_GRAVEYARD } from '../watch/load.js';
+import { loadConfig, loadGraveyard, loadObituaries, NO_GRAVEYARD } from '../watch/load.js';
 import { headVersionOf } from '../watch/head.js';
 import { formatCheckReport } from '../watch/format.js';
 
@@ -21,13 +21,14 @@ export function runCheck(code: string, path: string | undefined, cwd: string, op
     return { exitCode: 3, stdout: '', stderr: `deja-boo: ${NO_GRAVEYARD}\n` };
   }
   const { config, notes } = loadConfig(cwd);
-  const stderr = notes.map(n => `deja-boo: ${n}\n`).join('');
+  const obituaries = loadObituaries(cwd);
+  const stderr = [...notes, ...obituaries.notes].map(n => `deja-boo: ${n}\n`).join('');
   if (path !== undefined && isSkippedPath(path, resolveSkipPatterns())) return { exitCode: 0, stdout: '', stderr };
   const atHead = path !== undefined && opts.head !== false ? headVersionOf(cwd, path) : undefined;
   const before = atHead === undefined ? undefined : atHead === '' ? [] : atHead.split('\n');
   const hits = findRevenants(graveyard, code.split('\n'), config.thresholds, before, { minHashes: config.minHashes ?? DEFAULT_MIN_HASHES });
   const exitCode = hits.some(h => h.level === 'block') ? 2 : hits.length > 0 ? 1 : 0;
-  return { exitCode, stdout: formatCheckReport(hits), stderr };
+  return { exitCode, stdout: formatCheckReport(hits, obituaries.file), stderr };
 }
 
 /** Entry point for `deja-boo check [--no-head] <file|->`. */

@@ -2,6 +2,7 @@ import { clear, h, s } from './dom.ts';
 import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
+import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs } from './obituary-text.ts';
 
 export const DEFAULT_CAPTION = 'Hover or focus a stone to read its epitaph.';
 
@@ -15,6 +16,20 @@ const isHex40 = (x: string): boolean => /^[0-9a-f]{40}$/.test(x);
 
 function safeLink(url: string | undefined): string | null {
   return url !== undefined && /^https:\/\/github\.com\//.test(url) ? url : null;
+}
+
+/** The dialog's obituary section under the cause: heading, linked PR or issue, title, quoted excerpt. Nothing when the tombstone has none. */
+function obituaryNodes(t: WebTombstone): Node[] {
+  return obituaryRefs(t.obituary).flatMap(({ kind, ref }) => {
+    const href = safeLink(ref.url);
+    const label = `${kind} #${ref.number}`;
+    return [
+      h('h4', {}, obituaryHeading(kind, ref, t.obituary!.fetchedAt)),
+      h('p', { class: 'obit-ref' }, href ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, label) : label, `: ${ref.title}`),
+      h('blockquote', { class: 'obituary' }, `\u201C${excerptText(ref)}\u201D`),
+      h('p', { class: 'muted small' }, OBITUARY_NOTE),
+    ];
+  });
 }
 
 /** Fill the dialog with the full tombstone: verbatim cause, deleted lines, commit link, revivals. */
@@ -43,6 +58,7 @@ export function renderTombstone(dialog: HTMLDialogElement, repo: RepoEntry, t: W
     ),
     h('h4', {}, 'Cause of death (verbatim from the commit message)'),
     h('pre', { class: 'cause' }, cause),
+    ...obituaryNodes(t),
     t.links.length
       ? h('p', {}, 'Links: ', ...t.links.flatMap((l, i) => {
           const href = safeLink(l.url);

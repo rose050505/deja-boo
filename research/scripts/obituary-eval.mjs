@@ -10,8 +10,47 @@
 // for every revival: isRevert C -> D (the stored isRevert is checked against C first).
 //
 // Usage: node research/scripts/obituary-eval.mjs <dir with <repo>.json graveyards from `deja-boo index`> [--json]
-import { readFileSync } from 'node:fs';
+//
+// Part 2 (coverage): node research/scripts/obituary-eval.mjs --coverage <dir with the six clones> [--json]
+// For each clone, reads <clone>/.deja-boo/graveyard.json and <clone>/.deja-boo/obituaries.json (written by `deja-boo obituary`) and counts, per repo:
+//   tombstones with a reason before (>= 1 link in the commit message) and after (a link, or an obituary entry with a PR or issue excerpt);
+//   the same for Revert tombstones (and the stricter 'explicit' reason: a PR or issue link, not a bare #N) (first line starts with revert, revert(s|ed|ing), as in src/core/revert.ts);
+//   death commits, commits looked up (an entry exists), commits with obituary text.
+// A Revert subject alone is not counted as a "reason" here: it says THAT the code was reverted, not WHY.
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+if (process.argv[2] === '--coverage') {
+  const root = process.argv[3];
+  if (!root) { console.error('usage: node research/scripts/obituary-eval.mjs --coverage <dir with clones> [--json]'); process.exit(1); }
+  const isRevert = s => /^\s*revert(?:s|ed|ing)?\b/i.test(s.split('\n')[0]);
+  const hasText = o => o !== undefined && ((o.pr !== null && o.pr.excerpt !== '') || o.issues.some(i => i.excerpt !== ''));
+  const rows = [];
+  for (const repo of ['requests', 'express', 'axios', 'flask', 'got', 'cli']) {
+    const g = JSON.parse(readFileSync(join(root, repo, '.deja-boo/graveyard.json'), 'utf8'));
+    const f = join(root, repo, '.deja-boo/obituaries.json');
+    const ob = existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : {};
+    const r = { repo, tombstones: g.tombstones.length, withReasonBefore: 0, withReasonAfter: 0, reverts: 0, revertsReasonBefore: 0, revertsReasonAfter: 0, revertsExplicitBefore: 0, revertsExplicitAfter: 0,
+      commits: new Set(g.tombstones.map(t => t.commit)).size, lookedUp: 0, withText: 0, tombstonesWithObituaryText: 0 };
+    const seen = new Set();
+    for (const t of g.tombstones) {
+      const before = t.links.length > 0;
+      const text = hasText(ob[t.commit]);
+      const after = before || text;
+      r.withReasonBefore += before; r.withReasonAfter += after; r.tombstonesWithObituaryText += text;
+      if (isRevert(t.causeOfDeath)) { r.reverts++; r.revertsReasonBefore += before; r.revertsReasonAfter += after;
+        const explicit = t.links.some(l => l.type !== 'ref'); r.revertsExplicitBefore += explicit; r.revertsExplicitAfter += explicit || text; }
+      if (!seen.has(t.commit)) { seen.add(t.commit); r.lookedUp += ob[t.commit] !== undefined; r.withText += text; }
+    }
+    rows.push(r);
+  }
+  const tot = rows.reduce((a, r) => Object.fromEntries(Object.keys(r).filter(k => k !== 'repo').map(k => [k, (a[k] ?? 0) + r[k]])), {});
+  if (process.argv.includes('--json')) { console.log(JSON.stringify({ rows, tot }, null, 1)); process.exit(0); }
+  const cols = ['tombstones', 'withReasonBefore', 'withReasonAfter', 'tombstonesWithObituaryText', 'reverts', 'revertsReasonBefore', 'revertsReasonAfter', 'revertsExplicitBefore', 'revertsExplicitAfter', 'commits', 'lookedUp', 'withText'];
+  console.log(['repo'.padEnd(9), ...cols.map(c => c.padStart(c.length))].join(' '));
+  for (const r of [...rows, { repo: 'total', ...tot }]) console.log([r.repo.padEnd(9), ...cols.map(c => String(r[c]).padStart(c.length))].join(' '));
+  process.exit(0);
+}
 
 const dir = process.argv[2];
 if (!dir) { console.error('usage: node research/scripts/obituary-eval.mjs <graveyard dir>'); process.exit(1); }

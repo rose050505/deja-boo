@@ -59,6 +59,29 @@ describe('runCheck on haunted-http', () => {
     expect(runCheck(candidate, 'haunted_http/not_tracked.py', repo).exitCode).toBe(2);
   });
 
+  it('obituary file: shows the block (or the not-fetched line); an invalid file is noted on stderr and ignored', () => {
+    const t = graveyard.tombstones.find(x => /^revert/i.test(x.causeOfDeath))!;
+    const file = join(repo, '.deja-boo/obituaries.json');
+    try {
+      const plain = runCheck(candidate, 'haunted_http/adapter.py', repo);
+      expect(plain.stdout).not.toContain('obituary:');
+      writeFileSync(file, JSON.stringify({ ['f'.repeat(40)]: { fetchedAt: '2026-05-01T00:00:00Z', issues: [], pr: null } }));
+      expect(runCheck(candidate, 'haunted_http/adapter.py', repo).stdout).toContain('obituary:    not fetched');
+      writeFileSync(file, JSON.stringify({ [t.commit]: { fetchedAt: '2026-05-01T00:00:00Z', issues: [], pr: {
+        number: 5353, url: 'https://github.com/psf/requests/pull/5353', title: 'Revert 3362', excerpt: 'No review.', truncated: false } } }));
+      const r = runCheck(candidate, 'haunted_http/adapter.py', repo);
+      expect(r.exitCode).toBe(2);
+      expect(r.stdout).toContain('PR #5353, https://github.com/psf/requests/pull/5353');
+      expect(r.stdout).toContain('excerpt: "No review."');
+      writeFileSync(file, '{bad');
+      const bad = runCheck(candidate, 'haunted_http/adapter.py', repo);
+      expect(bad.stdout).toBe(plain.stdout);
+      expect(bad.stderr).toContain('obituaries.json is not a valid obituary file');
+    } finally {
+      rmSync(file, { force: true });
+    }
+  });
+
   it('exit 3 with how-to when the graveyard is missing', () => {
     const r = runCheck(candidate, undefined, dir);
     expect(r.exitCode).toBe(3);

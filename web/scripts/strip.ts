@@ -1,4 +1,5 @@
-import type { Link, RevivalRecord, Tombstone } from '../../src/core/types.ts';
+import type { Link, Obituary, RevivalRecord, Tombstone } from '../../src/core/types.ts';
+import { hasObituaryText } from '../../src/core/obituary.ts';
 import { isRevertSubject } from '../../src/core/revert.ts';
 
 /** Maximum deleted lines kept per tombstone in the web graveyard. */
@@ -17,6 +18,8 @@ export interface WebTombstone {
   fingerprint: number[];
   revivals: RevivalRecord[];
   aliveAtHead?: boolean;
+  /** From the clone's obituaries.json; present only when it has text. Counted in the 3 MB limit and never trimmed. */
+  obituary?: Obituary;
   /** True line count; present only when `lines` was capped. */
   totalLines?: number;
 }
@@ -52,6 +55,7 @@ export function stripTombstone(t: Tombstone, fingerprintOf: Fingerprinter): WebT
     revivals: t.revivals,
   };
   if (t.aliveAtHead === true) out.aliveAtHead = true;
+  if (t.obituary !== undefined && hasObituaryText(t.obituary)) out.obituary = t.obituary;
   if (capped) out.totalLines = t.lines.length;
   return out;
 }

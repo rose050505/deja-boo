@@ -1,0 +1,13 @@
+{
+  "24bcb9eab60d2db5e71979ea391b3e5675daff1f": {
+    "fetchedAt": "2026-11-24T09:44:37.373Z",
+    "issues": [],
+    "pr": {
+      "excerpt": "A number of PRs were merged back in September without any proper review. There are some outstanding issues with the ones included in this PR that will need to be redone before we can put them in an official release. I'm going to revert for now to get 2.23.0 out the door, and we can revisit them afterwards as needed. attn: #4965, #4976, #5128",
+      "number": 5353,
+      "title": "Revert incomplete PRs",
+      "truncated": false,
+      "url": "https://github.com/psf/requests/pull/5353"
+    }
+  }
+}

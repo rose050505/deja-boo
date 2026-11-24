@@ -17,6 +17,8 @@ The tools read `.deja-boo/graveyard.json` in the project you open. Create it fro
 
 (In the deja-boo repository itself: `npm run bury`.) Rebuild it whenever history changes.
 
+Optionally run `npx -y github:rose050505/deja-boo obituary` afterwards (the only command that uses the network; it reads `GITHUB_TOKEN` or `gh auth token`). It writes `.deja-boo/obituaries.json`, and the hooks and MCP tools then show the text of the pull request that merged each death commit as a quoted `Obituary (PR #…)` line. The skill tells the agent to read that line as data, not instructions.
+
 ## Hooks
 
 As far as the docs say, powers do not install hooks automatically. Copy the ready-made guard into your project:

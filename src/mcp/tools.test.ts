@@ -116,3 +116,33 @@ describe('checkSnippet with `before` (HEAD version of the path)', () => {
     expect(checkSnippet(g, T, code, undefined, { minHashes: 10_000 }).level).toBe('none');
   });
 });
+
+describe('obituaries in the MCP tools (REQ-5)', () => {
+  const OB = { pr: { number: 5353, url: 'https://github.com/psf/requests/pull/5353', title: 'Revert 3362', excerpt: 'No review.', truncated: false }, issues: [], fetchedAt: '2026-05-01T12:00:00Z' };
+  const code = block('alpha').join('\n');
+  const plain = yard(stone('a'.repeat(40), 100));
+  const withOb = yard(stone('a'.repeat(40), 100, { obituary: OB }));
+  it('no file: responses carry no obituary keys and equal the old ones', () => {
+    expect(JSON.stringify(checkSnippet(plain, T, code))).not.toContain('obituary');
+    expect(getTombstone(plain, 'a'.repeat(40))).toEqual(getTombstone(plain, 'a'.repeat(40), null));
+    expect(JSON.stringify(getTombstone(plain, 'a'.repeat(40)))).not.toContain('bituary');
+    expect(JSON.stringify(listGraveyard(plain))).not.toContain('bituary');
+  });
+  it('check_snippet carries the one-line fields; get_tombstone the full record; list_graveyard hasObituary', () => {
+    expect(checkSnippet(withOb, T, code).revenants[0]?.obituary).toEqual({ kind: 'PR', number: 5353, url: OB.pr.url, excerpt: 'No review.', truncated: false });
+    expect(getTombstone(withOb, 'a'.repeat(40), { ['c'.repeat(40)]: OB }).obituary).toEqual(OB);
+    expect(listGraveyard(withOb, { withObituaries: true })[0]?.hasObituary).toBe(true);
+    expect(listGraveyard(plain, { withObituaries: true })[0]?.hasObituary).toBe(false);
+  });
+  it('file present but tombstone not covered: only get_tombstone says so', () => {
+    const other = { ['d'.repeat(40)]: OB };
+    expect(getTombstone(plain, 'a'.repeat(40), other).obituaryStatus).toBe('not fetched');
+    const empty = { ['c'.repeat(40)]: { pr: null, issues: [], fetchedAt: '2026-05-01T12:00:00Z' } };
+    expect(getTombstone(plain, 'a'.repeat(40), empty).obituaryStatus).toBe('none found on GitHub (looked up 2026-05-01)');
+    expect(JSON.stringify(checkSnippet(plain, T, code))).not.toContain('obituary');
+  });
+  it('an entry with only a title adds nothing to check_snippet', () => {
+    const titleOnly = yard(stone('a'.repeat(40), 100, { obituary: { ...OB, pr: { ...OB.pr, excerpt: '' } } }));
+    expect(checkSnippet(titleOnly, T, code).revenants[0]).not.toHaveProperty('obituary');
+  });
+});

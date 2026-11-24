@@ -55,16 +55,16 @@ describe('hasObituaryText and obituaryLine', () => {
     expect(hasObituaryText(obit())).toBe(true);
   });
   it('formats the PR line and falls back to the first issue with text', () => {
-    expect(obituaryLine(obit(), 500)).toBe('Obituary (PR #5353): "A reason" https://github.com/psf/requests/pull/5353');
-    expect(obituaryLine(obit({ pr: ref({ truncated: true }) }), 500)).toBe('Obituary (PR #5353): "A reason\u2026" https://github.com/psf/requests/pull/5353');
+    expect(obituaryLine(obit(), 500)).toBe('Obituary (PR #5353, https://github.com/psf/requests/pull/5353): "A reason"');
+    expect(obituaryLine(obit({ pr: ref({ truncated: true }) }), 500)).toBe('Obituary (PR #5353, https://github.com/psf/requests/pull/5353): "A reason\u2026"');
     const issue = ref({ number: 12, url: 'https://github.com/o/r/issues/12', excerpt: 'because' });
-    expect(obituaryLine(obit({ pr: null, issues: [ref({ number: 11, excerpt: '' }), issue] }), 500)).toBe('Obituary (issue #12): "because" https://github.com/o/r/issues/12');
+    expect(obituaryLine(obit({ pr: null, issues: [ref({ number: 11, excerpt: '' }), issue] }), 500)).toBe('Obituary (issue #12, https://github.com/o/r/issues/12): "because"');
     expect(obituaryLine(obit({ pr: null }), 500)).toBe('');
   });
   it('shortens the excerpt with an ellipsis to fit', () => {
     const line = obituaryLine(obit({ pr: ref({ excerpt: 'word '.repeat(60).trim() }) }), 120);
     expect(line.length).toBeLessThanOrEqual(120);
-    expect(line).toContain('\u2026" https://github.com/psf/requests/pull/5353');
+    expect(line).toMatch(/^Obituary \(PR #5353, https:\/\/github\.com\/psf\/requests\/pull\/5353\): ".*\u2026"$/);
   });
   it('property: length <= max and empty iff no text', () => {
     fc.assert(

@@ -247,3 +247,20 @@ describe('post-review fixes 3 in the hook', () => {
     expect(decideHook(ev('fs_write', { path: 'src/new.py', text }), watching).exitCode).toBe(2);
   });
 });
+
+describe('decideHook with an obituary (REQ-5)', () => {
+  const URL = 'https://github.com/psf/requests/pull/5353';
+  const withObit = yard(stone(ID_A, A, {
+    causeOfDeath: 'Revert "Merge pull request #3362"', links: [],
+    obituary: { pr: { number: 5353, url: URL, title: 't', excerpt: 'A number of PRs were merged without review.', truncated: true }, issues: [], fetchedAt: '2026-05-01T00:00:00Z' },
+  }));
+  const event = ev('fs_write', { path: 'src/new.ts', text: [...live, ...A].join('\n') });
+  it('same exit code; the message has the cause and the obituary line on its own line', () => {
+    const r = decideHook(event, deps({}, withObit));
+    const plain = decideHook(event, deps({}, yard(stone(ID_A, A, { causeOfDeath: 'Revert "Merge pull request #3362"', links: [] }))));
+    expect(r.exitCode).toBe(plain.exitCode);
+    expect(r.stderr).toContain('Revert "Merge pull request #3362"');
+    expect(r.stderr.split('\n')).toContain(`Obituary (PR #5353, ${URL}): "A number of PRs were merged without review.\u2026"`);
+    expect(plain.stderr).not.toContain('Obituary');
+  });
+});

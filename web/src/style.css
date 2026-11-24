@@ -78,6 +78,9 @@ textarea { width: 100%; background: var(--navy); color: var(--bone); border: 1px
 .badge { display: inline-block; border: 2px solid var(--ecto); border-radius: 4px; padding: 0 0.4rem; font: 700 0.8125rem system-ui, sans-serif; letter-spacing: 0.06em; }
 .block .badge { border-color: var(--blood); }
 .meta { margin: 0 0 0.4rem; color: var(--mist); }
+.obituary, .obituary-line { border-left: 3px solid var(--moss); margin: 0.3rem 0 0.6rem; padding: 0.3rem 0.8rem; font-family: Georgia, serif; overflow-wrap: anywhere; }
+.obituary { font-style: italic; }
+.obituary-line { font-size: 0.9rem; }
 .epitaph { font: italic 1.05rem Georgia, serif; margin: 0.3rem 0; }
 .cause, .code { background: #0e1428; border: 1px solid var(--moss); border-radius: 6px; padding: 0.6rem; white-space: pre-wrap; overflow: auto; max-height: 14rem; margin: 0.3rem 0 0.6rem; }
 .code { white-space: pre; max-height: 18rem; }

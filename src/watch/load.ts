@@ -1,11 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Graveyard, Thresholds, WatchConfig } from '../core/types.js';
+import type { Graveyard, ObituaryFile, Thresholds, WatchConfig } from '../core/types.js';
+import { parseObituaryFile } from '../core/obituary.js';
 import { DEFAULT_MIN_HASHES } from '../core/types.js';
 import { BLOCK_THRESHOLD, WARN_THRESHOLD } from '../core/level.js';
 import { fromGraveyardJson } from '../miner/serialize.js';
 
 export const GRAVEYARD_FILE = '.deja-boo/graveyard.json';
+export const OBITUARY_FILE = '.deja-boo/obituaries.json';
 export const CONFIG_FILE = '.deja-boo/config.json';
 
 export const DEFAULT_THRESHOLDS: Thresholds = { warn: WARN_THRESHOLD, block: BLOCK_THRESHOLD };
@@ -52,12 +54,37 @@ export function loadConfig(cwd: string): { config: WatchConfig; notes: string[] 
 /** One stderr line for a missing graveyard, shared by the hook, `check` and the MCP server. */
 export const NO_GRAVEYARD = `no graveyard at ${GRAVEYARD_FILE}. Create it by running \`deja-boo index\` in the repository root.`;
 
-/** Read `<cwd>/.deja-boo/graveyard.json`; undefined when missing, unreadable or not a graveyard. */
-export function loadGraveyard(cwd: string): Graveyard | undefined {
+/**
+ * Read `<cwd>/.deja-boo/obituaries.json`: `file` is null when it is missing, unreadable or invalid; an invalid file adds one note.
+ * Invariant: a missing file gives `{ file: null, notes: [] }`; a returned file has only valid entries.
+ */
+export function loadObituaries(cwd: string): { file: ObituaryFile | null; notes: string[] } {
+  const path = join(cwd, OBITUARY_FILE);
+  if (!existsSync(path)) return { file: null, notes: [] };
   try {
-    const g = fromGraveyardJson(readFileSync(join(cwd, GRAVEYARD_FILE), 'utf8'));
-    return Array.isArray(g?.tombstones) ? g : undefined;
+    const file = parseObituaryFile(JSON.parse(readFileSync(path, 'utf8')));
+    if (file !== null) return { file, notes: [] };
+  } catch { /* reported below */ }
+  return { file: null, notes: [`${OBITUARY_FILE} is not a valid obituary file; ignoring it.`] };
+}
+
+/**
+ * Read `<cwd>/.deja-boo/graveyard.json` and attach each tombstone's obituary (matched by death commit) in memory; undefined when missing, unreadable or not a graveyard.
+ * Invariant: without a valid obituary file the result is exactly the parsed graveyard; the file never changes anything but `obituary`.
+ */
+export function loadGraveyard(cwd: string): Graveyard | undefined {
+  let g: Graveyard | undefined;
+  try {
+    g = fromGraveyardJson(readFileSync(join(cwd, GRAVEYARD_FILE), 'utf8'));
   } catch {
     return undefined;
   }
+  if (!Array.isArray(g?.tombstones)) return undefined;
+  const { file } = loadObituaries(cwd);
+  if (file === null) return g;
+  for (const t of g.tombstones) {
+    const o = file[t.commit];
+    if (o !== undefined) t.obituary = o;
+  }
+  return g;
 }

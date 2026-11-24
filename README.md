@@ -23,6 +23,7 @@ See [`.kiro/steering/product.md`](.kiro/steering/product.md) for the product bri
 We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, flask, got and requests. That is 19,908 commits and 5,169 tombstones.
 - Deleted code came back more than a week after its death **32 times** (one count per commit), 6 of them by Revert.
 - A reviewer opened every comeback an earlier version reported (50) in git: only 20 were real. Most of the rest were reformats and moves where the code never died. The miner now ignores those, checks that the code was really gone and that the re-adding commit comes after the death, and counts a cherry-picked patch once. On the reviewer's labels it keeps 16 of the 20 real comebacks and drops 26 of the 27 false ones, and it finds 14 of 21 re-additions the reviewer found independently (12 before). 14 of the 32 comebacks are not in the reviewer's labels yet. Details: [`research/matching-eval.md`](research/matching-eval.md) section 9.
+- The commit message of a Revert rarely says why. Asking GitHub which pull request merged each death commit (`deja-boo obituary`, 990 requests for the 6 repos) gives 1,410 of the 5,169 tombstones the opening text of a PR or linked issue, and raises the Reverts that carry a reason from 37 to 57 of 71 (only 3 had an explicit PR or issue link). [`research/obituary-eval.md`](research/obituary-eval.md) section 2.
 
 **We also tried it on real history.** We checked out psf/requests as it was in April 2023 and asked Kiro to "simplify" the upload code.
 - **Without Déjà Boo:** Kiro re-wrote exactly the code requests had reverted in 2020.
@@ -70,7 +71,8 @@ Déjà Boo finds code that comes back as a block of 4 or more lines, close to ho
 6. **Config.** `.deja-boo/config.json`: `{"thresholds": {"warn": 0.5, "block": 0.7}, "minHashes": 4}` with `0 < warn <= block <= 1` and `minHashes` a non-negative integer (tombstones with fewer distinct hashes are not watched). An invalid value falls back to its default. The defaults come from [`research/matching-eval.md`](research/matching-eval.md).
 
 7. **Kiro Power.** `power/` packages the MCP server, a skill and a copy-ready guard hook. See [`power/README.md`](power/README.md). `deja-boo mcp` starts the MCP server; `npm run bury` refreshes the graveyard after history changes (no automatic refresh hook: it builds and re-mines, which is too slow to run on every task).
-8. **Review agent.** `.kiro/agents/graveyard-keeper.json` reviews the branch diff against the graveyard before merge.
+8. **Obituary (optional, uses the network).** A commit message often says only `Revert "x"`. `deja-boo obituary` asks the GitHub API which pull request merged each death commit and stores the start of its text (400 characters at most) and of the issues it links in `.deja-boo/obituaries.json` (ignored by git). Run `npm run bury` first. Auth: `GITHUB_TOKEN`, else `gh auth token`, else none (60 requests per hour; with a token 5,000). `--limit N` caps the number of commits looked up (default 300; each costs 1 to 4 requests; Reverts, revived and linked tombstones go first, newest first). When the rate limit is reached the entries so far are saved and the command exits 0; run it again later and it fetches only what is missing. After that the hook, the Stop message, `check` and the MCP tools show one extra line under the cause: `Obituary (PR #5353, <url>): "<text>"`. It is quoted third-party text and never replaces the cause of death. Without the file nothing changes.
+9. **Review agent.** `.kiro/agents/graveyard-keeper.json` reviews the branch diff against the graveyard before merge.
 
 ## Haunted graveyard (web)
 
@@ -79,6 +81,7 @@ A static page that draws the graveyard and runs the detector in the browser.
     npm run web                                # dev server
     npm run web:build && npm run web:preview   # production build, served locally
     npm run web:data -- <requests> <express> <axios> <flask> <got> <cli>   # rebuild web/public/graveyards from local clones
+    # to show obituaries, run `deja-boo obituary` in each clone first; web:data embeds <clone>/.deja-boo/obituaries.json and makes no network calls
 
 `.github/workflows/pages.yml` deploys `web/` to GitHub Pages under `/deja-boo/`: https://rose050505.github.io/deja-boo/
 

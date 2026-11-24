@@ -39,14 +39,14 @@ export function primaryRef(o: Obituary): { kind: 'PR' | 'issue'; ref: ObituaryRe
 }
 
 /**
- * One line `Obituary (PR #5353): "<excerpt>" <url>`; '' when there is no text.
+ * One line `Obituary (PR #5353, <url>): "<excerpt>"`; '' when there is no text. The label and URL are fixed text; the quoted excerpt is untrusted third-party text, verbatim.
  * A truncated or shortened excerpt ends with an ellipsis inside the quotes. Invariant: length <= max (when max >= 0), and '' iff `hasObituaryText` is false.
  */
 export function obituaryLine(o: Obituary, max: number): string {
   const p = primaryRef(o);
   if (p === null) return '';
-  const head = `Obituary (${p.kind} #${p.ref.number}): "`;
-  const tail = `" ${p.ref.url}`;
+  const head = `Obituary (${p.kind} #${p.ref.number}, ${p.ref.url}): "`;
+  const tail = '"';
   const room = max - head.length - tail.length;
   let text = p.ref.excerpt;
   let ellipsis = p.ref.truncated;

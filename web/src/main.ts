@@ -5,6 +5,7 @@ import { mountGraveyard, type GraveyardView } from './graveyard-view.ts';
 import { DEMO_REPO, DEMO_SNIPPET } from './demo-snippet.ts';
 import { fogDensity, restLine, summon, type SummonResult } from './summon.ts';
 import { epitaph } from './layout.ts';
+import { cardLine } from './obituary-text.ts';
 import { isRevertSubject } from '../../src/core/revert.ts';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -69,6 +70,7 @@ function renderHits(out: HTMLElement, repo: RepoEntry, res: SummonResult, text: 
       h('p', {}, 'Commit ', url ? h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, h('code', {}, t.commit)) : h('code', {}, t.commit),
         ' · id ', h('code', {}, t.id)),
       h('pre', { class: 'cause' }, t.causeOfDeath.trim() === '' ? 'cause of death unknown' : t.causeOfDeath),
+      cardLine(t.obituary) === '' ? null : h('p', { class: 'obituary-line' }, cardLine(t.obituary)),
       h('p', { class: 'rest' }, restLine(t.id)),
       h('button', { type: 'button', class: 'btn', 'data-open': t.id, 'data-sim': String(hit.similarity) }, 'Open the tombstone'),
     ));

@@ -75,7 +75,7 @@ export function isRevertSubject(text: string): boolean;   // /^\s*revert(?:s|ed|
 /** Collapse whitespace and take the first 400 code units without splitting a surrogate pair. Invariant: result is a prefix of the collapsed body, length <= 400. */
 export function makeExcerpt(body: string | null | undefined): { excerpt: string; truncated: boolean };
 export function hasObituaryText(o: Obituary | undefined): boolean;  // pr or any issue with excerpt !== ''
-/** One line: Obituary (PR #5353): "…" <url>. Returns '' when there is no text. Invariant: length <= max. */
+/** One line: Obituary (PR #5353, <url>): "…". Returns '' when there is no text. Invariant: length <= max. */
 export function obituaryLine(o: Obituary, max: number): string;
 
 // obituary/github.ts
