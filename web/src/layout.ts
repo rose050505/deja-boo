@@ -38,6 +38,8 @@ export interface Layout {
 export const PAD = 24;
 export const GAP = 4;
 const ROW_PAD = 10;
+/** Space a ghost glyph needs above a stone's top edge (ghost top is at about -47). */
+export const GHOST_RISE = 52;
 
 /** Top-level directory of a path, or `(root)` for a file at the top. */
 export function topDir(path: string): string {
@@ -64,7 +66,7 @@ export function stoneWidth(lines: number): number {
 
 /**
  * Place stones by time (x) and top-level directory (rows); stones that would overlap in a row go to the next free lane.
- * Invariant: deterministic; every stone lies inside [0, width] x [0, height]; no two stones in a row overlap.
+ * Invariant: deterministic; every stone lies inside [0, width] x [0, height] with at least GHOST_RISE px free above it; no two stones in a row overlap.
  */
 export function layoutStones(items: readonly StoneInput[], canvasWidth = 2600): Layout {
   const times = items.map(i => Date.parse(i.buriedAt));
@@ -84,7 +86,7 @@ export function layoutStones(items: readonly StoneInput[], canvasWidth = 2600): 
 
   const stones: StoneBox[] = [];
   const rows: RowBox[] = [];
-  let y = PAD;
+  let y = GHOST_RISE;
   dirs.forEach((dir, row) => {
     const list = [...byDir.get(dir)!].sort((a, b) => Date.parse(a.buriedAt) - Date.parse(b.buriedAt) || (a.id < b.id ? -1 : 1));
     const laneEnds: number[] = [];

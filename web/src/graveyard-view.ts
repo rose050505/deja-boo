@@ -3,6 +3,8 @@ import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
 
+export const DEFAULT_CAPTION = 'Hover or focus a stone to read its epitaph.';
+
 export interface GraveyardView {
   /** Mark stones as haunted, raise a ghost over each (opacity = similarity), scroll the first into view; pass [] to clear. */
   haunt(hits: readonly { id: string; similarity: number }[]): void;
@@ -72,6 +74,11 @@ function ghostGlyph(similarity: number): SVGGElement {
   );
 }
 
+/** Caption text for a stone: epitaph, Revert mark, path. */
+export function captionFor(t: WebTombstone): string {
+  return `${epitaph(t)}${isCracked(t) ? ' (Revert)' : ''} · ${t.path}`;
+}
+
 export function mountGraveyard(
   scroll: HTMLElement,
   caption: HTMLElement,
@@ -127,8 +134,9 @@ export function mountGraveyard(
 
   const show = (id: string): void => {
     const t = byId.get(id);
-    if (t) caption.textContent = `${epitaph(t)}${isCracked(t) ? ' (Revert)' : ''} · ${t.path}`;
+    if (t) caption.textContent = captionFor(t);
   };
+  caption.textContent = DEFAULT_CAPTION;
   const open = (id: string, similarity?: number): void => {
     const t = byId.get(id);
     if (!t) return;
@@ -159,6 +167,8 @@ export function mountGraveyard(
         g.append(ghostGlyph(similarity));
         first ??= g;
       }
+      const firstId = hits.find(x => nodes.has(x.id))?.id;
+      if (firstId !== undefined) show(firstId);
       first?.scrollIntoView({ block: 'center', inline: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
     },
   };

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { epitaph, isCracked, layoutStones, stoneWidth, topDir, type StoneInput } from './layout.ts';
+import { GHOST_RISE, epitaph, isCracked, layoutStones, stoneWidth, topDir, type StoneInput } from './layout.ts';
 
 const item = fc.record({
   id: fc.uuid(),
@@ -20,7 +20,7 @@ describe('layoutStones', () => {
         for (const s of a.stones) {
           expect(s.x).toBeGreaterThanOrEqual(0);
           expect(s.x + s.w).toBeLessThanOrEqual(a.width);
-          expect(s.y).toBeGreaterThanOrEqual(0);
+          expect(s.y).toBeGreaterThanOrEqual(GHOST_RISE);
           expect(s.y + s.h).toBeLessThanOrEqual(a.height);
         }
         for (let i = 0; i < a.stones.length; i++) {
