@@ -53,6 +53,7 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r10_obituary_ABC.log` | `r10_obituary_ABC_prompt.md` | Obituary batches A–C: one Revert predicate, obituary core, link kinds and repo URL, `deja-boo obituary` command; real smoke run finds PR #5353 |
 | `r11_obituary_DE.log` | `r11_obituary_DE_prompt.md` | Obituary batches D–E: shown in hook, Stop, check, MCP and web; coverage run on the 6 research repos; real requests demo acceptance |
 | `r12_fixes5.log` | `r12_fixes5_prompt.md` | Relative parent-tree check, legal/generated files skipped, comeback counts as events, hook latency back to ~100 ms |
+| `r13_obituary_hardening.log` | `r13_obituary_hardening_prompt.md` | Obituary hardening from a review on httpx and starlette: quote-safe, control-free rendering (prompt-injection test), failures stop with a cause, PR kept when an issue lookup fails, template cleaning, progress |
 
 ## Rehearsals: Kiro as the test subject
 
