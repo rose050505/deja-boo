@@ -75,7 +75,9 @@ The demo video was recorded from real `kiro-cli chat --tui` sessions on the same
 | `take1_noguard.txt` | spells out `chunked=chunked` | no Déjà Boo | made the change, reported done |
 | `take1_guard.txt` | same | write + Stop hooks, MCP | blocked at Stop, read the tombstone, reverted its change, asked |
 | `take2_guard.txt` | same | same, hooks logged | blocked, read the tombstone, reverted its change, listed risks, asked |
-| `take3_noguard.txt` | the §7 prompt above | no Déjà Boo | made the change, reported done (**in the video**) |
-| `take3_guard.txt` | the §7 prompt above | same, hooks logged | blocked, read the tombstone, would not add the `checked` marker without a reason, offered "test on urllib3 1.26 and keep" or "revert", asked (**in the video**) |
+| `take3_noguard.txt` | the §7 prompt above | no Déjà Boo | made the change, reported done (earlier cut of the video) |
+| `take3_guard.txt` | the §7 prompt above | same, hooks logged | blocked, read the tombstone, would not add the `checked` marker without a reason, offered "test on urllib3 1.26 and keep" or "revert", asked (earlier cut of the video) |
+| `take4_noguard.txt` | the §7 prompt above | no Déjà Boo, English locale | made the change, reported done (**in the final video**) |
+| `take4_guard.txt` | the §7 prompt above | hooks + MCP + **obituaries** | blocked with the PR #5353 obituary, read the tombstone, opened PR #5353 and issue #4965, reverted its own change, offered: leave it / investigate the issues first / accept the risk (**in the final video**) |
 
-Across the guarded runs Kiro made three different calls: keep with a marker and a test warning (the rehearsal), revert and ask (takes 1–2), keep pending and ask (take 3). In every one it read the tombstone first and never resurrected the code silently.
+Across the guarded runs Kiro made different calls: keep with a marker and a test warning (the rehearsal), revert and ask (takes 1–2), keep pending and ask (take 3), and, once the obituary gave it the pull request's reason, follow the linked issue and revert with options (take 4). In every one it read the tombstone first and never resurrected the code silently.
