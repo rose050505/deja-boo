@@ -1,5 +1,5 @@
 import type { Obituary, ObituaryRef } from '../../src/core/types.ts';
-import { hasObituaryText, obituaryLine } from '../../src/core/obituary.ts';
+import { hasObituaryText, obituaryLine, quoteSafe, sanitizeText } from '../../src/core/obituary.ts';
 
 /** Longest obituary line on a ghost card, the same cap as the hook. */
 export const CARD_LINE_MAX = 500;
@@ -22,7 +22,10 @@ export function obituaryHeading(kind: 'PR' | 'issue', ref: ObituaryRef, fetchedA
 }
 
 /** The excerpt as shown, with an ellipsis after it when the stored text was cut. */
-export const excerptText = (ref: ObituaryRef): string => `${ref.excerpt}${ref.truncated ? '\u2026' : ''}`;
+export const excerptText = (ref: ObituaryRef): string => `${quoteSafe(ref.excerpt)}${ref.truncated ? '\u2026' : ''}`;
+
+/** The title without control or format characters. */
+export const titleText = (ref: ObituaryRef): string => sanitizeText(ref.title);
 
 /** The ghost-card line, the same one-line form as the hook; '' when there is nothing to show. */
 export const cardLine = (o: Obituary | undefined): string => (o === undefined ? '' : obituaryLine(o, CARD_LINE_MAX));

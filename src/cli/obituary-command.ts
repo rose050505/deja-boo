@@ -5,7 +5,7 @@ import { parseObituaryFile } from '../core/obituary.js';
 import type { Graveyard, ObituaryFile } from '../core/types.js';
 import { createGitHubFetcher, ghAuthToken, resolveToken, type GitHubFetcher } from '../obituary/github.js';
 import { originRepo, parseRepoSlug, type GitHubRepo } from '../obituary/remote.js';
-import { runObituary, sortedFile, type RunSummary } from '../obituary/run.js';
+import { coverage, runObituary, sortedFile, type RunSummary } from '../obituary/run.js';
 import { GRAVEYARD_FILE } from '../watch/load.js';
 
 export const OBITUARY_FILE = '.deja-boo/obituaries.json';
@@ -20,6 +20,8 @@ export interface ObituaryDeps {
   createFetcher: (token?: string) => GitHubFetcher;
   originRepo: (cwd: string) => Promise<GitHubRepo | null>;
   now: () => Date;
+  /** Progress sink (stderr in real use); omitted in tests that do not look at it. */
+  progress?: (text: string) => void;
 }
 
 export const realDeps: ObituaryDeps = {
@@ -28,6 +30,7 @@ export const realDeps: ObituaryDeps = {
   createFetcher: createGitHubFetcher,
   originRepo,
   now: () => new Date(),
+  progress: text => { process.stderr.write(text); },
 };
 
 function deepSorted(v: unknown): unknown {
@@ -44,12 +47,13 @@ export function obituaryJson(file: ObituaryFile): string {
   return JSON.stringify(deepSorted(sortedFile(file)), null, 2) + '\n';
 }
 
-function summaryText(repo: GitHubRepo, s: RunSummary, requests: number, out: string): string {
+function summaryText(repo: GitHubRepo, s: RunSummary, requests: number, out: string, cov: ReturnType<typeof coverage>): string {
   const row = (label: string, n: number | string): string => `  ${label.padEnd(14)}${n}\n`;
   return (
     `Obituaries for ${repo.owner}/${repo.name}\n` +
     row('looked up', s.lookedUp) + row('with a PR', s.withPr) + row('with issues', s.withIssues) + row('neither found', s.neither) +
-    row('failed', s.failed) + row('not reached', s.notReached) + row('requests', requests) + row('written to', out)
+    row('failed', s.failed) + row('issues failed', s.partial) + row('not reached', s.notReached) + row('requests', requests) + row('written to', out) +
+    `tombstones with text ${cov.withText}/${cov.total}, Reverts ${cov.revertsWithText}/${cov.reverts}\n`
   );
 }
 
@@ -57,7 +61,7 @@ const fail = (exitCode: 1 | 3, message: string): CommandResult => ({ exitCode, s
 
 /**
  * `deja-boo obituary [--repo owner/name] [--limit N] [--graveyard <file>] [--out <file>]`: ask GitHub about the death commits and write the obituary file.
- * Invariant: exit 1 for bad arguments, no GitHub repo or an invalid existing output file (nothing written); 3 for a missing graveyard; 0 otherwise, including after a rate limit, which writes the entries gathered so far.
+ * Invariant: exit 1 for bad arguments, no GitHub repo or an invalid existing output file (nothing written); 3 for a missing graveyard; 1 also when no lookup succeeded and some failed or the run stopped on a bad token, a missing repository or no network (the cause is on stderr); 0 otherwise, including after a rate limit, which writes the entries gathered so far.
  */
 export async function runObituaryCommand(argv: string[], cwd: string, deps: ObituaryDeps = realDeps): Promise<CommandResult> {
   let values: { repo?: string; limit?: string; graveyard?: string; out?: string };
@@ -118,16 +122,28 @@ export async function runObituaryCommand(argv: string[], cwd: string, deps: Obit
     return fetcher(path);
   };
 
-  const { file, summary } = await runObituary({ graveyard, repo, limit, existing, fetcher: counted, now: deps.now });
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, obituaryJson(file));
+  const { file, summary } = await runObituary({
+    graveyard, repo, limit, existing, fetcher: counted, now: deps.now,
+    onProgress: (done, of) => deps.progress?.(`deja-boo: ${done}/${of}\n`),
+  });
+  const changed = summary.lookedUp > 0 || existsSync(outPath);
+  if (changed) {
+    mkdirSync(dirname(outPath), { recursive: true });
+    writeFileSync(outPath, obituaryJson(file));
+  }
 
   let stderr = `deja-boo: GitHub auth: ${auth}\n`;
   if (summary.rateLimited !== undefined) {
     const r = summary.rateLimited;
-    stderr += `deja-boo: GitHub rate limit reached after ${r.done} of ${r.of} commits; ${r.resetAt !== undefined ? `it resets at ${r.resetAt}` : 'the reset time is unknown'}. The entries so far are saved; run the command again later to continue.\n`;
+    const what = r.secondary === true ? 'GitHub refused the request with HTTP 403 and no rate-limit headers (a secondary rate limit)' : 'GitHub rate limit reached';
+    stderr += `deja-boo: ${what} after ${r.done} of ${r.of} commits; ${r.resetAt !== undefined ? `it resets at ${r.resetAt}` : 'the reset time is unknown, wait a few minutes'}. The entries so far are saved; run the command again later to continue.\n`;
   }
-  return { exitCode: 0, stdout: summaryText(repo, summary, requests, outPath), stderr };
+  if (summary.fatal !== undefined) {
+    stderr += `deja-boo: stopped after ${summary.fatal.done} of ${summary.fatal.of} commits: ${summary.fatal.cause}\n`;
+  }
+  const everyRequestFailed = summary.lookedUp === 0 && (summary.failed > 0 || summary.fatal !== undefined);
+  if (everyRequestFailed && summary.fatal === undefined) stderr += `deja-boo: every lookup failed (${summary.failed} commits); no entry was written.\n`;
+  return { exitCode: everyRequestFailed ? 1 : 0, stdout: summaryText(repo, summary, requests, outPath, coverage(graveyard, file)), stderr };
 }
 
 /** Entry point for `deja-boo obituary`. */

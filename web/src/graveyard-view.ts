@@ -2,7 +2,7 @@ import { clear, h, s } from './dom.ts';
 import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
-import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs } from './obituary-text.ts';
+import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs, titleText } from './obituary-text.ts';
 
 export const DEFAULT_CAPTION = 'Hover or focus a stone to read its epitaph.';
 
@@ -25,7 +25,7 @@ function obituaryNodes(t: WebTombstone): Node[] {
     const label = `${kind} #${ref.number}`;
     return [
       h('h4', {}, obituaryHeading(kind, ref, t.obituary!.fetchedAt)),
-      h('p', { class: 'obit-ref' }, href ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, label) : label, `: ${ref.title}`),
+      h('p', { class: 'obit-ref' }, href ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, label) : label, `: ${titleText(ref)}`),
       h('blockquote', { class: 'obituary' }, `\u201C${excerptText(ref)}\u201D`),
       h('p', { class: 'muted small' }, OBITUARY_NOTE),
     ];

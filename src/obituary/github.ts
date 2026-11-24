@@ -3,8 +3,8 @@ import { execFileSync } from 'node:child_process';
 /** Result of one GitHub API request. */
 export type FetchOutcome =
   | { kind: 'ok'; json: unknown }
-  | { kind: 'rate-limited'; resetAt?: string }
-  | { kind: 'error'; status?: number; message: string };
+  | { kind: 'rate-limited'; resetAt?: string; /** A 403 without rate-limit headers (GitHub's secondary rate limit). */ secondary?: true }
+  | { kind: 'error'; status?: number; message: string; /** The request never got an HTTP answer. */ network?: true };
 
 /** Performs one GET against the GitHub API; `path` looks like `/repos/o/r/issues/12`. Never throws. */
 export type GitHubFetcher = (path: string) => Promise<FetchOutcome>;
@@ -21,7 +21,7 @@ function resetAtOf(headers: Headers, nowMs: number): string | undefined {
 }
 
 /**
- * The only code that calls `fetch`. Sends the token only to https://api.github.com; maps rate limits (429, or 403 with `x-ratelimit-remaining: 0` or `retry-after`) to `rate-limited`, every other failure to `error`.
+ * The only code that calls `fetch`. Sends the token only to https://api.github.com; maps rate limits (429, or 403 with `x-ratelimit-remaining: 0` or `retry-after`) to `rate-limited`, a 403 without rate-limit headers to `rate-limited` with `secondary: true`, every other failure to `error` (`network: true` when there was no HTTP answer).
  * Invariant: never throws; the token never appears in a returned message.
  */
 export function createGitHubFetcher(token?: string): GitHubFetcher {
@@ -39,7 +39,7 @@ export function createGitHubFetcher(token?: string): GitHubFetcher {
     try {
       res = await fetch(url, { headers });
     } catch (e) {
-      return { kind: 'error', message: scrub(`network error: ${e instanceof Error ? e.message : String(e)}`) };
+      return { kind: 'error', network: true, message: scrub(`network error: ${e instanceof Error ? e.message : String(e)}`) };
     }
     const limited =
       res.status === 429 ||
@@ -47,6 +47,10 @@ export function createGitHubFetcher(token?: string): GitHubFetcher {
     if (limited) {
       const resetAt = resetAtOf(res.headers, Date.now());
       return resetAt === undefined ? { kind: 'rate-limited' } : { kind: 'rate-limited', resetAt };
+    }
+    if (res.status === 403) {
+      const resetAt = resetAtOf(res.headers, Date.now());
+      return resetAt === undefined ? { kind: 'rate-limited', secondary: true } : { kind: 'rate-limited', resetAt, secondary: true };
     }
     if (!res.ok) return { kind: 'error', status: res.status, message: scrub(`HTTP ${res.status} for ${url.pathname}`) };
     try {

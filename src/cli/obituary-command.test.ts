@@ -142,3 +142,48 @@ describe('deja-boo obituary', () => {
     for (const r of [a, b]) expect(r.stdout + r.stderr + readFileSync(join(dir, '.deja-boo/obituaries.json'), 'utf8')).not.toContain(secret);
   });
 });
+
+describe('deja-boo obituary: failures and progress', () => {
+  it.each([
+    ['a bad token', { kind: 'error', status: 401, message: 'HTTP 401' } as FetchOutcome, /credentials/],
+    ['no network', { kind: 'error', network: true, message: 'network error: ENOTFOUND' } as FetchOutcome, /cannot reach GitHub/],
+  ])('%s: prints the cause, stops after one request, exits 1, writes nothing', async (_n, outcome, cause) => {
+    writeGraveyard(50);
+    const r = await runObituaryCommand([], dir, deps(() => outcome));
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(cause);
+    expect(paths).toHaveLength(1);
+    expect(existsSync(join(dir, '.deja-boo/obituaries.json'))).toBe(false);
+  });
+
+  it('a missing repository (404 for the commit and for the repo) stops and exits 1', async () => {
+    writeGraveyard(50);
+    const r = await runObituaryCommand([], dir, deps(() => ({ kind: 'error', status: 404, message: 'HTTP 404' })));
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(/o\/r not found/);
+    expect(paths).toHaveLength(2);
+  });
+
+  it('a secondary rate limit stops with reset advice and exits 0 when entries were saved', async () => {
+    writeGraveyard(5);
+    const r = await runObituaryCommand([], dir, deps((_p, call) => (call === 2 ? { kind: 'rate-limited', secondary: true } : { kind: 'ok', json: [pr(call)] })));
+    expect(r.exitCode).toBe(0);
+    expect(r.stderr).toMatch(/secondary rate limit.*wait a few minutes/);
+    expect(paths).toHaveLength(2);
+  });
+
+  it('every lookup failing (500) exits 1', async () => {
+    writeGraveyard(3);
+    const r = await runObituaryCommand([], dir, deps(() => ({ kind: 'error', status: 500, message: 'HTTP 500' })));
+    expect(r.exitCode).toBe(1);
+    expect(r.stderr).toMatch(/every lookup failed/);
+  });
+
+  it('streams N/M progress and prints the tombstone summary', async () => {
+    writeGraveyard(3);
+    const progress: string[] = [];
+    const r = await runObituaryCommand([], dir, deps(okPulls, { progress: t => progress.push(t) }));
+    expect(progress).toEqual(['deja-boo: 1/3\n', 'deja-boo: 2/3\n', 'deja-boo: 3/3\n']);
+    expect(r.stdout).toContain('tombstones with text 3/3, Reverts 3/3');
+  });
+});

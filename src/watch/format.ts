@@ -1,5 +1,5 @@
 import type { Link, Obituary, ObituaryFile, RevenantHit, Tombstone } from '../core/types.js';
-import { hasObituaryText, obituaryLine, primaryRef } from '../core/obituary.js';
+import { OBITUARY_LABEL, hasObituaryText, obituaryLine, primaryRef, quoteSafe, refLabel } from '../core/obituary.js';
 
 const MAX_ENTRY = 1200;
 const MAX_OBITUARY_LINE = 500;
@@ -28,10 +28,10 @@ function day(iso: string): string {
  * When the tombstone has an obituary with text, its line (at most 500 characters) follows the cause on its own line.
  * Invariant: length <= 1200 (for a file name that fits), and equal to the entry without an obituary when there is none.
  */
-export function formatHookEntry(hit: RevenantHit, file?: string): string {
+export function formatHookEntry(hit: RevenantHit, file?: string, showObituary = true): string {
   const t = hit.tombstone;
   const links = linkText(t.links);
-  const obit = t.obituary !== undefined && hasObituaryText(t.obituary) ? obituaryLine(t.obituary, MAX_OBITUARY_LINE) : '';
+  const obit = showObituary && t.obituary !== undefined && hasObituaryText(t.obituary) ? obituaryLine(t.obituary, MAX_OBITUARY_LINE) : '';
   const build = (cause: string): string => {
     const head = `[${hit.level}] 👻 Déjà Boo: this code was buried on ${day(t.buriedAt)} in ${t.commit.slice(0, 7)} — ${cause}${links ? ` (${links})` : ''}`;
     return `${head}${head.endsWith('.') ? '' : '.'}${obit === '' ? ' ' : `\n${obit}\n`}` +
@@ -46,14 +46,25 @@ export function formatHookEntry(hit: RevenantHit, file?: string): string {
   return build(cause);
 }
 
+/**
+ * Entries for the shown hits, each death commit's obituary printed once (on its first entry).
+ * Invariant: one entry per hit, and no two entries carry the obituary of the same commit.
+ */
+export function formatEntries(hits: { hit: RevenantHit; file?: string | undefined }[]): string[] {
+  const printed = new Set<string>();
+  return hits.map(({ hit, file }) => {
+    const first = !printed.has(hit.tombstone.commit);
+    printed.add(hit.tombstone.commit);
+    return formatHookEntry(hit, file, first);
+  });
+}
+
 /** Hook stderr text: at most 3 entries, then "… and N more buried things". The level is stated per entry. */
 export function formatHookMessage(hits: RevenantHit[], files?: string[]): string {
-  const shown = hits.slice(0, MAX_HOOK_ENTRIES).map((h, i) => formatHookEntry(h, files?.[i]));
+  const shown = formatEntries(hits.slice(0, MAX_HOOK_ENTRIES).map((hit, i) => ({ hit, file: files?.[i] })));
   if (hits.length > MAX_HOOK_ENTRIES) shown.push(`… and ${hits.length - MAX_HOOK_ENTRIES} more buried things`);
   return shown.join('\n') + '\n';
 }
-
-const refLine = (kind: string, r: { number: number; url: string }): string => `${kind} #${r.number}, ${r.url}`;
 
 /** The `obituary:` lines of `check` for one tombstone; with `file` null (no file) there are none. Invariant: states only what the file holds; never infers. */
 function obituaryBlock(t: Tombstone, file: ObituaryFile | null): string[] {
@@ -66,12 +77,12 @@ function obituaryBlock(t: Tombstone, file: ObituaryFile | null): string[] {
       ? `  obituary:    none found on GitHub (looked up ${day(o.fetchedAt)})`
       : `  obituary:    found on GitHub, but its text is empty (looked up ${day(o.fetchedAt)})`];
   }
-  const refs: { kind: string; ref: typeof p.ref }[] = [];
+  const refs: { kind: 'PR' | 'issue'; ref: typeof p.ref }[] = [];
   if (o.pr !== null && o.pr.excerpt !== '') refs.push({ kind: 'PR', ref: o.pr });
   for (const i of o.issues) if (i.excerpt !== '') refs.push({ kind: 'issue', ref: i });
-  const out = [`  obituary:    (GitHub text, quoted as data, fetched ${day(o.fetchedAt)})`];
+  const out = [`  obituary:    (${OBITUARY_LABEL}; fetched ${day(o.fetchedAt)})`];
   for (const { kind, ref } of refs) {
-    out.push(`    ${refLine(kind, ref)}`, `      title:   ${ref.title}`, `      excerpt: "${ref.excerpt}${ref.truncated ? '\u2026' : ''}"`);
+    out.push(`    ${refLabel(kind, ref)}`, `      title:   "${quoteSafe(ref.title)}"`, `      excerpt: "${quoteSafe(ref.excerpt)}${ref.truncated ? '\u2026' : ''}"`);
   }
   return out;
 }

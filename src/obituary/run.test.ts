@@ -99,11 +99,11 @@ describe('runObituary', () => {
     expect(file[sha(1)]).toMatchObject({ pr: null, issues: [] });
   });
 
-  it('a linked issue that answers 404 fails the commit; no entry is written', async () => {
+  it('a linked issue that answers 404 is recorded in failedIssues; no entry is lost', async () => {
     const { fetcher } = scripted({ [pulls(sha(1))]: [] });
     const { file, summary } = await run([stone('a', sha(1), { links: bare(1) })], fetcher);
-    expect(file[sha(1)]).toBeUndefined();
-    expect(summary.failed).toBe(1);
+    expect(file[sha(1)]).toEqual({ pr: null, issues: [], fetchedAt: NOW.toISOString(), failedIssues: [1] });
+    expect(summary).toMatchObject({ failed: 0, partial: 1, lookedUp: 1 });
   });
 
   it('stores a pr: null entry for a commit without a PR, and counts it as neither', async () => {

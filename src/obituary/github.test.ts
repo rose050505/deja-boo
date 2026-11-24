@@ -57,14 +57,28 @@ describe('createGitHubFetcher', () => {
     expect(await createGitHubFetcher(TOKEN)('/x')).toEqual({ kind: 'rate-limited' });
   });
 
-  it('maps 404, 5xx, a plain 403, bad JSON and network errors to error; the token never appears in a message', async () => {
+  it('a 403 with other rate-limit headers (or none) is a secondary rate limit: rate-limited with secondary: true', async () => {
+    stubFetch(reply(403, {}, { 'x-ratelimit-remaining': '12' }));
+    expect(await createGitHubFetcher(TOKEN)('/x')).toEqual({ kind: 'rate-limited', secondary: true });
+    stubFetch(reply(403, {}));
+    expect(await createGitHubFetcher()('/x')).toEqual({ kind: 'rate-limited', secondary: true });
+  });
+
+  it('a network error carries network: true and a 401 keeps its status', async () => {
+    stubFetch(new Error('ENOTFOUND'));
+    expect(await createGitHubFetcher()('/x')).toMatchObject({ kind: 'error', network: true });
+    stubFetch(reply(401, {}));
+    expect(await createGitHubFetcher(TOKEN)('/x')).toMatchObject({ kind: 'error', status: 401 });
+  });
+
+  it('maps 404, 5xx, bad JSON and network errors to error; the token never appears in a message', async () => {
     const f = createGitHubFetcher(TOKEN);
     const outcomes = [];
-    for (const res of [reply(404, {}), reply(500, {}), reply(403, {}, { 'x-ratelimit-remaining': '12' }), reply(200, 'not json'), new Error(`boom with ${TOKEN} inside`)]) {
+    for (const res of [reply(404, {}), reply(500, {}), reply(200, 'not json'), new Error(`boom with ${TOKEN} inside`)]) {
       stubFetch(res);
       outcomes.push(await f(`/repos/o/r/${TOKEN}`));
     }
-    expect(outcomes.map(o => o.kind)).toEqual(['error', 'error', 'error', 'error', 'error']);
+    expect(outcomes.map(o => o.kind)).toEqual(['error', 'error', 'error', 'error']);
     expect(outcomes[0]).toMatchObject({ status: 404 });
     expect(outcomes[1]).toMatchObject({ status: 500 });
     expect(JSON.stringify(outcomes)).not.toContain(TOKEN);

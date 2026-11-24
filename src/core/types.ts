@@ -69,7 +69,7 @@ export interface ObituaryRef {
   number: number;
   url: string;
   title: string;
-  /** First 400 UTF-16 code units of the whitespace-collapsed body; never paraphrased or decorated. */
+  /** First 400 UTF-16 code units of the cleaned body (HTML comments and checklist lines dropped, whitespace collapsed, control and format characters removed); never paraphrased or decorated. */
   excerpt: string;
   /** True when the collapsed body was longer than `excerpt`. */
   truncated: boolean;
@@ -81,6 +81,8 @@ export interface Obituary {
   issues: ObituaryRef[];
   /** ISO 8601 time of the lookup. */
   fetchedAt: string;
+  /** Numbers of linked issues whose lookup failed; a re-run retries only these. Absent when none failed. */
+  failedIssues?: number[];
 }
 
 /** Contents of `.deja-boo/obituaries.json`, keyed by the 40-character death commit sha. */

@@ -6,7 +6,7 @@ import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { acknowledgedIds, findRevenants } from '../core/watch.js';
 import { loadConfig, loadGraveyard } from '../watch/load.js';
 import { git, gitShowHead } from '../watch/head.js';
-import { formatHookEntry } from '../watch/format.js';
+import { formatEntries } from '../watch/format.js';
 
 export interface StopResult { exitCode: 0; stdout: string }
 
@@ -50,7 +50,7 @@ export function decideStop(sessionId: string, deps: StopDeps): StopResult {
   const key = [...new Set(hits.map(h => h.hit.tombstone.id))].sort().join(',');
   if (deps.loadBlocked(sessionId) === key) return silent;
   deps.saveBlocked(sessionId, key);
-  const shown = hits.slice(0, MAX_ENTRIES).map(h => formatHookEntry(h.hit, h.file));
+  const shown = formatEntries(hits.slice(0, MAX_ENTRIES));
   if (hits.length > MAX_ENTRIES) shown.push(`… and ${hits.length - MAX_ENTRIES} more buried things`);
   const reason = `${shown.join('\n')}\nThese changes resurrect buried code. Read the tombstone with get_tombstone; either take another approach or, if the cause no longer applies, add deja-boo: checked <id> near the code and explain why.`;
   return { exitCode: 0, stdout: JSON.stringify({ decision: 'block', reason }) + '\n' };

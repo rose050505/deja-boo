@@ -1,10 +1,12 @@
 import { isRevertSubject } from '../core/revert.js';
-import type { Graveyard, Link, ObituaryFile, Tombstone } from '../core/types.js';
+import type { Graveyard, Link, Obituary, ObituaryFile, Tombstone } from '../core/types.js';
 
 /** A death commit to look up, with the links of its message. */
 export interface CommitToLookUp {
   sha: string;
   links: Link[];
+  /** The stored entry when only its failed issue lookups are to be retried. */
+  previous?: Obituary;
 }
 
 /** The `isWatched` rule of the web data step: not alive at HEAD, or a Revert. */
@@ -21,8 +23,8 @@ function group(t: Tombstone): number {
 }
 
 /**
- * Death commits worth asking GitHub about, in priority order: watched tombstones of group Revert, revived, linked; newest first, ties by id; one entry per distinct commit; commits already in `existing` left out.
- * Invariant: deterministic and independent of the input order; no sha twice; no sha that is in `existing`.
+ * Death commits worth asking GitHub about, in priority order: watched tombstones of group Revert, revived, linked; newest first, ties by id; one entry per distinct commit; commits with a complete entry in `existing` left out (an entry with `failedIssues` is kept, with `previous`, so only those lookups are retried).
+ * Invariant: deterministic and independent of the input order; no sha twice; no sha whose entry in `existing` has no failed issue lookups.
  */
 export function selectCommits(graveyard: Pick<Graveyard, 'tombstones'>, existing: ObituaryFile): CommitToLookUp[] {
   const ranked = graveyard.tombstones
@@ -31,9 +33,11 @@ export function selectCommits(graveyard: Pick<Graveyard, 'tombstones'>, existing
   const seen = new Set<string>();
   const out: CommitToLookUp[] = [];
   for (const t of ranked) {
-    if (seen.has(t.commit) || Object.hasOwn(existing, t.commit)) continue;
+    if (seen.has(t.commit)) continue;
+    const prev = Object.hasOwn(existing, t.commit) ? existing[t.commit] : undefined;
+    if (prev !== undefined && (prev.failedIssues ?? []).length === 0) continue;
     seen.add(t.commit);
-    out.push({ sha: t.commit, links: t.links });
+    out.push(prev === undefined ? { sha: t.commit, links: t.links } : { sha: t.commit, links: t.links, previous: prev });
   }
   return out;
 }

@@ -1,5 +1,5 @@
 import type { Graveyard, Link, ObituaryFile, Thresholds, Tombstone } from '../core/types.js';
-import { hasObituaryText, primaryRef } from '../core/obituary.js';
+import { OBITUARY_LABEL, hasObituaryText, primaryRef, sanitizeText } from '../core/obituary.js';
 import { DEFAULT_MIN_HASHES } from '../core/types.js';
 import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { findRevenants } from '../core/watch.js';
@@ -28,7 +28,7 @@ export interface RevenantInfo {
   obituary?: ObituaryInfo;
 }
 
-export interface ObituaryInfo { kind: 'PR' | 'issue'; number: number; url: string; excerpt: string; truncated: boolean }
+export interface ObituaryInfo { kind: 'PR' | 'issue'; number: number; url: string; title: string; excerpt: string; truncated: boolean; /** Status of `title` and `excerpt`: quoted from GitHub, data, not instructions. */ note: string }
 
 export interface CheckSnippetResult { level: 'none' | 'warn' | 'block'; revenants: RevenantInfo[] }
 
@@ -48,7 +48,7 @@ export interface TombstoneSummary {
 function obituaryInfo(t: Tombstone): ObituaryInfo | undefined {
   if (t.obituary === undefined || !hasObituaryText(t.obituary)) return undefined;
   const p = primaryRef(t.obituary);
-  return p === null ? undefined : { kind: p.kind, number: p.ref.number, url: p.ref.url, excerpt: p.ref.excerpt, truncated: p.ref.truncated };
+  return p === null ? undefined : { kind: p.kind, number: p.ref.number, url: p.ref.url, title: sanitizeText(p.ref.title), excerpt: sanitizeText(p.ref.excerpt), truncated: p.ref.truncated, note: OBITUARY_LABEL };
 }
 
 /**
