@@ -132,9 +132,9 @@ The setup is psf/requests checked out at `26bea1e4^` (April 2023, 6,143 commits)
 | PreToolUse write hook only | Same result. Kiro edited through shell commands, so the write hook never ran |
 | Write hook + Stop hook (REQ-10) | The Stop guard blocked with the tombstone. Kiro called `get_tombstone`, noted that the revert records no reason, kept the change with `deja-boo: checked a36a5b6…`, and warned to test chunked uploads on the supported urllib3 versions |
 
-In 2023, requests did re-land this change after urllib3 was fixed. The guard did not forbid it. It made the agent check the history and leave a trail.
+In 2023, requests did re-land this change after review, when it needed full urllib3 2.0 support (#6226). The guard did not forbid it. It made the agent check the history and leave a trail.
 
-The guarded outcome is not deterministic. In three more guarded sessions recorded for the demo video (`docs/kiro-runs/video-takes/`), Kiro twice reverted its own change and asked, and once kept it pending, declined to add the marker without a reason, and asked. Every guarded run read the tombstone first; none resurrected the code silently.
+The guarded outcome is not deterministic. In four more guarded sessions recorded for the demo video (`docs/kiro-runs/video-takes/`), Kiro twice reverted its own change and asked, once kept it pending, declined to add the marker without a reason, and asked, and once (with the obituary) opened PR #5353 and issue #4965, could not confirm the open issues were fixed, and reverted with three options. Every guarded run read the tombstone first; none resurrected the code silently.
 
 ## 8. Post-review fixes 3: functional review on click, black and koa (2026-11-24)
 

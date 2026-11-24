@@ -21,7 +21,7 @@ See [`.kiro/steering/product.md`](.kiro/steering/product.md) for the product bri
 
 ## Why it matters
 We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, flask, got and requests. That is 19,908 commits and 5,146 tombstones.
-- Deleted code came back more than a week after its death **26 times** (one count per commit, not per record): 26 comebacks, 20 confirmed real by hand (labels in [`research/labels/`](research/labels/)), 2 ambiguous, 4 false; all 7 via Revert are real.
+- Deleted code came back more than a week after its death **26 times** (one count per commit, not per record): 26 comebacks, 20 confirmed real by a reviewer who opened each one in git (labels in [`research/labels/`](research/labels/)), 2 ambiguous, 4 false; all 7 via Revert are real.
 - A reviewer opened every comeback an earlier version reported (50 records) in git: only 20 were real. Most of the rest were reformats and moves where the code never died. The miner now ignores those, checks that the code was really gone and that the re-adding commit comes after the death, rejects a comeback when the rest of the tree already holds as much of the code as the comeback does, skips licence and generated sponsor files, and counts a cherry-picked patch once. A second labelling pass on the 32 comebacks that remained found 10 false ones; 6 are gone. On all labels the miner keeps 19 of the 23 real comebacks and drops 33 of the 37 false ones, and it finds 14 of 21 re-additions the reviewer found independently. The 4 false ones left and the 4 real ones lost are listed in [`research/matching-eval.md`](research/matching-eval.md) sections 9 and 11.
 - The commit message of a Revert rarely says why. Asking GitHub which pull request merged each death commit (`deja-boo obituary`, 990 requests for the 6 repos) gives 1,410 of the 5,169 tombstones the opening text of a PR or linked issue, and raises the Reverts that carry a reason from 37 to 57 of 71 (only 3 had an explicit PR or issue link). [`research/obituary-eval.md`](research/obituary-eval.md) section 2.
 
@@ -32,7 +32,7 @@ We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, fla
 Details are in [`research/matching-eval.md`](research/matching-eval.md), section 7.
 
 Two real examples:
-- **requests** replaced its hand-rolled chunked upload with `urlopen(chunked=...)` in 2019. The change was reverted 7 months later. The same idea landed again in 2023, once urllib3 had fixed the underlying bug.
+- **requests** replaced its hand-rolled chunked upload with `urlopen(chunked=...)` in 2019. The change was reverted 7 months later. The same idea landed again in 2023, after review, when requests needed full urllib3 2.0 support.
 - **express** removed its default `OPTIONS` response. The removal was reverted 321 days later.
 
 That is the knowledge an AI agent does not have when it "simplifies" your code.
