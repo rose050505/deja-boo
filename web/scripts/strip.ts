@@ -1,5 +1,5 @@
 import type { Link, RevivalRecord, Tombstone } from '../../src/core/types.ts';
-import { isRevertCause } from '../../src/core/level.ts';
+import { isRevertSubject } from '../../src/core/revert.ts';
 
 /** Maximum deleted lines kept per tombstone in the web graveyard. */
 export const MAX_LINES = 60;
@@ -29,7 +29,7 @@ export type Fingerprinter = (lines: string[], language: string) => number[];
  * Invariant: a kept tombstone is never `aliveAtHead` unless its cause of death is a Revert.
  */
 export function isWatched(t: Pick<Tombstone, 'aliveAtHead' | 'causeOfDeath'>): boolean {
-  return t.aliveAtHead !== true || isRevertCause(t.causeOfDeath);
+  return t.aliveAtHead !== true || isRevertSubject(t.causeOfDeath);
 }
 
 /**

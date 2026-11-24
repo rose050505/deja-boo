@@ -5,6 +5,7 @@ import { mountGraveyard, type GraveyardView } from './graveyard-view.ts';
 import { DEMO_REPO, DEMO_SNIPPET } from './demo-snippet.ts';
 import { fogDensity, restLine, summon, type SummonResult } from './summon.ts';
 import { epitaph } from './layout.ts';
+import { isRevertSubject } from '../../src/core/revert.ts';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -105,7 +106,7 @@ async function main(): Promise<void> {
       cache.set(repo.name, data);
     }
     tombs = data;
-    const cracked = tombs.filter(t => /^revert/i.test(t.causeOfDeath)).length;
+    const cracked = tombs.filter(t => isRevertSubject(t.causeOfDeath)).length;
     $('gy-summary').textContent = `${repo.name}: ${tombs.length} tombstones watched (${cracked} cracked by a Revert), from ${repo.mined} mined. Stones still alive at HEAD are not shown, except Reverts.`;
     $('sm-repo').textContent = repo.name;
     view = mountGraveyard($('gy-scroll'), $('gy-caption'), dialog, repo, tombs);

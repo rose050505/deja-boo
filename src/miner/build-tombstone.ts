@@ -8,6 +8,7 @@ import { parseLinks } from './link-parser.js';
  * Build a Tombstone from a surviving deleted block and its commit metadata.
  * Returns null if the fingerprint is empty or has fewer than config.minHashes distinct hashes (too short, or an idiom that fires on unrelated code).
  *
+ * With `repoUrl`, bare references in the message get `<repoUrl>/issues/N`.
  * Also stores the identifier-renamed fingerprint (`idFingerprint`) that scores multi-identifier renames at check time.
  * Invariant: same inputs always produce the same id.
  */
@@ -15,6 +16,7 @@ export function buildTombstone(
   block: RawBlock,
   meta: ParsedCommit['meta'],
   config: MinerConfig,
+  repoUrl?: string,
 ): Tombstone | null {
   const language = detectLanguage(block.filePath);
   const fingerprint = fingerprintLines(block.lines, { ...config, language });
@@ -43,7 +45,7 @@ export function buildTombstone(
     commit: meta.hash,
     author: meta.authorEmail,
     causeOfDeath,
-    links: parseLinks(`${meta.subject}\n${meta.body}`),
+    links: parseLinks(`${meta.subject}\n${meta.body}`, repoUrl),
     revivals: [],
     deaths: [],
   };

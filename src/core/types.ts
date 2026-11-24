@@ -53,10 +53,35 @@ export const DEFAULT_MINER_CONFIG: MinerConfig = {
 // ─── Link ────────────────────────────────────────────────────────────────────
 
 export interface Link {
-  type: 'issue' | 'pr';
+  /** 'ref' is a bare `#N` whose kind (issue or pull request) is unknown. */
+  type: 'issue' | 'pr' | 'ref';
   ref: string;
   url?: string;
 }
+
+// ─── Obituary ────────────────────────────────────────────────────────────────
+
+/** A pull request or issue found on GitHub; `excerpt` is verbatim text from its body. */
+export interface ObituaryRef {
+  number: number;
+  url: string;
+  title: string;
+  /** First 400 UTF-16 code units of the whitespace-collapsed body; never paraphrased or decorated. */
+  excerpt: string;
+  /** True when the collapsed body was longer than `excerpt`. */
+  truncated: boolean;
+}
+
+/** What GitHub knows about one death commit. `pr: null` and `issues: []` means "looked up, nothing found". */
+export interface Obituary {
+  pr: ObituaryRef | null;
+  issues: ObituaryRef[];
+  /** ISO 8601 time of the lookup. */
+  fetchedAt: string;
+}
+
+/** Contents of `.deja-boo/obituaries.json`, keyed by the 40-character death commit sha. */
+export type ObituaryFile = Record<string, Obituary>;
 
 // ─── Revival & death records ──────────────────────────────────────────────────
 
@@ -115,6 +140,8 @@ export interface Tombstone {
   deaths: DeathRecord[];
   /** True when >= 80% of the fingerprint occurs in the HEAD tree; `check` ignores these. Set by `index`. */
   aliveAtHead?: boolean;
+  /** From `.deja-boo/obituaries.json`; attached in memory (or in the web JSON), never written to graveyard.json. */
+  obituary?: Obituary;
 }
 
 // ─── Graveyard ───────────────────────────────────────────────────────────────
@@ -134,6 +161,8 @@ export interface GraveyardStats {
 }
 
 export interface Graveyard {
+  /** `https://github.com/<owner>/<repo>` of the origin remote; absent when there is no GitHub origin. */
+  repoUrl?: string;
   tombstones: Tombstone[];
   stats: GraveyardStats;
 }

@@ -8,6 +8,8 @@
  *
  *   deja-boo check [--no-head] <file|->  Match a file (or stdin) against .deja-boo/graveyard.json.
  *
+ *   deja-boo obituary [options]       Ask GitHub why code died and write .deja-boo/obituaries.json (the only command that uses the network).
+ *
  *   deja-boo hook                     Kiro PreToolUse adapter: event JSON on stdin, exit 2 blocks.
  *
  *   deja-boo mcp                      Start the MCP server on stdio.
@@ -16,6 +18,7 @@
 import { runIndexCommand } from './index-command.js';
 import { runCheckCommand } from './check-command.js';
 import { runHookCommand } from './hook-command.js';
+import { obituaryMain } from './obituary-command.js';
 import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 
 const [, , subcommand, ...rest] = process.argv;
@@ -27,6 +30,8 @@ if (subcommand === 'index') {
   });
 } else if (subcommand === 'check') {
   runCheckCommand(rest);
+} else if (subcommand === 'obituary') {
+  await obituaryMain(rest);
 } else if (subcommand === 'hook') {
   runHookCommand();
 } else if (subcommand === 'mcp') {
@@ -39,10 +44,19 @@ Usage:
   deja-boo check [--no-head] <file|->
                              exit 0 clean, 1 warn, 2 block, 3 no graveyard. A file inside the repo is compared with its
                              HEAD version, so only what the new text makes worse is reported; --no-head checks the text alone
+  deja-boo obituary [--repo owner/name] [--limit N] [--graveyard <file>] [--out <file>]
+                             Look up the pull requests and issues behind death commits on GitHub (the only command that
+                             uses the network); writes .deja-boo/obituaries.json. Token: GITHUB_TOKEN, else \`gh auth token\`, else none
   deja-boo hook              Kiro PreToolUse adapter (event JSON on stdin): exit 2 blocks, 1 fails open
   deja-boo mcp               Start the MCP server on stdio (check_snippet, get_tombstone, list_graveyard)
 
   repo                  Path to git repository (default: current directory)
+
+Options for \`obituary\`:
+  --repo <owner/name>   GitHub repository (default: the github.com origin remote of the current directory)
+  --limit <n>           Death commits to look up, newest Reverts first (default: 300)
+  --graveyard <file>    Graveyard to read (default: .deja-boo/graveyard.json)
+  --out <file>          Obituary file to write (default: .deja-boo/obituaries.json); entries already in it are kept
 
 Options for \`index\`:
   --out <file>          Output JSON path (default: <repo>/.deja-boo/graveyard.json, the path check and the hooks read)

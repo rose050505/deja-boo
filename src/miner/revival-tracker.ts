@@ -5,6 +5,7 @@ import type {
   DeathRecord,
   Tombstone,
 } from '../core/types.js';
+import { isRevertSubject } from '../core/revert.js';
 import { containedIn, fingerprintLines, matchWindowed, similarity } from '../core/match.js';
 import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 import { matchWindowedIndexed, type WindowIndex } from '../core/watch.js';
@@ -15,7 +16,7 @@ import { detectLanguage } from './language.js';
 
 /**
  * Append a RevivalRecord to tombstone.revivals (sorted by committer date asc).
- * Sets isRevert: true when the commit subject starts with "Revert".
+ * Sets isRevert: true when the commit subject is a Revert (`isRevertSubject`).
  *
  * Invariant: every revival committerTimestamp is strictly after tombstone.buriedAtTimestamp.
  */
@@ -31,7 +32,7 @@ export function recordRevival(
     author: meta.authorEmail,
     subject: meta.subject,
     similarity: sim,
-    isRevert: meta.subject.startsWith('Revert'),
+    isRevert: isRevertSubject(meta.subject),
     isMergeArtifact: /^merge/i.test(meta.subject),
     ...(patch !== undefined ? { patchId: patch } : {}),
   };

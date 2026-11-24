@@ -1,4 +1,4 @@
-import { isRevertCause } from '../core/level.js';
+import { isRevertSubject } from '../core/revert.js';
 import type { GraveyardStats, Tombstone } from '../core/types.js';
 
 /**
@@ -23,7 +23,7 @@ export function computeStats(
   for (const t of tombstones) {
     if (t.aliveAtHead === true) {
       aliveAtHead++;
-      if (isRevertCause(t.causeOfDeath)) aliveAtHeadReverts++;
+      if (isRevertSubject(t.causeOfDeath)) aliveAtHeadReverts++;
     }
     for (const r of t.revivals) {
       // Use buriedAtTimestamp for the death side; revival date is derived from committerTimestamp.

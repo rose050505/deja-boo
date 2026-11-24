@@ -46,7 +46,7 @@ export function renderTombstone(dialog: HTMLDialogElement, repo: RepoEntry, t: W
     t.links.length
       ? h('p', {}, 'Links: ', ...t.links.flatMap((l, i) => {
           const href = safeLink(l.url);
-          const label = `${l.type === 'pr' ? 'PR' : 'issue'} #${l.ref}`;
+          const label = `${l.type === 'pr' ? 'PR' : l.type === 'issue' ? 'issue' : 'ref'} #${l.ref}`;
           return [i ? ', ' : '', href ? h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, label) : label];
         }))
       : h('p', { class: 'muted' }, 'Links: none in the commit message.'),

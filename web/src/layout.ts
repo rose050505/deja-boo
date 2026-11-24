@@ -1,4 +1,4 @@
-import { isRevertCause } from '../../src/core/level.ts';
+import { isRevertSubject } from '../../src/core/revert.ts';
 
 export interface StoneInput {
   id: string;
@@ -57,7 +57,7 @@ export function epitaph(t: Pick<StoneInput, 'causeOfDeath' | 'buriedAt'>): strin
 }
 
 /** True for a Revert death (cracked stone). */
-export const isCracked = (t: Pick<StoneInput, 'causeOfDeath'>): boolean => isRevertCause(t.causeOfDeath);
+export const isCracked = (t: Pick<StoneInput, 'causeOfDeath'>): boolean => isRevertSubject(t.causeOfDeath);
 
 /** Stone width in px; grows with the lines buried and is clamped to [16, 52]. Invariant: monotone in `lines`. */
 export function stoneWidth(lines: number): number {

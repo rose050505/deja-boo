@@ -9,9 +9,11 @@ export function causeText(t: Pick<Tombstone, 'causeOfDeath'>): string {
   return t.causeOfDeath.trim() === '' ? 'cause of death unknown' : t.causeOfDeath;
 }
 
-/** "PR #42, issue #7" for the tombstone's links; '' when there are none. */
+const LINK_LABEL: Record<Link['type'], string> = { pr: 'PR', issue: 'issue', ref: 'ref' };
+
+/** "PR #42, issue #7, ref #3" for the tombstone's links ("ref" is a bare #N of unknown kind); '' when there are none. */
 export function linkText(links: Link[]): string {
-  return links.map(l => `${l.type === 'pr' ? 'PR' : 'issue'} #${l.ref}`).join(', ');
+  return links.map(l => `${LINK_LABEL[l.type]} #${l.ref}`).join(', ');
 }
 
 /** YYYY-MM-DD of an ISO timestamp. */

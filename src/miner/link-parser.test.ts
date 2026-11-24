@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import fc from 'fast-check';
 import { parseLinks } from './link-parser.js';
 
 describe('parseLinks', () => {
@@ -65,5 +66,54 @@ describe('parseLinks', () => {
     const links = parseLinks(url);
     expect(links).toHaveLength(1);
     expect(links[0]?.ref).toBe('12');
+  });
+
+  it('a bare #N is a ref, not an issue', () => {
+    expect(parseLinks('see #42')).toEqual([{ type: 'ref', ref: '42' }]);
+  });
+
+  it('PR #5 then a later bare #5 yields one link (most specific kind wins)', () => {
+    const url = 'https://github.com/o/r/pull/5';
+    expect(parseLinks(`#5 and ${url}`)).toEqual([{ type: 'pr', ref: '5', url }]);
+    expect(parseLinks('fixes #5, see #5')).toEqual([{ type: 'issue', ref: '5' }]);
+  });
+
+  it('with repoUrl, bare and close-keyword links get an issues URL; URL forms keep theirs', () => {
+    const repo = 'https://github.com/o/r';
+    const pr = 'https://github.com/x/y/pull/9';
+    expect(parseLinks(`${pr} fixes #1 and #2`, repo)).toEqual([
+      { type: 'pr', ref: '9', url: pr },
+      { type: 'issue', ref: '1', url: `${repo}/issues/1` },
+      { type: 'ref', ref: '2', url: `${repo}/issues/2` },
+    ]);
+  });
+});
+
+const refArb = fc.integer({ min: 1, max: 30 });
+const messageArb = fc.array(
+  fc.oneof(
+    refArb.map(n => `#${n}`),
+    refArb.map(n => `fixes #${n}`),
+    refArb.map(n => `https://github.com/a/b/pull/${n}`),
+    refArb.map(n => `https://github.com/a/b/issues/${n}`),
+    fc.string({ maxLength: 8 }),
+  ),
+  { maxLength: 8 },
+).map(parts => parts.join(' '));
+
+describe('parseLinks properties', () => {
+  it('never returns two links with the same ref', () => {
+    fc.assert(fc.property(messageArb, fc.option(fc.constant('https://github.com/o/r'), { nil: undefined }), (msg, repo) => {
+      const refs = parseLinks(msg, repo).map(l => l.ref);
+      expect(new Set(refs).size).toBe(refs.length);
+    }));
+  });
+  it('a bare #N alone is ref; with repoUrl every link has a url, without it only URL-form links do', () => {
+    fc.assert(fc.property(messageArb, msg => {
+      const repo = 'https://github.com/o/r';
+      for (const l of parseLinks(msg, repo)) expect(l.url).toBeDefined();
+      for (const l of parseLinks(msg)) expect(l.url !== undefined).toBe(l.type === 'pr' || /github\.com\/a\/b\/(issues|pull)\//.test(l.url ?? ''));
+      for (const n of [1, 2, 3]) expect(parseLinks(`#${n}`)).toEqual([{ type: 'ref', ref: String(n) }]);
+    }));
   });
 });

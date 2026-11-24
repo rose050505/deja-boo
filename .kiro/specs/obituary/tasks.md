@@ -4,37 +4,38 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch A: measure first, then core (browser-safe)
 
-### [ ] Task 1: Measure the Revert predicate change
+### [x] Task 1: Measure the Revert predicate change
 - Write `research/scripts/obituary-eval.mjs` (part 1): on the 6 research repos' graveyards, count tombstones whose Revert status changes between `/^revert/i`, `/^revert\b/i`, `startsWith('Revert')` and `^revert(s|ed|ing)?\b`, tombstones whose level changes at the default thresholds, and revivals whose `isRevert` changes. List the changed subjects.
 - Record the numbers and subjects in `research/obituary-eval.md`.
 - Covers: REQ-6, REQ-9.
 
-### [ ] Task 2: One revert predicate
+### [x] Task 2: One revert predicate
 - Create `src/core/revert.ts` with `isRevertSubject`. Make `isRevertCause` delegate to it. Use it in `hauntLevel`, `revival-tracker`, `stats`, and `web/src/layout.ts`.
 - Tests: `Revert "x"`, `revert: x`, `Reverting 3362`, `Reverted`, `reverts the commit` are true; `Revertible`, `Preserve`, `" "` are false; first line only. Properties: `isRevertCause`, `hauntLevel` evidence, and `revival-tracker` agree with `isRevertSubject` on generated subjects. Source-scan test: no other revert regex or `startsWith('Revert')` in `src/` or `web/`.
 - Existing level monotonicity properties pass unchanged.
 - Covers: REQ-6, REQ-8.6, REQ-8.7.
 
-### [ ] Task 3: Obituary types, excerpt, and line
+### [x] Task 3: Obituary types, excerpt, and line
 - Add `ObituaryRef`, `Obituary`, `ObituaryFile`, `Link.type 'ref'`, `Tombstone.obituary?`, `Graveyard.repoUrl?` to `src/core/types.ts`.
 - Create `src/core/obituary.ts`: `makeExcerpt`, `hasObituaryText`, `obituaryLine`, `pickPullRequest`, `entryFromGitHub` (validates the GitHub JSON shape, returns null on a bad shape).
 - Tests: excerpt cases (empty, null, long, whitespace runs, surrogate pair at the cut). Properties: prefix of the collapsed body, length <= 400, no split pair, `truncated` iff longer (REQ-8.1, 8.5); `obituaryLine` length <= max; `pickPullRequest` is deterministic and order-independent.
 - Covers: REQ-2, REQ-5, REQ-8.
 
-### [ ] Task 4: Obituary as evidence in `hauntLevel`
+### [x] Task 4: Obituary as evidence in `hauntLevel`
 - Extend the `Pick` with optional `obituary` and add `hasObituaryText` to the reason test.
 - Tests: no `obituary` gives the old result for generated inputs; a PR with text and no link allows `block`; an entry with only a title does not. Properties: attaching an obituary never lowers a level; thresholds monotonicity and the alive-at-HEAD rules still hold (REQ-8.7).
 - Covers: REQ-6.
 
 ## Batch B: index records the remote
 
-### [ ] Task 5: Link kinds and URLs
+### [x] Task 5: Link kinds and URLs
 - `parseLinks(message, repoUrl?)`: bare `#N` is `ref`, close keywords stay `issue`, URL forms keep their kind, dedupe by `ref` keeping the most specific kind, bare and close-keyword links get `<repoUrl>/issues/N` when `repoUrl` is given.
 - Update `linkText` for `ref`, and any exhaustive switch over `Link.type` (hook, Stop, web).
 - Tests and property: REQ-8.8. Existing link-parser tests change only where the kind of a bare `#N` changes; list those changes in the task notes.
+- Notes (done): no existing link-parser test changed; the one test titled "bare #42" uses `fixes #42`, which stays `issue`. Links keep the pass order of the parser (PR URLs, issue URLs, close keywords, bare refs), not strict message order.
 - Covers: REQ-4.
 
-### [ ] Task 6: `repoUrl` in the graveyard
+### [x] Task 6: `repoUrl` in the graveyard
 - Create `src/obituary/remote.ts` with pure `parseGitHubRemote` (https, scp-like, ssh forms; strips `.git`; rejects other hosts) and `originRepo(cwd)`.
 - `src/miner/index.ts` reads origin once, passes `repoUrl` to `buildTombstone`, and sets `graveyard.repoUrl` (omitted when unknown). Serialization keeps sorted keys.
 - Tests: remote parsing table; a fixture repo with no origin yields a `graveyard.json` identical to the current golden; a fixture with an `https://github.com/o/r.git` origin has `repoUrl` and URLs on bare links.
@@ -42,19 +43,19 @@ Complete in order. Each batch ends with `npm test` and `npx tsc --noEmit` green.
 
 ## Batch C: the `obituary` command
 
-### [ ] Task 7: Selection and orchestration
+### [x] Task 7: Selection and orchestration
 - Create `src/obituary/select.ts` (watched tombstones, groups Revert, revived, linked; newest first, ties by id; distinct commits; skip commits already in `existing`; cap at `limit`).
 - Create `src/obituary/run.ts`: `runObituary({ graveyard, repo, limit, existing, fetcher, now })` with the per-commit requests, memoized issue lookups (at most 3 per commit, never the chosen PR), the PR choice, rate-limit stop, error skip, and a summary.
 - Tests with a scripted fetcher: priority order; shared death commit fetched once; existing entries kept and not refetched; `pr: null` entry for a commit with no PR; error leaves no entry; rate limit at call k keeps exactly the earlier entries and makes no further calls.
 - Properties: fetch budget, no repeated issue number, verbatim excerpts, partial file valid, re-run fetches only the missing commits (REQ-8.3, 8.4, 8.5).
 - Covers: REQ-1, REQ-2, REQ-3, REQ-8.
 
-### [ ] Task 8: Real fetcher and token
+### [x] Task 8: Real fetcher and token
 - Create `src/obituary/github.ts`: `createGitHubFetcher(token?)` (Node `fetch`, headers, rate-limit detection from status and `x-ratelimit-remaining` / `retry-after` / `x-ratelimit-reset`), and `resolveToken(env, runGh)` (`GITHUB_TOKEN`, then `gh auth token`, else none).
 - Tests with a stubbed `globalThis.fetch`: headers sent, token only on `api.github.com` requests, 403 with remaining 0 and 429 map to `rate-limited`, 404 and 5xx to `error`, and the token string never appears in any returned message.
 - Covers: REQ-1 (auth), REQ-3.
 
-### [ ] Task 9: `deja-boo obituary`
+### [x] Task 9: `deja-boo obituary`
 - Create `src/cli/obituary-command.ts`: parse `--repo`, `--limit`, `--graveyard`, `--out`; resolve repo (flag, then origin); load the graveyard; read an existing obituary file; run; write sorted JSON; print the summary; exit codes 0, 1, 3 as in REQ-1. Dispatch in `main.ts` and add to `--help`. Add `.deja-boo/obituaries.json` to `.gitignore`.
 - Tests: temp-dir runs with an injected fetcher (the command takes `deps`): defaults, bad `--limit`, no repo, missing graveyard, rate-limit partial write with exit 0 and the stderr note, output file keys sorted.
 - Covers: REQ-1, REQ-2.

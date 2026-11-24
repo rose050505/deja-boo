@@ -11,6 +11,7 @@ import { RepoReader } from './repo-reader.js';
 import { computeStats } from './stats.js';
 import { fingerprintHead } from './head-tree.js';
 import { isAliveAtHead } from '../core/match.js';
+import { originRepo, repoUrlOf } from '../obituary/remote.js';
 import type { RawCommit } from '../core/types.js';
 
 export interface IndexStats {
@@ -80,6 +81,8 @@ export async function runIndexWithStats(
     revivalsNotAncestor: 0,
     revivalsDuplicate: 0,
   };
+  const origin = await originRepo(repo);
+  const repoUrl = origin === null ? undefined : repoUrlOf(origin);
   const reader = new RepoReader(repo, config);
 
   try {
@@ -119,7 +122,7 @@ export async function runIndexWithStats(
 
       // Build tombstones from surviving deleted blocks.
       for (const block of survived) {
-        const tombstone = buildTombstone(block, parsed.meta, config);
+        const tombstone = buildTombstone(block, parsed.meta, config, repoUrl);
         if (tombstone === null) {
           runStats.skippedEmpty++;
           continue;
@@ -199,5 +202,5 @@ export async function runIndexWithStats(
   runStats.revivals = stats.revivals;
   runStats.mergeArtifacts = stats.mergeArtifactRevivals;
 
-  return { graveyard: { tombstones, stats }, stats: runStats };
+  return { graveyard: { ...(repoUrl !== undefined ? { repoUrl } : {}), tombstones, stats }, stats: runStats };
 }
