@@ -6,10 +6,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { loadConfig, loadGraveyard } from '../watch/load.js';
+import { loadConfig, loadGraveyard, NO_GRAVEYARD } from '../watch/load.js';
+import { headVersionOf } from '../watch/head.js';
 import { checkSnippet, getTombstone, listGraveyard, ToolError } from './tools.js';
 
-const HOWTO = 'no graveyard at .deja-boo/graveyard.json. Create it with: deja-boo index . --out .deja-boo/graveyard.json';
+const HOWTO = NO_GRAVEYARD;
 
 type ToolResult = { content: { type: 'text'; text: string }[]; isError?: boolean };
 
@@ -34,12 +35,14 @@ function run(fn: (g: NonNullable<typeof graveyard>) => unknown): ToolResult {
 const server = new McpServer({ name: 'deja-boo', version: '0.1.0' });
 
 server.registerTool('check_snippet', {
-  description: 'Check code against the graveyard of deliberately deleted code. Returns the level (none, warn, block) and each matching tombstone with its commit, date and cause of death.',
+  description: 'Check code against the graveyard of deliberately deleted code. Pass `path` when the code is for a file in the repo: it is then compared with the HEAD version of that file and only what it makes worse is reported. Returns the level (none, warn, block) and each matching tombstone with its commit, date and cause of death.',
   inputSchema: { code: z.string(), path: z.string().optional() },
 }, ({ code, path }) => run(g => {
   const { config, notes } = loadConfig(cwd);
   for (const n of notes) process.stderr.write(`deja-boo mcp: ${n}\n`);
-  return checkSnippet(g, config.thresholds, code, path);
+  // A path inside the repo is compared with its HEAD version, so code already at HEAD does not alarm.
+  const before = path === undefined ? undefined : headVersionOf(cwd, path);
+  return checkSnippet(g, config.thresholds, code, path, { before, minHashes: config.minHashes });
 }));
 
 server.registerTool('get_tombstone', {

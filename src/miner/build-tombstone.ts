@@ -7,7 +7,7 @@ import { parseLinks } from './link-parser.js';
 
 /**
  * Build a Tombstone from a surviving deleted block and its commit metadata.
- * Returns null if the fingerprint after normalization is empty (block too short).
+ * Returns null if the fingerprint is empty or has fewer than config.minHashes distinct hashes (too short, or an idiom that fires on unrelated code).
  *
  * Invariant: same inputs always produce the same id.
  */
@@ -19,7 +19,7 @@ export function buildTombstone(
   const normalized = normalizeBlock(block.lines, config);
   const fingerprint = kgramWinnow(normalized, config);
 
-  if (fingerprint.length === 0) return null;
+  if (fingerprint.length === 0 || fingerprint.length < config.minHashes) return null;
 
   // Stable id: sha1("${commit}:${path}:${hunkStart}")
   const id = createHash('sha1')

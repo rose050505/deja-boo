@@ -55,3 +55,12 @@ describe('resolveSkipPatterns', () => {
     ));
   });
 });
+
+describe('lock files (post-review fixes 3)', () => {
+  it.each(['uv.lock', 'bun.lock', 'bun.lockb', 'poetry.lock', 'Cargo.lock', 'Gemfile.lock', 'composer.lock', 'pnpm-lock.yaml', 'sub/dir/uv.lock', 'flake.lock'])('%s is skipped by default', f => {
+    expect(isSkippedPath(f, resolveSkipPatterns())).toBe(true);
+  });
+  it('source files that merely mention lock are not skipped', () => {
+    for (const f of ['src/lock.ts', 'src/unlock.lockfile.ts', 'locker.py']) expect(isSkippedPath(f, resolveSkipPatterns())).toBe(false);
+  });
+});

@@ -1,10 +1,11 @@
-import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Graveyard, RevenantHit, WatchConfig } from '../core/types.js';
+import { DEFAULT_MIN_HASHES } from '../core/types.js';
 import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { acknowledgedIds, findRevenants } from '../core/watch.js';
 import { loadConfig, loadGraveyard } from '../watch/load.js';
+import { git, gitShowHead } from '../watch/head.js';
 import { formatHookEntry } from '../watch/format.js';
 
 export interface StopResult { exitCode: 0; stdout: string }
@@ -41,7 +42,7 @@ export function decideStop(sessionId: string, deps: StopDeps): StopResult {
     const before = deps.before(file) ?? '';
     if (before === after) continue;
     const acked = acknowledgedIds(after);
-    for (const hit of findRevenants(deps.graveyard, after.split('\n'), deps.config.thresholds, before === '' ? [] : before.split('\n'))) {
+    for (const hit of findRevenants(deps.graveyard, after.split('\n'), deps.config.thresholds, before === '' ? [] : before.split('\n'), { minHashes: deps.config.minHashes ?? DEFAULT_MIN_HASHES })) {
       if (!acked.has(hit.tombstone.id)) hits.push({ hit, file });
     }
   }
@@ -57,11 +58,6 @@ export function decideStop(sessionId: string, deps: StopDeps): StopResult {
 
 const MAX_FILE_BYTES = 1_000_000;
 const STATE_FILE = '.deja-boo/stop-state.json';
-
-function git(cwd: string, args: string[]): string | undefined {
-  const r = spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  return r.error || r.status !== 0 ? undefined : r.stdout;
-}
 
 /** Real git and filesystem access for `decideStop` in `cwd`. Invariant: never throws; failures read as "nothing changed". */
 export function gitStopDeps(cwd: string): StopDeps {
@@ -81,7 +77,7 @@ export function gitStopDeps(cwd: string): StopDeps {
       const untracked = git(cwd, ['ls-files', '--others', '--exclude-standard', '-z']) ?? '';
       return [...new Set([...tracked.split('\0'), ...untracked.split('\0')].filter(f => f !== ''))].sort();
     },
-    before: path => git(cwd, ['show', `HEAD:./${path}`]),
+    before: path => gitShowHead(cwd, path),
     after: path => {
       try {
         const buf = readFileSync(join(cwd, path));

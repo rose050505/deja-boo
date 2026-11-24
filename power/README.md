@@ -13,7 +13,7 @@ The MCP server runs through `npx -y github:rose050505/deja-boo mcp`. The first r
 
 The tools read `.deja-boo/graveyard.json` in the project you open. Create it from that project's history:
 
-    npx -y github:rose050505/deja-boo index . --out .deja-boo/graveyard.json
+    npx -y github:rose050505/deja-boo index
 
 (In the deja-boo repository itself: `npm run bury`.) Rebuild it whenever history changes.
 
@@ -23,7 +23,7 @@ As far as the docs say, powers do not install hooks automatically. Copy the read
 
     mkdir -p .kiro/hooks && cp power/hooks/deja-boo-guard.json .kiro/hooks/
 
-It adds a `PreToolUse` hook on write tools and a `Stop` hook, both running `npx -y github:rose050505/deja-boo hook`. Exit 2 blocks with the evidence on stderr; a missing graveyard or a bad event exits 1 and never blocks.
+It adds a `PreToolUse` hook on write tools and a `Stop` hook, both running `npx -y github:rose050505/deja-boo hook`. Exit 2 blocks with the evidence on stderr; a bad event exits 1, and a missing graveyard exits 0 after one line on stderr telling you to run `deja-boo index`. Neither blocks.
 
 ## Contents
 

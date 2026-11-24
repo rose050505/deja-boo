@@ -102,3 +102,17 @@ describe('listGraveyard', () => {
     ));
   });
 });
+
+describe('checkSnippet with `before` (HEAD version of the path)', () => {
+  const g = yard(stone('a'.repeat(40), 100));
+  const code = block('alpha').join('\n');
+  it('code that is already in the before text does not alarm; new code does', () => {
+    expect(checkSnippet(g, T, code, 'src/a.ts', { before: code }).level).toBe('none');
+    expect(checkSnippet(g, T, code, 'src/a.ts', { before: '' }).level).toBe('block');
+    expect(checkSnippet(g, T, code, 'src/a.ts', { before: 'const x = 1;' }).level).toBe('block');
+    expect(checkSnippet(g, T, code, 'src/a.ts').level).toBe('block');
+  });
+  it('minHashes above the fingerprint size hides the tombstone', () => {
+    expect(checkSnippet(g, T, code, undefined, { minHashes: 10_000 }).level).toBe('none');
+  });
+});

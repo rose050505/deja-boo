@@ -172,3 +172,20 @@ describe('buildTombstone – property tests', () => {
     );
   });
 });
+
+describe('buildTombstone – minHashes', () => {
+  it('returns null below minHashes distinct hashes and builds above it', () => {
+    const block = makeBlock(['try:', '  range_type = xrange', 'except NameError:', '  range_type = range']);
+    const t = buildTombstone(block, makeMeta(), { ...CONFIG, minHashes: 0 });
+    expect(t).not.toBeNull();
+    const n = t!.fingerprint.length;
+    expect(buildTombstone(block, makeMeta(), { ...CONFIG, minHashes: n })).not.toBeNull();
+    expect(buildTombstone(block, makeMeta(), { ...CONFIG, minHashes: n + 1 })).toBeNull();
+  });
+  it('property: every built tombstone has at least minHashes hashes', () => {
+    fc.assert(fc.property(fc.array(fc.stringMatching(/^[a-z ]{3,30}$/), { minLength: 1, maxLength: 12 }), fc.integer({ min: 0, max: 8 }), (lines, minHashes) => {
+      const t = buildTombstone(makeBlock(lines), makeMeta(), { ...CONFIG, minHashes });
+      return t === null || t.fingerprint.length >= minHashes;
+    }));
+  });
+});

@@ -20,6 +20,8 @@ export interface MinerConfig {
   moveThreshold: number;
   /** Days after deletion within which a re-add drops the tombstone. */
   graceDays: number;
+  /** A deleted block becomes a tombstone only with at least this many distinct winnowed hashes (idioms with 1-3 hashes fire on unrelated code). */
+  minHashes: number;
   /** Limit walk to commits after this date (ISO or git date string). */
   since?: string;
   /** Limit walk to commits before this date (ISO or git date string). */
@@ -28,8 +30,12 @@ export interface MinerConfig {
   skipPatterns: string[];
 }
 
+/** Fewest distinct fingerprint hashes a tombstone needs to be watched; see research/matching-eval.md section 8. */
+export const DEFAULT_MIN_HASHES = 4;
+
 export const DEFAULT_MINER_CONFIG: MinerConfig = {
   minBlockLines: 4,
+  minHashes: DEFAULT_MIN_HASHES,
   kgramSize: 5,
   windowSize: 4,
   renameIds: false,
@@ -151,6 +157,8 @@ export interface Thresholds {
 /** Contents of `.deja-boo/config.json`. */
 export interface WatchConfig {
   thresholds: Thresholds;
+  /** Tombstones with fewer distinct hashes are not watched; defaults to DEFAULT_MIN_HASHES. */
+  minHashes?: number;
 }
 
 /** A revenant found by the watcher: a tombstone plus how strongly and where the candidate matches it. */
@@ -183,6 +191,8 @@ export interface Hunk {
   newStart: number;
   deletedLines: string[];
   addedLines: string[];
+  /** True when the old file is inside a `/* ... *\/` block comment where this hunk starts (known only when the opener is in the diff's context). */
+  startsInComment?: boolean;
 }
 
 export interface ParsedCommit {

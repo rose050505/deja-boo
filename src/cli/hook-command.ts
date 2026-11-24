@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Graveyard, WatchConfig } from '../core/types.js';
+import { DEFAULT_MIN_HASHES } from '../core/types.js';
 import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { acknowledgedIds, addedLineNumbers, findRevenants } from '../core/watch.js';
-import { loadConfig, loadGraveyard } from '../watch/load.js';
+import { loadConfig, loadGraveyard, NO_GRAVEYARD } from '../watch/load.js';
 import { formatHookMessage } from '../watch/format.js';
 import { decideStop, gitStopDeps } from './stop-command.js';
 
@@ -22,7 +23,8 @@ const bad = (reason: string): HookResult => ({ exitCode: 1, stderr: `deja-boo: $
 const isStr = (v: unknown): v is string => typeof v === 'string';
 
 /**
- * Exit code is 0 iff no unacknowledged revenant exists in the new code (for a valid event); 1 for a broken event or setup; 2 otherwise.
+ * Exit code is 0 iff no unacknowledged revenant exists in the new code (for a valid event); 1 for a broken event; 2 otherwise.
+ * A missing graveyard is exit 0 with one explanatory stderr line (nothing can be checked, and a block would be wrong).
  * Invariant: acknowledging every matched id always gives exit 0.
  */
 export function decideHook(rawEvent: string, deps: HookDeps): HookResult {
@@ -62,10 +64,10 @@ export function decideHook(rawEvent: string, deps: HookDeps): HookResult {
 
   const added = addedLineNumbers(disk, after);
   if (added.size === 0) return ok;
-  if (!deps.graveyard) return bad('no graveyard at .deja-boo/graveyard.json; not checking. Create it with: deja-boo index . --out .deja-boo/graveyard.json');
+  if (!deps.graveyard) return { exitCode: 0, stderr: `deja-boo: ${NO_GRAVEYARD} This write was not checked.\n` };
 
   const acked = acknowledgedIds(written);
-  const hits = findRevenants(deps.graveyard, after.split('\n'), deps.config.thresholds, disk === '' ? [] : disk.split('\n'))
+  const hits = findRevenants(deps.graveyard, after.split('\n'), deps.config.thresholds, disk === '' ? [] : disk.split('\n'), { minHashes: deps.config.minHashes ?? DEFAULT_MIN_HASHES })
     .filter(h => !acked.has(h.tombstone.id));
   if (hits.length === 0) return ok;
   return { exitCode: 2, stderr: formatHookMessage(hits) };
@@ -97,7 +99,9 @@ export function runHookCommand(): void {
   try {
     const ev = JSON.parse(raw) as { hook_event_name?: unknown; session_id?: unknown };
     if (ev.hook_event_name === 'Stop') {
-      const r = decideStop(typeof ev.session_id === 'string' ? ev.session_id : '', gitStopDeps(cwd));
+      const stopDeps = gitStopDeps(cwd);
+      if (!stopDeps.graveyard) process.stderr.write(`deja-boo: ${NO_GRAVEYARD} The working tree was not checked.\n`);
+      const r = decideStop(typeof ev.session_id === 'string' ? ev.session_id : '', stopDeps);
       process.stdout.write(r.stdout);
       process.exitCode = 0;
       return;

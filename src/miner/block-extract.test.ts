@@ -137,3 +137,31 @@ describe('extractBlocks – property tests', () => {
     );
   });
 });
+
+describe('extractBlocks – comment fragments (post-review fixes 3)', () => {
+  const jsdoc = [' * Return request header.', ' *', ' * @return {Object}', ' * @api public'];
+
+  it('unit: a deleted JSDoc interior without its opener is not a block', () => {
+    expect(extractBlocks(makeHunk(jsdoc), 'deleted', 4)).toEqual([]);
+    expect(extractBlocks(makeHunk(['/**', ...jsdoc, ' */']), 'deleted', 4)).toEqual([]);
+  });
+
+  it('unit: comment lines count nowhere near code, and the added side is left alone', () => {
+    expect(extractBlocks(makeHunk([], jsdoc), 'added', 4)).toHaveLength(1);
+    expect(extractBlocks(makeHunk([...jsdoc, 'return this.header;']), 'deleted', 4)).toHaveLength(1);
+  });
+
+  it('unit: a hunk that starts inside a block comment loses the comment lines up to its closer', () => {
+    const hunk: Hunk = { ...makeHunk([' * tail of a comment', ' * more', ' */', 'a();', 'b();', 'c();', 'd();']), startsInComment: true };
+    expect(extractBlocks(hunk, 'deleted', 4)[0]!.lines).toEqual(['a();', 'b();', 'c();', 'd();']);
+    expect(extractBlocks({ ...hunk, deletedLines: ['a();', 'b();', 'c();', 'd();', 'e();'] }, 'deleted', 4)).toEqual([]); // no closer: all comment
+  });
+
+  it('property: a block made only of comment lines never becomes a tombstone block', () => {
+    const commentLine = fc.oneof(
+      fc.string().map(s => ` * ${s}`), fc.string().map(s => `// ${s}`), fc.string().map(s => `/* ${s}`),
+      fc.string().map(s => `# ${s}`), fc.constantFrom('', '  ', ' *', ' */', '#'),
+    ).filter(l => !l.includes('\n'));
+    fc.assert(fc.property(fc.array(commentLine, { maxLength: 30 }), lines => extractBlocks(makeHunk(lines), 'deleted', 1).length === 0));
+  });
+});

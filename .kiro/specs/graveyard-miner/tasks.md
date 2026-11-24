@@ -506,6 +506,24 @@ Source: reviewer comments and `research/matching-eval.md`.
 
 ---
 
+## Post-review fixes 3
+
+Source: reviewer functional review on pallets/click (3,416 commits), psf/black (2,525) and koajs/koa (1,328); see `revenant-watch/tasks.md` for the full numbers. Items that change the miner:
+
+- [x] **2. Comment fragments matched as code (must).** In koa, a new file containing only a common JSDoc block (`Return request header. / @return {Object} / @api public`) was blocked with similarity 1.00 against c699c75, and `check` on the unchanged `lib/request.js` also blocked. Cause: when the deleted hunk does not include the opening `/*`, the comment interior is normalized as code. Fix: drop deleted blocks whose lines are all comment-like (`*`, `/*`, `*/`, `//`, `#` lines and blank). The diff's own context lines tell whether a hunk starts inside a block comment, and that is used when the opener is in the context (no extra git calls). Property: a block made only of comment lines never becomes a tombstone.
+- [x] **3. Tiny fingerprints fire on idioms (must).** Tombstones with 1-3 winnowed hashes: click 38, black 32, koa 8. Fix: `MinerConfig.minHashes` (default 4, `--min-hashes`); `buildTombstone` returns null below it. The watcher applies the same minimum to graveyards that were built earlier. Measure the drop on the 6 research repos.
+- [x] **6. New-user path (should).** `deja-boo index` writes `<repo>/.deja-boo/graveyard.json` by default (creates the directory), the path `check`, the hooks and the MCP server read.
+- [x] **7. Lock files not skipped (should).** click has 35 `uv.lock` tombstones; replaying a2b9b2f2 (a `uv.lock` write) warned (exit 2) and Stop blocked. Added `*.lock`, `uv.lock`, `bun.lock`, `bun.lockb`, `poetry.lock`, `Cargo.lock`, `Gemfile.lock`, `composer.lock`, `pnpm-lock.yaml` to the default skip list.
+
+Post-review fixes 3 results (6 research repos, miner before vs after; `research/matching-eval.md` sections 6 and 8):
+
+- Tombstones 6,301 to 5,970 (-331): lock files -95 (flask 94, axios 1), comment-only blocks -40 (express 32, axios 4, got 4), `minHashes` 4 -196 (3.2% of 6,166). On the review repos: click 900 to 831 (35 lock files, 34 tiny), black 919 to 891 (28 tiny), koa 419 to 408 (3 comment-only, 8 tiny).
+- Revivals 50 to 44 (still 6 via Revert), alive at HEAD 660 to 642, commits 19,908 to 19,909 (one new axios commit upstream). The six lost revivals sit on five tombstones with 1 to 3 hashes; two of them were hand-labelled "real". Recorded as the cost of the default in the README and research.
+- `web/public/graveyards/*.json`, `index.json` and `stats.json` were regenerated with `npm run web:data` because the counts changed; the JSON format did not.
+- `index` stats line "Skipped empty" is now "Skipped tiny" and counts blocks with fewer than `minHashes` hashes as well. New tests: `comment.test.ts`, `block-extract` (comment-only blocks and hunks that start inside a comment), `parse-diff` (comment context), `build-tombstone` (`minHashes`), `skip` (lock files), `index-command` (default output path, `--min-hashes`, JSDoc and lock file end to end).
+
+---
+
 ## Dependency notes
 
 No new npm dependencies are introduced by this spec beyond what is already in the project. The implementation uses only:

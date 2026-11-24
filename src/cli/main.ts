@@ -6,7 +6,7 @@
  *   deja-boo index [repo] [options]   Mine git history and write a graveyard JSON.
  *   deja-boo --help                   Print this help.
  *
- *   deja-boo check <file|->           Match a file (or stdin) against .deja-boo/graveyard.json.
+ *   deja-boo check [--no-head] <file|->  Match a file (or stdin) against .deja-boo/graveyard.json.
  *
  *   deja-boo hook                     Kiro PreToolUse adapter: event JSON on stdin, exit 2 blocks.
  *
@@ -35,15 +35,18 @@ if (subcommand === 'index') {
 
 Usage:
   deja-boo index [repo] [options]
-  deja-boo check <file|->     exit 0 clean, 1 warn, 2 block, 3 no graveyard
+  deja-boo check [--no-head] <file|->
+                             exit 0 clean, 1 warn, 2 block, 3 no graveyard. A file inside the repo is compared with its
+                             HEAD version, so only what the new text makes worse is reported; --no-head checks the text alone
   deja-boo hook              Kiro PreToolUse adapter (event JSON on stdin): exit 2 blocks, 1 fails open
   deja-boo mcp               Start the MCP server on stdio (check_snippet, get_tombstone, list_graveyard)
 
   repo                  Path to git repository (default: current directory)
 
 Options for \`index\`:
-  --out <file>          Output JSON path (default: graveyard.json)
+  --out <file>          Output JSON path (default: <repo>/.deja-boo/graveyard.json, the path check and the hooks read)
   --min-block-lines <n> Minimum deleted lines per block (default: 4)
+  --min-hashes <n>      Fewest distinct fingerprint hashes a tombstone needs (default: 4)
   --kgram-size <n>      k-gram width for fingerprinting (default: 5)
   --window-size <n>     Winnowing window size (default: 4)
   --rename-ids          Normalise identifier names before fingerprinting

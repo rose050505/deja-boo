@@ -16,9 +16,9 @@ export const DEFAULT_SKIP_PATTERNS: string[] = [
   '*.zip', '*.tar', '*.gz', '*.bin', '*.exe', '*.dll', '*.so', '*.dylib',
   // Certificates and key bundles
   '*.pem', '*.crt',
-  // Lockfiles (exact basename)
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Gemfile.lock',
-  'poetry.lock', 'Cargo.lock', 'go.sum', 'composer.lock', 'Pipfile.lock',
+  // Lockfiles: any `*.lock`, plus the ones with other extensions (exact basename)
+  '*.lock', 'uv.lock', 'bun.lock', 'bun.lockb', 'poetry.lock', 'Cargo.lock', 'Gemfile.lock', 'composer.lock',
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'go.sum', 'Pipfile.lock',
   // Vendored dirs (`*/packages/` is the python vendoring layout, e.g. requests/packages)
   'node_modules/', 'vendor/', 'third_party/', 'extern/', 'Pods/', '*/packages/',
   // Build dirs

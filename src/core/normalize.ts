@@ -105,28 +105,29 @@ function removeSingleLineComment(line: string): string {
   return line;
 }
 
+/** Where a line starts relative to block comments: outside any, or inside `/* *\/`, `<!-- -->` or `{- -}`. */
+export type CommentState = 'normal' | 'slash_star' | 'html' | 'haskell';
+
 /**
- * Remove block comments from a multi-line string.
- * Handles: `/* ... *\/`, `<!-- ... -->`, `{- ... -}`.
- * Uses a state machine; never backtracks.
+ * Remove block comments from one line, given the state at its start; returns the text and the state at its end.
+ * Uses a state machine; never backtracks. Every opener and closer is within one line, so a multi-line text is this function chained over its lines.
  */
-function removeBlockComments(text: string): string {
-  type State = 'normal' | 'slash_star' | 'html' | 'haskell';
-  let state: State = 'normal';
+export function stripBlockCommentsLine(line: string, from: CommentState): { text: string; state: CommentState } {
+  let state = from;
   let result = '';
   let i = 0;
 
-  while (i < text.length) {
-    const c = text[i] as string;
+  while (i < line.length) {
+    const c = line[i] as string;
 
     if (state === 'normal') {
-      if (c === '/' && text[i + 1] === '*') {
+      if (c === '/' && line[i + 1] === '*') {
         state = 'slash_star';
         i += 2;
-      } else if (c === '<' && text.startsWith('<!--', i)) {
+      } else if (c === '<' && line.startsWith('<!--', i)) {
         state = 'html';
         i += 4;
-      } else if (c === '{' && text[i + 1] === '-') {
+      } else if (c === '{' && line[i + 1] === '-') {
         state = 'haskell';
         i += 2;
       } else {
@@ -134,35 +135,54 @@ function removeBlockComments(text: string): string {
         i++;
       }
     } else if (state === 'slash_star') {
-      if (c === '*' && text[i + 1] === '/') {
+      if (c === '*' && line[i + 1] === '/') {
         state = 'normal';
         i += 2;
         result += ' ';
       } else {
-        if (c === '\n') result += '\n';
         i++;
       }
     } else if (state === 'html') {
-      if (c === '-' && text.startsWith('-->', i)) {
+      if (c === '-' && line.startsWith('-->', i)) {
         state = 'normal';
         i += 3;
         result += ' ';
       } else {
-        if (c === '\n') result += '\n';
         i++;
       }
     } else {
       // haskell {- ... -}
-      if (c === '-' && text[i + 1] === '}') {
+      if (c === '-' && line[i + 1] === '}') {
         state = 'normal';
         i += 2;
         result += ' ';
       } else {
-        if (c === '\n') result += '\n';
         i++;
       }
     }
   }
 
-  return result;
+  return { text: result, state };
+}
+
+/**
+ * Remove block comments from a multi-line string.
+ * Handles: `/* ... *\/`, `<!-- ... -->`, `{- ... -}`.
+ */
+function removeBlockComments(text: string): string {
+  let state: CommentState = 'normal';
+  return text.split('\n').map(line => {
+    const r = stripBlockCommentsLine(line, state);
+    state = r.state;
+    return r.text;
+  }).join('\n');
+}
+
+/**
+ * Normalize one line the way `normalizeBlock` does (no identifier renaming), given the comment state at its start.
+ * Invariant: chaining it over a block's lines from 'normal' and joining the non-empty results with `\n` equals `normalizeBlock(lines, { renameIds: false })`.
+ */
+export function normalizeLineFrom(line: string, from: CommentState): { text: string; state: CommentState } {
+  const r = stripBlockCommentsLine(line, from);
+  return { text: removeSingleLineComment(r.text).trim().replace(/\s+/g, ' '), state: r.state };
 }

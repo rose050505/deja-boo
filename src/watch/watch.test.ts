@@ -15,7 +15,7 @@ const cfg = (text: string) => writeFileSync(join(dir, '.deja-boo/config.json'), 
 describe('loadConfig', () => {
   const defaults = { warn: 0.5, block: 0.7 };
   it('missing file: defaults, no note', () => {
-    expect(loadConfig(dir)).toEqual({ config: { thresholds: defaults }, notes: [] });
+    expect(loadConfig(dir)).toEqual({ config: { thresholds: defaults, minHashes: 4 }, notes: [] });
   });
   it('valid thresholds are used', () => {
     cfg('{"thresholds":{"warn":0.6,"block":0.8}}');
@@ -28,6 +28,18 @@ describe('loadConfig', () => {
     const r = loadConfig(dir);
     expect(r.config.thresholds).toEqual(defaults);
     expect(r.notes).toHaveLength(1);
+  });
+  it('minHashes: a non-negative integer is used; anything else gives the default plus a note', () => {
+    cfg('{"minHashes":0}');
+    expect(loadConfig(dir)).toEqual({ config: { thresholds: defaults, minHashes: 0 }, notes: [] });
+    cfg('{"thresholds":{"warn":0.6,"block":0.8},"minHashes":7}');
+    expect(loadConfig(dir).config).toEqual({ thresholds: { warn: 0.6, block: 0.8 }, minHashes: 7 });
+    for (const bad of ['-1', '2.5', '"4"', 'null']) {
+      cfg(`{"minHashes":${bad}}`);
+      const r = loadConfig(dir);
+      expect(r.config.minHashes).toBe(4);
+      expect(r.notes).toHaveLength(1);
+    }
   });
   it('property: validThresholds is false for non-numbers and true only for 0 < warn <= block <= 1', () => {
     fc.assert(fc.property(fc.anything(), x => !validThresholds({ warn: x, block: 0.9 }) || typeof x === 'number'));

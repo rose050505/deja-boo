@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { runIndexCommand } from './index-command.js';
+import { loadGraveyard } from '../watch/load.js';
 
 const BLOCK = [
   'function fetchUser(id: string) {',
@@ -54,6 +55,41 @@ describe('runIndexCommand', () => {
     const json = JSON.parse(readFileSync(out, 'utf8')) as Record<string, unknown>;
     expect(json).toHaveProperty('tombstones');
     expect(json).toHaveProperty('stats');
+  });
+
+  it('without --out writes <repo>/.deja-boo/graveyard.json, where check and the hooks read it', async () => {
+    timedCommit(repo, 'src/x.ts', BLOCK + '\n', 'add', '2024-01-01T00:00:00Z');
+    timedCommit(repo, 'src/x.ts', '// empty\n', 'remove', '2024-01-15T00:00:00Z');
+    await runIndexCommand([repo, '--kgram-size', '3', '--window-size', '2', '--min-hashes', '1']);
+    const file = join(repo, '.deja-boo', 'graveyard.json');
+    expect(existsSync(file)).toBe(true);
+    expect(loadGraveyard(repo)?.tombstones.length).toBeGreaterThan(0);
+  });
+
+  it('a deleted JSDoc interior and a deleted lock file never become tombstones, deleted code does', async () => {
+    const doc = ['/**', ' * Return request header.', ' *', ' * @return {Object}', ' * @api public', ' */'].join('\n');
+    timedCommit(repo, 'lib/a.js', `${doc}\nfunction header() {\n  return 1;\n}\n`, 'add', '2024-01-01T00:00:00Z');
+    timedCommit(repo, 'uv.lock', BLOCK + '\n', 'lock', '2024-01-02T00:00:00Z');
+    timedCommit(repo, 'lib/a.js', '// gone\n', 'remove all', '2024-01-15T00:00:00Z');
+    timedCommit(repo, 'uv.lock', '# empty\n', 'unlock', '2024-01-16T00:00:00Z');
+    const out = join(outDir, 'g.json');
+    await runIndexCommand([repo, '--out', out, '--kgram-size', '3', '--window-size', '2', '--min-hashes', '1']);
+    const { tombstones } = JSON.parse(readFileSync(out, 'utf8')) as { tombstones: { path: string; lines: string[] }[] };
+    expect(tombstones.every(t => t.path === 'lib/a.js')).toBe(true);
+    // the whole 10-line hunk is one block with code in it, so it stays; the lock file is gone
+    expect(tombstones).toHaveLength(1);
+  });
+
+  it('--min-hashes drops tombstones with fewer distinct hashes', async () => {
+    timedCommit(repo, 'src/x.ts', BLOCK + '\n', 'add', '2024-01-01T00:00:00Z');
+    timedCommit(repo, 'src/x.ts', '// empty\n', 'remove', '2024-01-15T00:00:00Z');
+    const count = async (min: string): Promise<number> => {
+      const out = join(outDir, `g${min}.json`);
+      await runIndexCommand([repo, '--out', out, '--kgram-size', '3', '--window-size', '2', '--min-hashes', min]);
+      return (JSON.parse(readFileSync(out, 'utf8')) as { tombstones: unknown[] }).tombstones.length;
+    };
+    expect(await count('1')).toBe(1);
+    expect(await count('1000')).toBe(0);
   });
 
   it('--out to a non-existent directory creates the directory and the file', async () => {

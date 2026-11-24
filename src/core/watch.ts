@@ -1,9 +1,10 @@
 import type { Graveyard, RevenantHit, Thresholds, Tombstone, WindowedMatch } from './types.js';
-import { containment, fingerprintLines, similarity } from './match.js';
+import { containment, similarity } from './match.js';
 import { kgramHashSet } from './fingerprint.js';
 import { normalizeBlock } from './normalize.js';
-import { DEFAULT_MINER_CONFIG } from './types.js';
+import { DEFAULT_MINER_CONFIG, DEFAULT_MIN_HASHES } from './types.js';
 import { hauntLevel } from './level.js';
+import { CandidateWindows, type WindowIndex } from './windows.js';
 
 /** Minimum rise in similarity, versus the file on disk, for a tombstone that already scored at or above warn to count as made worse. */
 export const WORSE_BY = 0.1;
@@ -80,46 +81,38 @@ export function acknowledgedIds(content: string): Set<string> {
   return ids;
 }
 
-export type WindowIndex = { fps: number[][]; byHash: Map<number, number[]> };
+export type { WindowIndex } from './windows.js';
 
-/** Fingerprints of every width-`width` window of `candidate`, plus hash -> ascending window starts. */
-function indexWindows(candidate: string[], width: number): WindowIndex {
-  const fps: number[][] = [];
-  const byHash = new Map<number, number[]>();
-  for (let start = 0; start + width <= candidate.length; start++) {
-    const fp = fingerprintLines(candidate.slice(start, start + width));
-    fps.push(fp);
-    for (const h of fp) {
-      const list = byHash.get(h);
-      if (list) list.push(start);
-      else byHash.set(h, [start]);
-    }
-  }
-  return { fps, byHash };
-}
+const candidates = new WeakMap<Map<number, WindowIndex>, CandidateWindows>();
 
 /**
- * `matchWindowed(t, candidate)` computed from shared window fingerprints. Only windows that share a hash with the tombstone are scored,
- * because every other window has Jaccard 0 and can never beat the "no match" result.
- * Invariant: equals matchWindowed(t, candidate) for every input.
+ * `matchWindowed(t, candidate)` computed from per-line precomputed k-gram hashes (see windows.ts). Only windows that contain a k-gram of the tombstone
+ * are fingerprinted, because every other window has Jaccard 0 and can never beat the "no match" result.
+ * With `minSimilarity` > 0, windows that cannot reach it are skipped.
+ * Invariant: equals matchWindowed(t, candidate) for every input when minSimilarity is 0; for any minSimilarity it returns the same
+ * match whenever matchWindowed's similarity is >= minSimilarity, and a similarity below minSimilarity otherwise.
  */
 export function matchWindowedIndexed(
   t: Pick<Tombstone, 'lines' | 'fingerprint'>,
   candidate: string[],
   cache: Map<number, WindowIndex>,
+  minSimilarity = 0,
 ): WindowedMatch {
   const none: WindowedMatch = { similarity: 0, matchedLines: [0, 0], containment: 0 };
   const size = t.lines.length;
   if (size === 0 || candidate.length === 0 || t.fingerprint.length === 0) return none;
   const width = Math.min(size, candidate.length);
+  let cw = candidates.get(cache);
+  if (!cw || cw.lines !== candidate) {
+    cache.clear();
+    candidates.set(cache, (cw = new CandidateWindows(candidate)));
+  }
   let index = cache.get(width);
-  if (!index) cache.set(width, (index = indexWindows(candidate, width)));
-  const starts = new Set<number>();
-  for (const h of t.fingerprint) for (const s of index.byHash.get(h) ?? []) starts.add(s);
+  if (!index) cache.set(width, (index = { fps: new Map() }));
   let best = none;
   let bestSim = 0;
-  for (const start of [...starts].sort((a, b) => a - b)) {
-    const fp = index.fps[start] as number[];
+  for (const start of cw.candidateStarts(t.fingerprint, width, index, minSimilarity)) {
+    const fp = cw.fingerprint(start, width, index);
     const sim = similarity(t.fingerprint, fp);
     if (sim > bestSim) {
       bestSim = sim;
@@ -154,10 +147,15 @@ export const RECOVERY_SHARE = 0.5;
  * Invariant: recovered <= distinct, and recovered is 0 when afterText equals beforeText.
  */
 export function distinctRecovery(tombstone: Pick<Tombstone, 'fingerprint'>, beforeText: string, afterText: string): { distinct: number; recovered: number } {
-  const grams = (text: string): Set<number> =>
-    kgramHashSet(normalizeBlock(text === '' ? [] : text.split('\n'), DEFAULT_MINER_CONFIG), DEFAULT_MINER_CONFIG.kgramSize);
-  const inBefore = grams(beforeText);
-  const inAfter = grams(afterText);
+  return recoveryFromGrams(tombstone, textGrams(beforeText), textGrams(afterText));
+}
+
+/** k-gram hash set of a whole text, normalized as one block. */
+function textGrams(text: string): Set<number> {
+  return kgramHashSet(normalizeBlock(text === '' ? [] : text.split('\n'), DEFAULT_MINER_CONFIG), DEFAULT_MINER_CONFIG.kgramSize);
+}
+
+function recoveryFromGrams(tombstone: Pick<Tombstone, 'fingerprint'>, inBefore: ReadonlySet<number>, inAfter: ReadonlySet<number>): { distinct: number; recovered: number } {
   let distinct = 0;
   let recovered = 0;
   for (const h of tombstone.fingerprint) {
@@ -172,32 +170,38 @@ export function distinctRecovery(tombstone: Pick<Tombstone, 'fingerprint'>, befo
  * All tombstones with level != 'none', sorted by similarity desc, id asc.
  * With `before` (the lines on disk, empty for a new file), a hit is kept only if the write makes it worse: its level on `before` is 'none',
  * its similarity rose by at least WORSE_BY, or the write recovers at least RECOVERY_SHARE of the tombstone's hashes missing from `before` (distinctRecovery). Unchanged or unrelated edits never raise a score, so they never fire.
- * Invariant: raising a threshold never adds a hit; with `before` equal to `candidate` there are no hits.
+ * Tombstones with fewer than `options.minHashes` (default 4) distinct hashes are never watched.
+ * Invariant: raising a threshold or minHashes never adds a hit; with `before` equal to `candidate` there are no hits.
  */
 export function findRevenants(
   graveyard: Graveyard,
   candidate: string[],
   thresholds: Thresholds,
   before?: string[],
+  options: { minHashes?: number } = {},
 ): RevenantHit[] {
+  const minHashes = options.minHashes ?? DEFAULT_MIN_HASHES;
   const hits: RevenantHit[] = [];
   const cache = new Map<number, WindowIndex>();
   const grams = candidateKgrams(candidate);
   const beforeCache = new Map<number, WindowIndex>();
   const beforeGrams = before ? candidateKgrams(before) : undefined;
+  let recoveryGrams: { before: Set<number>; after: Set<number> } | undefined;
   for (const tombstone of graveyard.tombstones) {
+    if (tombstone.fingerprint.length < minHashes) continue;
     // Exact prefilter: a window scores Jaccard >= warn only if it shares >= warn * |fingerprint| hashes with the tombstone,
     // and every window hash is in `grams`. Fewer shared hashes mean level 'none' for every window.
     if (grams && sharedCount(tombstone.fingerprint, grams) < thresholds.warn * tombstone.fingerprint.length - 1e-9) continue;
-    const m = matchWindowedIndexed(tombstone, candidate, cache);
+    const m = matchWindowedIndexed(tombstone, candidate, cache, thresholds.warn);
     const level = hauntLevel(tombstone, m.similarity, thresholds);
     if (level === 'none') continue;
     if (before) {
       const skipBefore = beforeGrams && sharedCount(tombstone.fingerprint, beforeGrams) < thresholds.warn * tombstone.fingerprint.length - 1e-9;
       if (!skipBefore) {
-        const sBefore = matchWindowedIndexed(tombstone, before, beforeCache).similarity;
+        const sBefore = matchWindowedIndexed(tombstone, before, beforeCache, thresholds.warn).similarity;
         if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) {
-          const { distinct, recovered } = distinctRecovery(tombstone, before.join('\n'), candidate.join('\n'));
+          recoveryGrams ??= { before: textGrams(before.join('\n')), after: textGrams(candidate.join('\n')) };
+          const { distinct, recovered } = recoveryFromGrams(tombstone, recoveryGrams.before, recoveryGrams.after);
           if (!(distinct >= 1 && recovered / distinct >= RECOVERY_SHARE)) continue;
         }
       }

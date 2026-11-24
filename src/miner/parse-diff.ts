@@ -12,6 +12,16 @@ function parseHunkHeader(line: string): { oldStart: number; newStart: number } |
 }
 
 /**
+ * Whether the old file is inside a `/* ... *\/` block comment after `line`, given the state before it.
+ * Cheap on purpose: only a line that starts with `/*` opens a comment (a `/*` inside a string or glob is ignored), and any `*\/` closes it.
+ */
+function nextCommentState(inComment: boolean, line: string): boolean {
+  if (inComment) return !line.includes('*/');
+  const t = line.trimStart();
+  return t.startsWith('/*') && !t.includes('*/', 2);
+}
+
+/**
  * Parse a RawCommit's diff into structured hunks.
  * Lines prefixed with `-` (but not `---`) go into deletedLines *without* the prefix.
  * Lines prefixed with `+` (but not `+++`) go into addedLines *without* the prefix.
@@ -24,6 +34,8 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
   let currentFile: string | null = null;
   let currentHunk: Hunk | null = null;
   let skipCurrentFile = false;
+  /** Whether the old file is inside a block comment after the old-side lines of this git hunk seen so far. */
+  let inComment = false;
 
   for (const line of lines) {
     // Binary-file marker
@@ -56,12 +68,14 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
         currentHunk = null;
         continue;
       }
+      inComment = false;
       currentHunk = {
         filePath: currentFile,
         oldStart: coords.oldStart,
         newStart: coords.newStart,
         deletedLines: [],
         addedLines: [],
+        startsInComment: false,
       };
       hunks.push(currentHunk);
       continue;
@@ -72,6 +86,7 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
     // Deleted line: starts with '-' but is not '---'
     if (line.startsWith('-')) {
       currentHunk.deletedLines.push(line.slice(1));
+      inComment = nextCommentState(inComment, line.slice(1));
       continue;
     }
 
@@ -84,6 +99,7 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
     // Context line (space-prefixed or other) — close the current sub-hunk and open a fresh
     // one so that deletedLines/addedLines are always from one contiguous run.
     if (line.startsWith(' ') || line === '') {
+      if (line.startsWith(' ')) inComment = nextCommentState(inComment, line.slice(1));
       if (currentFile !== null && !skipCurrentFile) {
         // Push a fresh sub-hunk; we keep the same file and line numbers are
         // approximate (hunkStart is the original @@ value; that is acceptable for
@@ -94,6 +110,7 @@ export function parseDiff(commit: RawCommit, skipPatterns: string[]): ParsedComm
           newStart: currentHunk.newStart,
           deletedLines: [],
           addedLines: [],
+          startsInComment: inComment,
         };
         currentHunk = fresh;
         hunks.push(currentHunk);

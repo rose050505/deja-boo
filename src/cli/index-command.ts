@@ -1,6 +1,6 @@
 import { parseArgs } from 'node:util';
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { MinerConfig } from '../core/types.js';
 import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 import { resolveSkipPatterns } from '../core/skip.js';
@@ -17,8 +17,9 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
     args: argv,
     allowPositionals: true,
     options: {
-      out: { type: 'string', default: 'graveyard.json' },
+      out: { type: 'string' },
       'min-block-lines': { type: 'string' },
+      'min-hashes': { type: 'string' },
       'kgram-size': { type: 'string' },
       'window-size': { type: 'string' },
       'rename-ids': { type: 'boolean', default: false },
@@ -33,7 +34,8 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
   });
 
   const repo = resolve(positionals[0] ?? '.');
-  const out = resolve(values.out as string);
+  // Default: where `check`, the hooks and the MCP server read it.
+  const out = values.out !== undefined ? resolve(values.out) : join(repo, '.deja-boo', 'graveyard.json');
 
   // Build config without optional properties first, then conditionally add them.
   const baseConfig: MinerConfig = {
@@ -42,6 +44,10 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       values['min-block-lines'] !== undefined
         ? parseInt(values['min-block-lines'] as string, 10)
         : DEFAULT_MINER_CONFIG.minBlockLines,
+    minHashes:
+      values['min-hashes'] !== undefined
+        ? parseInt(values['min-hashes'] as string, 10)
+        : DEFAULT_MINER_CONFIG.minHashes,
     kgramSize:
       values['kgram-size'] !== undefined
         ? parseInt(values['kgram-size'] as string, 10)
@@ -82,7 +88,7 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
     console.log(`Hunks parsed     : ${stats.hunksParsed}`);
     console.log(`Blocks found     : ${stats.blocksFound}`);
     console.log(`Moves excluded   : ${stats.movesExcluded}`);
-    console.log(`Skipped empty    : ${stats.skippedEmpty}`);
+    console.log(`Skipped tiny     : ${stats.skippedEmpty} (empty, or fewer than ${baseConfig.minHashes} distinct hashes)`);
     console.log(`Grace dropped    : ${stats.graceDropped}`);
     console.log(`Tombstones added : ${stats.tombstonesAdded}`);
     console.log(`Revivals found   : ${stats.revivals}`);

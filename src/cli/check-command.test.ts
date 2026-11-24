@@ -45,10 +45,25 @@ describe('runCheck on haunted-http', () => {
     expect(runCheck(candidate, 'dist/adapter.py', repo).exitCode).toBe(0);
   });
 
+  it('code already at HEAD does not alarm; --no-head (head: false) keeps the old behaviour', () => {
+    const headText = execFileSync('git', ['show', 'HEAD:haunted_http/adapter.py'], { cwd: repo }).toString();
+    const withHead = runCheck(headText, 'haunted_http/adapter.py', repo);
+    expect(withHead).toMatchObject({ exitCode: 0, stdout: '' });
+    const old = runCheck(headText, 'haunted_http/adapter.py', repo, { head: false });
+    expect(old.exitCode).toBeGreaterThan(0); // the surviving call overlaps the Revert tombstone
+    expect(runCheck(headText, undefined, repo).exitCode).toBe(old.exitCode); // no path: nothing to compare with
+  });
+
+  it('a path outside the repo or not tracked at HEAD is checked on its own', () => {
+    expect(runCheck(candidate, '../elsewhere/adapter.py', repo).exitCode).toBe(2);
+    expect(runCheck(candidate, 'haunted_http/not_tracked.py', repo).exitCode).toBe(2);
+  });
+
   it('exit 3 with how-to when the graveyard is missing', () => {
     const r = runCheck(candidate, undefined, dir);
     expect(r.exitCode).toBe(3);
-    expect(r.stderr).toContain('deja-boo index . --out .deja-boo/graveyard.json');
+    expect(r.stderr).toContain('no graveyard at .deja-boo/graveyard.json');
+    expect(r.stderr).toContain('deja-boo index');
   });
 
   it('exit 1 when the best level is warn (block threshold 1 and an imperfect match)', () => {

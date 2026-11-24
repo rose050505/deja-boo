@@ -135,3 +135,20 @@ describe('shouldSkip', () => {
     expect(shouldSkip('src/main.ts', ['node_modules/'])).toBe(false);
   });
 });
+
+describe('parseDiff – block comment context', () => {
+  const diff = (ctx: string[], del: string[]): string => [
+    'diff --git a/lib/request.js b/lib/request.js', '--- a/lib/request.js', '+++ b/lib/request.js', '@@ -10,7 +10,3 @@',
+    ...ctx.map(l => ' ' + l), ...del.map(l => '-' + l), ' tail();',
+  ].join('\n');
+
+  it('a hunk after context lines that open a comment starts inside it', () => {
+    const r = parseDiff(makeCommit(diff(['/**', ' * Request.'], [' * a', ' * b', ' * c', ' */'])), []);
+    expect(r.hunks.map(h => h.startsInComment)).toEqual([true]);
+  });
+  it('a closed comment, a plain hunk, and a `/*` inside a string do not start a hunk inside a comment', () => {
+    for (const ctx of [['/** x */', 'a();'], ['a();', 'b();'], ["glob('src/**/*.js');"]]) {
+      expect(parseDiff(makeCommit(diff(ctx, ['x();', 'y();'])), []).hunks.map(h => h.startsInComment)).toEqual([false]);
+    }
+  });
+});

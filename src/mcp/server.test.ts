@@ -71,7 +71,8 @@ describe('MCP server over stdio', () => {
     try {
       const r = await client.callTool({ name: 'list_graveyard', arguments: {} });
       expect(r.isError).toBe(true);
-      expect(text(r)).toContain('deja-boo index . --out .deja-boo/graveyard.json');
+      expect(text(r)).toContain('no graveyard at .deja-boo/graveyard.json');
+      expect(text(r)).toContain('deja-boo index');
     } finally {
       await client.close();
     }

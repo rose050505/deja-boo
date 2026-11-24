@@ -162,7 +162,7 @@ describe('findRevenants prefilter', () => {
       const g = yard(stone('1'.repeat(40), a), stone('2'.repeat(40), b), stone('3'.repeat(40), [...a, ...b]));
       for (const cand of [[...pre, ...a, ...post], [...pre, ...b, ...a], pre, [...post, ...b]]) {
         for (const th of [T, { warn: 0.2, block: 0.9 }]) {
-          const got = findRevenants(g, cand, th).map(h => h.tombstone.id + h.matchedLines.join('-') + h.similarity).sort();
+          const got = findRevenants(g, cand, th, undefined, { minHashes: 0 }).map(h => h.tombstone.id + h.matchedLines.join('-') + h.similarity).sort();
           expect(got).toEqual(naive(g, cand, th));
         }
       }
@@ -227,5 +227,26 @@ describe('distinctRecovery', () => {
     expect(r.recovered / r.distinct).toBeGreaterThanOrEqual(0.5);
     expect(findRevenants(g, [...disk, 'def other(): pass'], T, disk)).toEqual([]); // unrelated write
     expect(findRevenants(g, [...disk, '', ...disk], T, disk)).toEqual([]); // copying the live call elsewhere
+  });
+});
+
+describe('minHashes (tombstones with few distinct hashes are not watched)', () => {
+  const block = ['try:', '  range_type = xrange', 'except NameError:', '  range_type = range'];
+  it('unit: a tombstone with fewer than minHashes hashes never fires, however well it matches; minHashes 0 watches it', () => {
+    const tiny = stone('1'.repeat(40), block);
+    expect(tiny.fingerprint.length).toBeLessThan(4);
+    const g = yard(tiny);
+    expect(findRevenants(g, block, T)).toEqual([]);
+    expect(findRevenants(g, block, T, undefined, { minHashes: tiny.fingerprint.length }).length).toBeGreaterThan(0);
+  });
+  it('property: raising minHashes never adds a hit, and no hit has fewer hashes than minHashes', () => {
+    const lines = fc.array(word.map(w => `  call_${w}(${w}, 1);`), { minLength: 1, maxLength: 12 });
+    fc.assert(fc.property(lines, lines, fc.integer({ min: 0, max: 20 }), fc.integer({ min: 0, max: 20 }), (a, b, m1, d) => {
+      const g = yard(stone('1'.repeat(40), a), stone('2'.repeat(40), b));
+      const lo = findRevenants(g, [...a, ...b], T, undefined, { minHashes: m1 });
+      const hi = findRevenants(g, [...a, ...b], T, undefined, { minHashes: m1 + d });
+      const ids = new Set(lo.map(h => h.tombstone.id));
+      for (const h of hi) { expect(ids.has(h.tombstone.id)).toBe(true); expect(h.tombstone.fingerprint.length).toBeGreaterThanOrEqual(m1 + d); }
+    }), { numRuns: 200 });
   });
 });

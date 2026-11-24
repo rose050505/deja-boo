@@ -1,4 +1,5 @@
 import type { Graveyard, Link, Thresholds, Tombstone } from '../core/types.js';
+import { DEFAULT_MIN_HASHES } from '../core/types.js';
 import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { findRevenants } from '../core/watch.js';
 import { causeText } from '../watch/format.js';
@@ -36,12 +37,20 @@ export interface TombstoneSummary {
 }
 
 /**
- * Match `code` like `deja-boo check`: same findRevenants, whole input counts as added; a skipped `path` gives level none.
+ * Match `code` like `deja-boo check`: same findRevenants; a skipped `path` gives level none.
+ * With `opts.before` (HEAD's version of `path`, or the file text on disk), only what `code` makes worse than `before` is reported.
  * Invariant: `level` is the highest level among `revenants`, and 'none' exactly when there are none.
  */
-export function checkSnippet(graveyard: Graveyard, thresholds: Thresholds, code: string, path?: string): CheckSnippetResult {
+export function checkSnippet(
+  graveyard: Graveyard,
+  thresholds: Thresholds,
+  code: string,
+  path?: string,
+  opts: { before?: string | undefined; minHashes?: number | undefined } = {},
+): CheckSnippetResult {
   if (path !== undefined && isSkippedPath(path, resolveSkipPatterns())) return { level: 'none', revenants: [] };
-  const revenants = findRevenants(graveyard, code.split('\n'), thresholds).map((h): RevenantInfo => ({
+  const before = opts.before === undefined ? undefined : opts.before === '' ? [] : opts.before.split('\n');
+  const revenants = findRevenants(graveyard, code.split('\n'), thresholds, before, { minHashes: opts.minHashes ?? DEFAULT_MIN_HASHES }).map((h): RevenantInfo => ({
     id: h.tombstone.id,
     level: h.level,
     similarity: h.similarity,

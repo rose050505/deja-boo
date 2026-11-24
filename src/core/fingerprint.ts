@@ -27,6 +27,42 @@ export function kgramHashSet(text: string, kgramSize: number): Set<number> {
 }
 
 /**
+ * FNV-1a hash of `tokens[at .. at+k)` joined by single spaces, without building the string.
+ * Invariant: equals fnv1a32(tokens.slice(at, at + k).join(' ')).
+ */
+export function kgramHashAt(tokens: readonly string[], at: number, k: number): number {
+  let hash = 0x811c9dc5;
+  for (let t = 0; t < k; t++) {
+    if (t > 0) hash = Math.imul(hash ^ 32, 0x01000193) >>> 0;
+    const tok = tokens[at + t] as string;
+    for (let i = 0; i < tok.length; i++) hash = Math.imul(hash ^ tok.charCodeAt(i), 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Winnow `hashes[from..to)`: the distinct minimum of every window of `w` hashes (one minimum when fewer than `w`), sorted ascending.
+ * Invariant: empty for an empty range; the result is a subset of the range's values; equals the winnowing step of kgramWinnow.
+ */
+export function winnowHashes(hashes: ArrayLike<number>, from: number, to: number, w: number): number[] {
+  const n = to - from;
+  if (n <= 0) return [];
+  const selected = new Set<number>();
+  if (n < w) {
+    let min = hashes[from] as number;
+    for (let j = from + 1; j < to; j++) if ((hashes[j] as number) < min) min = hashes[j] as number;
+    selected.add(min);
+  } else {
+    for (let i = from; i + w <= to; i++) {
+      let min = hashes[i] as number;
+      for (let j = i + 1; j < i + w; j++) if ((hashes[j] as number) < min) min = hashes[j] as number;
+      selected.add(min);
+    }
+  }
+  return Array.from(selected).sort((a, b) => a - b);
+}
+
+/**
  * Returns sorted, deduplicated winnowed k-gram hashes for the given text.
  * A text with fewer than kgramSize tokens returns [].
  * The result is deterministic and sorted ascending.
@@ -37,34 +73,8 @@ export function kgramWinnow(
 ): number[] {
   const { kgramSize: k, windowSize: w } = config;
   const tokens = tokenize(text);
-
   if (tokens.length < k) return [];
-
-  // Build k-gram hashes.
   const hashes: number[] = [];
-  for (let i = 0; i <= tokens.length - k; i++) {
-    const kgram = tokens.slice(i, i + k).join(' ');
-    hashes.push(fnv1a32(kgram));
-  }
-
-  // Winnow: collect the minimum hash in each sliding window.
-  const selected = new Set<number>();
-  for (let i = 0; i <= hashes.length - w; i++) {
-    let min = hashes[i] as number;
-    for (let j = i + 1; j < i + w; j++) {
-      if ((hashes[j] as number) < min) min = hashes[j] as number;
-    }
-    selected.add(min);
-  }
-
-  // Also handle the tail: if hashes.length < w there is only one window.
-  if (hashes.length > 0 && hashes.length < w) {
-    let min = hashes[0] as number;
-    for (let j = 1; j < hashes.length; j++) {
-      if ((hashes[j] as number) < min) min = hashes[j] as number;
-    }
-    selected.add(min);
-  }
-
-  return Array.from(selected).sort((a, b) => a - b);
+  for (let i = 0; i <= tokens.length - k; i++) hashes.push(kgramHashAt(tokens, i, k));
+  return winnowHashes(hashes, 0, hashes.length, w);
 }

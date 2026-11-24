@@ -106,10 +106,13 @@ describe('decideHook', () => {
     }
   });
 
-  it('missing graveyard: exit 1 with the how-to, but only when there is something to check', () => {
+  it('missing graveyard: exit 0 and one clear stderr line (never a block), only when there is something to check', () => {
     const r = decideHook(ev('fs_write', { path: 'src/new.ts', text: A.join('\n') }), deps({}, undefined));
-    expect(r.exitCode).toBe(1);
-    expect(r.stderr).toContain('deja-boo index . --out .deja-boo/graveyard.json');
+    expect(r.exitCode).toBe(0);
+    expect(r.stderr.trim().split('\n')).toHaveLength(1);
+    expect(r.stderr).toContain('no graveyard at .deja-boo/graveyard.json');
+    expect(r.stderr).toContain('deja-boo index');
+    expect(decideHook(ev('fs_write', { path: 'src/new.ts', text: '' }), deps({}, undefined)).stderr).toBe('');
   });
 
   it('acknowledgement: full gives 0, partial lists only the remaining id', () => {
@@ -179,5 +182,67 @@ describe('hook latency', () => {
     console.log(`hook latency: ${ms.toFixed(1)} ms`);
     expect(r.exitCode).toBe(0);
     expect(ms).toBeLessThan(200);
+  });
+});
+
+describe('hook latency on large files', () => {
+  function rng(seed: number): () => number {
+    return () => { // mulberry32
+      seed = (seed + 0x6d2b79f5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /** A 4,000-line file; `jsdoc` interleaves block comments the way a TypeScript or Java file has them. */
+  function bigFile(jsdoc: boolean): { lines: string[]; stones: Tombstone[] } {
+    const rnd = rng(jsdoc ? 7 : 11);
+    const w = (): string => Array.from({ length: 6 }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(rnd() * 26)]).join('');
+    const code = (): string => `  const ${w()} = ${w()}(${w()}, ${Math.floor(rnd() * 999)}, opts.${w()});`;
+    const lines: string[] = [];
+    while (lines.length < 4000) {
+      if (jsdoc && rnd() < 0.15) lines.push('/**', ` * ${w()} ${w()}`, ` * @param ${w()}`, ' */');
+      else lines.push(rnd() < 0.1 ? `  # ${w()} ${w()}` : code());
+    }
+    const stones = Array.from({ length: 1500 }, (_, i) => {
+      const from = Math.floor(rnd() * 3900);
+      // every other tombstone is cut from the file itself, so many windows share hashes with it
+      const cut = i % 2 === 0 ? lines.slice(from, from + 6 + Math.floor(rnd() * 25)).map(l => l.replace(/opts/g, 'o')) : Array.from({ length: 6 + Math.floor(rnd() * 20) }, code);
+      return stone(i.toString(16).padStart(40, '0'), cut);
+    });
+    return { lines, stones };
+  }
+
+  for (const jsdoc of [false, true]) {
+    it(`4,000-line ${jsdoc ? 'file with block comments' : 'file'}, 1,500 tombstones: decideHook (write + disk copy) under 500 ms`, () => {
+      const { lines, stones } = bigFile(jsdoc);
+      const disk = lines.slice(0, 3990).join('\n');
+      const d = deps({ '/repo/src/big.ts': disk }, yard(...stones));
+      const event = ev('fs_write', { path: 'src/big.ts', text: lines.join('\n') });
+      decideHook(event, d); // warm-up
+      const t0 = performance.now();
+      decideHook(event, d);
+      const ms = performance.now() - t0;
+      console.log(`large-file hook latency (${jsdoc ? 'comments' : 'plain'}): ${ms.toFixed(1)} ms`);
+      expect(ms).toBeLessThan(500);
+    });
+  }
+});
+
+describe('post-review fixes 3 in the hook', () => {
+  it('a write to a lock file is never checked, even when it contains a buried block', () => {
+    for (const path of ['uv.lock', 'sub/poetry.lock', 'bun.lockb', 'pnpm-lock.yaml']) {
+      expect(decideHook(ev('fs_write', { path, text: A.join('\n') }), deps({}, G))).toEqual({ exitCode: 0, stderr: '' });
+    }
+  });
+  it('a tombstone with fewer than minHashes hashes does not fire; config.minHashes 0 watches it again', () => {
+    const lines = ['try:', '  range_type = xrange', 'except NameError:', '  range_type = range'];
+    const tiny = stone('9'.repeat(40), lines);
+    const text = lines.join('\n');
+    expect(tiny.fingerprint.length).toBeLessThan(4);
+    expect(decideHook(ev('fs_write', { path: 'src/new.py', text }), deps({}, yard(tiny))).exitCode).toBe(0);
+    const watching: HookDeps = { ...deps({}, yard(tiny)), config: { thresholds: { ...DEFAULT_THRESHOLDS }, minHashes: 0 } };
+    expect(decideHook(ev('fs_write', { path: 'src/new.py', text }), watching).exitCode).toBe(2);
   });
 });

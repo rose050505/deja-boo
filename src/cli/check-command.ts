@@ -2,34 +2,40 @@ import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { isSkippedPath, resolveSkipPatterns } from '../core/skip.js';
 import { findRevenants } from '../core/watch.js';
-import { loadConfig, loadGraveyard } from '../watch/load.js';
+import { DEFAULT_MIN_HASHES } from '../core/types.js';
+import { loadConfig, loadGraveyard, NO_GRAVEYARD } from '../watch/load.js';
+import { headVersionOf } from '../watch/head.js';
 import { formatCheckReport } from '../watch/format.js';
 
 export interface CheckResult { exitCode: 0 | 1 | 2 | 3; stdout: string; stderr: string }
 
 /**
  * Check `code` (from `path`, if known) against the graveyard in `cwd`.
- * Invariant: exit 0 without revenants, 1 when the highest level is warn, 2 for block, 3 when the graveyard is missing.
+ * For a path inside the repository, HEAD's version of that path is the `before` text (unless `head` is false), so code that is
+ * already at HEAD does not alarm and only what the new text makes worse is reported.
+ * Invariant: exit 0 without revenants, 1 when the highest level is warn, 2 for block, 3 when the graveyard is missing; `code` equal to HEAD's version of `path` is always exit 0.
  */
-export function runCheck(code: string, path: string | undefined, cwd: string): CheckResult {
+export function runCheck(code: string, path: string | undefined, cwd: string, opts: { head?: boolean } = {}): CheckResult {
   const graveyard = loadGraveyard(cwd);
   if (!graveyard) {
-    return { exitCode: 3, stdout: '', stderr: 'deja-boo: no graveyard at .deja-boo/graveyard.json. Create it with: deja-boo index . --out .deja-boo/graveyard.json\n' };
+    return { exitCode: 3, stdout: '', stderr: `deja-boo: ${NO_GRAVEYARD}\n` };
   }
   const { config, notes } = loadConfig(cwd);
   const stderr = notes.map(n => `deja-boo: ${n}\n`).join('');
   if (path !== undefined && isSkippedPath(path, resolveSkipPatterns())) return { exitCode: 0, stdout: '', stderr };
-  const hits = findRevenants(graveyard, code.split('\n'), config.thresholds);
+  const atHead = path !== undefined && opts.head !== false ? headVersionOf(cwd, path) : undefined;
+  const before = atHead === undefined ? undefined : atHead === '' ? [] : atHead.split('\n');
+  const hits = findRevenants(graveyard, code.split('\n'), config.thresholds, before, { minHashes: config.minHashes ?? DEFAULT_MIN_HASHES });
   const exitCode = hits.some(h => h.level === 'block') ? 2 : hits.length > 0 ? 1 : 0;
   return { exitCode, stdout: formatCheckReport(hits), stderr };
 }
 
-/** Entry point for `deja-boo check <file|->`. */
+/** Entry point for `deja-boo check [--no-head] <file|->`. */
 export function runCheckCommand(argv: string[]): void {
-  const { positionals } = parseArgs({ args: argv, allowPositionals: true, options: {} });
+  const { positionals, values } = parseArgs({ args: argv, allowPositionals: true, options: { 'no-head': { type: 'boolean', default: false } } });
   const target = positionals[0];
   if (target === undefined) {
-    process.stderr.write('deja-boo: usage: deja-boo check <file|->\n');
+    process.stderr.write('deja-boo: usage: deja-boo check [--no-head] <file|->\n');
     process.exitCode = 3;
     return;
   }
@@ -41,7 +47,7 @@ export function runCheckCommand(argv: string[]): void {
     process.exitCode = 3;
     return;
   }
-  const r = runCheck(code, target === '-' ? undefined : target, process.cwd());
+  const r = runCheck(code, target === '-' ? undefined : target, process.cwd(), { head: values['no-head'] !== true });
   process.stdout.write(r.stdout);
   process.stderr.write(r.stderr);
   process.exitCode = r.exitCode;
