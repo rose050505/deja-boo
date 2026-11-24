@@ -46,6 +46,7 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r4b_agent_v3.log` | (inline) | Rewrote the agent in the V3 `permissions` format |
 | `r5_web_overflow.log` | `r5_web_overflow_prompt.md` | Fixed sideways page scroll on the live demo (found while recording the video) |
 | `r6_web_ghost.log` | `r6_web_ghost_prompt.md` | Ghost no longer clipped in small graveyards; caption resets on repo change (found while recording the video) |
+| `r7_web_square.log` | `r7_web_square_prompt.md` | Square corners by default; only tombstones and ghosts stay round (found in the video review) |
 
 ## Rehearsals: Kiro as the test subject
 
@@ -58,3 +59,17 @@ The first three runs used psf/requests checked out at `26bea1e4^` (April 2023). 
 | `rehearsal_requests2023_writehook_only.log` | write hook only | Kiro edited through shell commands, so the write hook never saw it |
 | `rehearsal_requests2023_guarded.log` (+ `.diff`) | write hook + Stop guard | Kiro was stopped and read the tombstone. It kept the change with `deja-boo: checked <id>` and a test warning |
 | `rehearsal_hauntedhttp_noguard.log` | demo fixture `haunted-http`, no guard | Kiro read `git log` by itself and declined, because the fixture's revert message states the reason. Real history is rarely that explicit: the 2020 requests revert gives none, which is why the real-repo rehearsals above matter |
+
+## Video takes (`video-takes/`)
+
+The demo video was recorded from real `kiro-cli chat --tui` sessions on the same checkout. Every take is kept, including the ones not used. Each transcript lists every distinct screen line with the second it first appeared. The two `*_hooks.jsonl` files are the exact input and output of the Déjà Boo hooks during those takes.
+
+| Take | Prompt | Setup | Outcome |
+|---|---|---|---|
+| `take1_noguard.txt` | spells out `chunked=chunked` | no Déjà Boo | made the change, reported done |
+| `take1_guard.txt` | same | write + Stop hooks, MCP | blocked at Stop, read the tombstone, reverted its change, asked |
+| `take2_guard.txt` | same | same, hooks logged | blocked, read the tombstone, reverted its change, listed risks, asked |
+| `take3_noguard.txt` | the §7 prompt above | no Déjà Boo | made the change, reported done (**in the video**) |
+| `take3_guard.txt` | the §7 prompt above | same, hooks logged | blocked, read the tombstone, would not add the `checked` marker without a reason, offered "test on urllib3 1.26 and keep" or "revert", asked (**in the video**) |
+
+Across the guarded runs Kiro made three different calls: keep with a marker and a test warning (the rehearsal), revert and ask (takes 1–2), keep pending and ask (take 3). In every one it read the tombstone first and never resurrected the code silently.

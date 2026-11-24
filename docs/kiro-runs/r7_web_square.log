@@ -1,0 +1,31 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=8
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=51
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=47
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=194
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=35
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Corners are now square across the graveyard UI, and the change is committed locally as c44d067 (not pushed). `npm test` (347 tests), `npx tsc --noEmit` and `npm run web:build` all pass.
+
+- **`web/src/style.css`**: all 12 `border-radius` values are now `0`. That covers panels, stat boxes, chips, buttons, the textarea, code/cause blocks, the ghost card, the badge and the dialog. The comment you specified is at the top. The tombstones and ghost are SVG paths, so the CSS change doesn't touch them.
+- **Stat boxes**: I changed these from a full box to a thick 4px left border, so the neighbouring stats read as a list instead of identical cards. Colours and sizes are unchanged.
+- **`.kiro/steering/ghost-voice.md`**: added one line under the visual rules with the square-corner rule and the advice to separate same-role neighbours with a rule line, spacing or a thick left border.
+- **Test**: no existing test checked radii, so I added one to `web/src/css-layout.test.ts`. It fails if `style.css` has any non-zero `border-radius`.
+
+I didn't check the result visually in a browser.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=73
+
+EXIT 0

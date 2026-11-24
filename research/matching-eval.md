@@ -126,6 +126,8 @@ The setup is psf/requests checked out at `26bea1e4^` (April 2023, 6,143 commits)
 
 In 2023, requests did re-land this change after urllib3 was fixed. The guard did not forbid it. It made the agent check the history and leave a trail.
 
+The guarded outcome is not deterministic. In three more guarded sessions recorded for the demo video (`docs/kiro-runs/video-takes/`), Kiro twice reverted its own change and asked, and once kept it pending, declined to add the marker without a reason, and asked. Every guarded run read the tombstone first; none resurrected the code silently.
+
 ## Recommendations (sent to Kiro as review comments)
 
 1. Tokenize identifiers, numbers and punctuation separately, with k = 5. Miner and check must share the same tokenizer.
