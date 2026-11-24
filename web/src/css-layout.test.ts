@@ -17,3 +17,10 @@ describe('graveyard scroll containment', () => {
     expect(rule('.gy-scroll')).toMatch(/overflow:\s*auto/);
   });
 });
+
+describe('square corners', () => {
+  it('style.css has no non-zero border-radius', () => {
+    const bad = [...css.matchAll(/border-radius:\s*([^;}]*)/g)].filter((m) => !/^0(px)?(\s+0(px)?)*\s*$/.test(m[1]!));
+    expect(bad.map((m) => m[0])).toEqual([]);
+  });
+});

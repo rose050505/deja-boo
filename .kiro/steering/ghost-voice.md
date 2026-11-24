@@ -15,6 +15,7 @@ The spooky theme must **carry the function**, not decorate it (Costume Contest r
 - Palette: night navy `#0b1020`, moss `#3d5a40`, bone `#e8e2d0`, ectoplasm green `#7CFFB2` (matches only), blood red `#c0392b` (blocks only).
 - Respect `prefers-reduced-motion`: no floating animation, static fade instead.
 - Accessible: every visual state also has text; contrast AA or better.
+- Corners are square by design (`border-radius: 0`); only tombstones and ghosts are round. Separate same-role neighbours with a rule line, spacing or a thick left border, not another identical box.
 
 ## Copy voice
 - Short, dry, a little theatrical: "You buried this on Mar 2. It leaked memory. Let it rest."

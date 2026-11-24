@@ -1,3 +1,4 @@
+/* Corners are square by design; only tombstones and ghosts are round. */
 :root {
   --navy: #0b1020;
   --panel: #131a30;
@@ -25,21 +26,21 @@ h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 0.4
 
 .stats { padding: 0.5rem 1.5rem 1rem; }
 .stat-list { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.5rem; }
-.stat { background: var(--panel); border: 1px solid var(--mist); border-radius: 6px; padding: 0.5rem 0.9rem; min-width: 9rem; display: flex; flex-direction: column-reverse; }
+.stat { background: var(--panel); border: 0; border-left: 4px solid var(--mist); border-radius: 0; padding: 0.5rem 0.9rem; min-width: 9rem; display: flex; flex-direction: column-reverse; }
 .stat dd { margin: 0; font: 700 1.5rem Georgia, serif; color: var(--bone); }
 .stat dt { color: var(--mist); font-size: 0.8125rem; }
 
 main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 0 1.5rem 2rem; }
-section { background: var(--panel); border: 1px solid var(--moss); border-radius: 8px; padding: 1rem; }
+section { background: var(--panel); border: 1px solid var(--moss); border-radius: 0; padding: 1rem; }
 .gy-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; justify-content: space-between; }
 .repo-pick { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-.chip, .btn { background: var(--navy); color: var(--bone); border: 1px solid var(--bone); border-radius: 999px; padding: 0.35rem 0.9rem; font: inherit; cursor: pointer; }
-.btn { border-radius: 6px; }
+.chip, .btn { background: var(--navy); color: var(--bone); border: 1px solid var(--bone); border-radius: 0; padding: 0.35rem 0.9rem; font: inherit; cursor: pointer; }
+.btn { border-radius: 0; }
 .chip[aria-pressed="true"] { background: var(--moss); border-width: 2px; font-weight: 700; }
 .btn.primary { background: var(--ecto); color: var(--navy); border-color: var(--ecto); font-weight: 700; }
 .btn:hover, .chip:hover { border-color: var(--ecto); }
 
-.gy-wrap { position: relative; border: 1px solid var(--mist); border-radius: 6px; background: linear-gradient(#0b1020, #101a2c); }
+.gy-wrap { position: relative; border: 1px solid var(--mist); border-radius: 0; background: linear-gradient(#0b1020, #101a2c); }
 .gy-scroll { overflow: auto; max-height: 62vh; }
 .gy-inner { position: relative; display: flex; }
 .row-labels { position: sticky; left: 0; z-index: 2; flex: none; background: var(--navy); border-right: 1px solid var(--mist); }
@@ -63,27 +64,27 @@ section { background: var(--panel); border: 1px solid var(--moss); border-radius
 .caption { min-height: 1.5rem; margin: 0.5rem 0 0; color: var(--bone); }
 
 label { display: block; margin-bottom: 0.3rem; }
-textarea { width: 100%; background: var(--navy); color: var(--bone); border: 1px solid var(--mist); border-radius: 6px; padding: 0.6rem; font: 0.875rem ui-monospace, Menlo, Consolas, monospace; resize: vertical; }
+textarea { width: 100%; background: var(--navy); color: var(--bone); border: 1px solid var(--mist); border-radius: 0; padding: 0.6rem; font: 0.875rem ui-monospace, Menlo, Consolas, monospace; resize: vertical; }
 .row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.6rem 0; }
 .sm-out { display: grid; gap: 1rem; }
-.nothing { border: 1px dashed var(--mist); border-radius: 6px; padding: 0.75rem; margin: 0; }
-.pasted { list-style: none; margin: 0; padding: 0; background: var(--navy); border: 1px solid var(--mist); border-radius: 6px; overflow: auto; max-height: 20rem; }
+.nothing { border: 1px dashed var(--mist); border-radius: 0; padding: 0.75rem; margin: 0; }
+.pasted { list-style: none; margin: 0; padding: 0; background: var(--navy); border: 1px solid var(--mist); border-radius: 0; overflow: auto; max-height: 20rem; }
 .pasted li { display: flex; white-space: pre; }
 .pasted .gut { flex: none; width: 3.5rem; text-align: right; padding-right: 0.5rem; color: var(--mist); font: 700 0.75rem ui-monospace, monospace; }
 .pasted li.marked { background: #123524; border-left: 4px solid var(--ecto); }
 .pasted li.marked .gut { color: var(--ecto); }
-.ghost-card { background: var(--navy); border: 2px solid var(--ecto); border-radius: 8px; padding: 0.8rem 1rem; }
+.ghost-card { background: var(--navy); border: 2px solid var(--ecto); border-radius: 0; padding: 0.8rem 1rem; }
 .ghost-card.block { border-color: var(--blood); }
 .ghost-card h3 { display: flex; align-items: center; gap: 0.5rem; }
-.badge { display: inline-block; border: 2px solid var(--ecto); border-radius: 4px; padding: 0 0.4rem; font: 700 0.8125rem system-ui, sans-serif; letter-spacing: 0.06em; }
+.badge { display: inline-block; border: 2px solid var(--ecto); border-radius: 0; padding: 0 0.4rem; font: 700 0.8125rem system-ui, sans-serif; letter-spacing: 0.06em; }
 .block .badge { border-color: var(--blood); }
 .meta { margin: 0 0 0.4rem; color: var(--mist); }
 .epitaph { font: italic 1.05rem Georgia, serif; margin: 0.3rem 0; }
-.cause, .code { background: #0e1428; border: 1px solid var(--moss); border-radius: 6px; padding: 0.6rem; white-space: pre-wrap; overflow: auto; max-height: 14rem; margin: 0.3rem 0 0.6rem; }
+.cause, .code { background: #0e1428; border: 1px solid var(--moss); border-radius: 0; padding: 0.6rem; white-space: pre-wrap; overflow: auto; max-height: 14rem; margin: 0.3rem 0 0.6rem; }
 .code { white-space: pre; max-height: 18rem; }
 .rest { border-left: 3px solid var(--ecto); padding-left: 0.6rem; }
 
-dialog { background: var(--panel); color: var(--bone); border: 2px solid var(--bone); border-radius: 10px; width: min(52rem, 94vw); max-height: 90vh; padding: 1rem 1.2rem; }
+dialog { background: var(--panel); color: var(--bone); border: 2px solid var(--bone); border-radius: 0; width: min(52rem, 94vw); max-height: 90vh; padding: 1rem 1.2rem; }
 dialog::backdrop { background: rgba(5, 8, 16, 0.8); }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.8rem; margin: 0.5rem 0; }
