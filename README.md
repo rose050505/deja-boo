@@ -16,7 +16,7 @@ All four specs are implemented, with 617 unit and property tests.
 - ✅ **Obituary** (`deja-boo obituary`, opt-in): the opening text of the pull request or linked issue behind each death commit, quoted verbatim from GitHub and shown as data, not instructions. Spec [`obituary`](.kiro/specs/obituary/).
 - ✅ **Kiro Power** ([`power/`](power/)) and the [`graveyard-keeper`](.kiro/agents/graveyard-keeper.json) custom agent.
 
-All product code was written by Kiro CLI running headless. The logs of every run are in [`docs/kiro-runs/`](docs/kiro-runs/).
+All product code was written by Kiro CLI running headless. The logs of every run are in [`docs/kiro-runs/`](docs/kiro-runs/). One commit (2141fd9) is a reviewer's `git revert` that restored Kiro's earlier code.
 
 See [`.kiro/steering/product.md`](.kiro/steering/product.md) for the product brief.
 
