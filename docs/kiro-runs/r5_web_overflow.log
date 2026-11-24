@@ -1,0 +1,46 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=10
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=42
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=52
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=179
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=77
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=180
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=36
+I fixed the sideways scroll by adding `grid-template-columns: minmax(0, 1fr)` to `main` in `web/src/style.css`. The commit is e5155d5 and I haven't pushed it.
+
+**Cause:** your diagnosis was right. I rebuilt the page in headless Chrome with the real `index.html` and `style.css`, and a 2750px `.gy-inner` in `#gy-scroll`. Before the fix, `#gy-scroll` had `clientWidth` 2750 and the document `scrollWidth` was 2810. The `overflow: auto` never applied because the implicit `auto` column grew to fit the wide child.
+
+**After the fix:**
+- At 1920px, document `scrollWidth` is 1905 (the viewport minus the scrollbar). `#gy-scroll` has `clientWidth` 1821 and `scrollWidth` 2750, so it scrolls on its own.
+- At 500px, document `scrollWidth` is 485. `#gy-scroll` has `clientWidth` 401 and `scrollWidth` 2750, so it scrolls on its own there too.
+- I tested 500px rather than 375px, because headless Chrome wouldn't go below a 500px window. The same grid constraint applies at 375px, but I didn't measure that width.
+- I measured against a test page with a fake wide child, not the live site or the real graveyard data.
+
+**Regression check:** I added `web/src/css-layout.test.ts`. Vitest here has no layout engine, so a real DOM check isn't practical. The test only asserts that `main` has the `minmax(0, 1fr)` column and that `.gy-scroll` has `overflow: auto`. It would catch someone removing the fix, but it doesn't measure widths.
+
+`npm test` (343 tests), `npx tsc --noEmit` and `npm run web:build` all pass. I deleted my temporary test page from `/tmp`.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=122
+
+EXIT 0
