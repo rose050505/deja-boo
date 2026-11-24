@@ -45,6 +45,7 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r4_power_agent_hooks.log` | (inline) | Kiro Power, `graveyard-keeper` agent, development hooks |
 | `r4b_agent_v3.log` | (inline) | Rewrote the agent in the V3 `permissions` format |
 | `r5_web_overflow.log` | `r5_web_overflow_prompt.md` | Fixed sideways page scroll on the live demo (found while recording the video) |
+| `r6_web_ghost.log` | `r6_web_ghost_prompt.md` | Ghost no longer clipped in small graveyards; caption resets on repo change (found while recording the video) |
 
 ## Rehearsals: Kiro as the test subject
 

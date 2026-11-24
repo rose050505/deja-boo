@@ -1,0 +1,34 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=9
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=45
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=38
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=356
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=229
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=50
+I fixed both bugs and committed them as `eea4d44` ("… (Kiro CLI)"). I didn't push. `npm test` (346 tests), `npx tsc --noEmit` and `npm run web:build` all pass. I didn't look at it in a browser or at 1920x1080, so the ghost's visibility rests on the layout numbers below.
+
+1. **Clipped ghost:** the layout in `web/src/layout.ts` now starts the first row 52px down instead of 24px. The ghost reaches about 47px above a stone's top edge, so it fits above any stone, including a one-row graveyard like haunted-http. The layout property test now requires every stone to have at least that much space above it. A new test checks the same for the haunted-http data.
+2. **Stale caption:** mounting a graveyard resets `#gy-caption` to "Hover or focus a stone to read its epitaph.", so switching repos clears it. When the demo haunts a stone, the caption shows that stone's epitaph and path, using the same text as hovering. If several stones match, the caption shows the first.
+
+The tests for these are in `web/src/caption.test.ts`. The test setup has no DOM, so the caption reset and the haunt caption themselves aren't unit-tested. The tests cover the caption text and a check that the default string matches `index.html`.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=93
+
+EXIT 0

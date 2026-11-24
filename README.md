@@ -9,7 +9,7 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 **🪦 Live demo: https://rose050505.github.io/deja-boo/** (paste any snippet and see whether it has died before)
 
 ## Status
-All three specs are implemented, with 343 unit and property tests.
+All three specs are implemented, with 346 unit and property tests.
 - ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/). Indexes express (5,701 commits) in 1.7 s.
 - ✅ **Revenant watch**: `deja-boo check`, the Kiro guard hooks (`PreToolUse` write + `Stop` diff) and the MCP server. Spec [`revenant-watch`](.kiro/specs/revenant-watch/).
 - ✅ **Haunted graveyard** web app, deployed to GitHub Pages. Spec [`haunted-graveyard`](.kiro/specs/haunted-graveyard/).
