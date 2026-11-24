@@ -46,7 +46,7 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r4b_agent_v3.log` | (inline) | Rewrote the agent in the V3 `permissions` format |
 | `r5_web_overflow.log` | `r5_web_overflow_prompt.md` | Fixed sideways page scroll on the live demo (found while recording the video) |
 | `r6_web_ghost.log` | `r6_web_ghost_prompt.md` | Ghost no longer clipped in small graveyards; caption resets on repo change (found while recording the video) |
-| `r7_web_square.log` | `r7_web_square_prompt.md` | Square corners by default; only tombstones and ghosts stay round (found in the video review) |
+| `r7_web_square.log` | `r7_web_square_prompt.md` | Square corners by default (from the video review). **Reverted afterwards** on the owner's correction: rounded corners are only a problem when overused |
 
 ## Rehearsals: Kiro as the test subject
 
