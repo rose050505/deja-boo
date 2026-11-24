@@ -8,6 +8,8 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 
 **🪦 Live demo: https://rose050505.github.io/deja-boo/** (paste any snippet and see whether it has died before)
 
+**🎥 Demo video (2:54): https://youtu.be/E0bHgE6uA8I** (Kiro CLI with and without the guard on real psf/requests history)
+
 ## Status
 All four specs are implemented, with 617 unit and property tests.
 - ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/). Indexes express (5,701 commits) in 12 s.
