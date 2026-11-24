@@ -1,5 +1,5 @@
 import type { Graveyard, RevenantHit, Thresholds, Tombstone, WindowedMatch } from './types.js';
-import { containment, similarity } from './match.js';
+import { containment, fingerprintLines, similarity } from './match.js';
 import { kgramHashSet } from './fingerprint.js';
 import { normalizeBlock } from './normalize.js';
 import { DEFAULT_MINER_CONFIG, DEFAULT_MIN_HASHES } from './types.js';
@@ -85,11 +85,18 @@ export type { WindowIndex } from './windows.js';
 
 const candidates = new WeakMap<Map<number, WindowIndex>, CandidateWindows>();
 
+/** How candidate windows are normalized: the comment syntax of `language`, and identifiers renamed when `renameIds`. A cache map must always be used with the same options. */
+export interface WindowOptions {
+  language?: string | undefined;
+  renameIds?: boolean;
+}
+
 /**
  * `matchWindowed(t, candidate)` computed from per-line precomputed k-gram hashes (see windows.ts). Only windows that contain a k-gram of the tombstone
  * are fingerprinted, because every other window has Jaccard 0 and can never beat the "no match" result.
  * With `minSimilarity` > 0, windows that cannot reach it are skipped.
- * Invariant: equals matchWindowed(t, candidate) for every input when minSimilarity is 0; for any minSimilarity it returns the same
+ * `options` must match the normalization of `t.fingerprint` (its language; renameIds for an identifier-renamed fingerprint).
+ * Invariant: equals matchWindowed(t, candidate, { ...DEFAULT_MINER_CONFIG, ...options }) for every input when minSimilarity is 0; for any minSimilarity it returns the same
  * match whenever matchWindowed's similarity is >= minSimilarity, and a similarity below minSimilarity otherwise.
  */
 export function matchWindowedIndexed(
@@ -97,6 +104,7 @@ export function matchWindowedIndexed(
   candidate: string[],
   cache: Map<number, WindowIndex>,
   minSimilarity = 0,
+  options: WindowOptions = {},
 ): WindowedMatch {
   const none: WindowedMatch = { similarity: 0, matchedLines: [0, 0], containment: 0 };
   const size = t.lines.length;
@@ -105,7 +113,7 @@ export function matchWindowedIndexed(
   let cw = candidates.get(cache);
   if (!cw || cw.lines !== candidate) {
     cache.clear();
-    candidates.set(cache, (cw = new CandidateWindows(candidate)));
+    candidates.set(cache, (cw = new CandidateWindows(candidate, options)));
   }
   let index = cache.get(width);
   if (!index) cache.set(width, (index = { fps: new Map() }));
@@ -127,10 +135,10 @@ export function matchWindowedIndexed(
  * (`/*`, `<!--`, `{-`). Without openers, a window normalizes to a contiguous run of the candidate's normalized lines, so
  * every window k-gram is a candidate k-gram. With openers, a window can start inside a comment, so no prefilter is used.
  */
-function candidateKgrams(candidate: string[]): Set<number> | undefined {
+function candidateKgrams(candidate: string[], options: WindowOptions = {}): Set<number> | undefined {
   const raw = candidate.join('\n');
   if (raw.includes('/*') || raw.includes('<!--') || raw.includes('{-')) return undefined;
-  return kgramHashSet(normalizeBlock(candidate, DEFAULT_MINER_CONFIG), DEFAULT_MINER_CONFIG.kgramSize);
+  return kgramHashSet(normalizeBlock(candidate, { renameIds: options.renameIds === true, language: options.language }), DEFAULT_MINER_CONFIG.kgramSize);
 }
 
 function sharedCount(fingerprint: number[], grams: ReadonlySet<number>): number {
@@ -166,8 +174,117 @@ function recoveryFromGrams(tombstone: Pick<Tombstone, 'fingerprint'>, inBefore: 
   return { distinct, recovered };
 }
 
+/** Subtracted from the identifier-renamed score before it competes with the raw score; see research/matching-eval.md section 10. */
+export const RENAME_PENALTY = 0.2;
+/** The identifier-renamed score of a window counts only when the raw score of the same window is at least this; see research/matching-eval.md section 10. */
+export const RENAME_RAW_FLOOR = 0.3;
+
+/** How the identifier-renamed score competes with the raw one. */
+export interface RenameScoring {
+  penalty: number;
+  rawFloor: number;
+}
+
+const idFingerprints = new WeakMap<object, number[]>();
+
+/**
+ * The tombstone's identifier-renamed fingerprint: `idFingerprint` when the graveyard has it, else computed from `lines` (and cached).
+ * Invariant: equals fingerprintLines(lines, { renameIds: true, language }) for a tombstone built by the miner.
+ */
+export function idFingerprintOf(t: Pick<Tombstone, 'lines' | 'language'> & { idFingerprint?: number[] | undefined }): number[] {
+  if (t.idFingerprint) return t.idFingerprint;
+  let fp = idFingerprints.get(t);
+  if (!fp) idFingerprints.set(t, (fp = fingerprintLines(t.lines, { ...DEFAULT_MINER_CONFIG, renameIds: true, language: t.language })));
+  return fp;
+}
+
+/** Precomputed windows and k-gram prefilter of one text, for one normalization. */
+interface TextView {
+  cw: CandidateWindows;
+  indexes: Map<number, WindowIndex>;
+  grams: Set<number> | undefined;
+}
+
+/** Window caches and k-gram prefilters of one text, per (language, renamed). */
+export class TextIndex {
+  private readonly views = new Map<string, TextView>();
+  constructor(readonly lines: string[]) {}
+
+  /** The text's windows normalized with `options`, built on first use. */
+  view(options: WindowOptions): TextView {
+    const key = `${options.language ?? ''}:${options.renameIds === true ? 1 : 0}`;
+    let v = this.views.get(key);
+    if (!v) this.views.set(key, (v = { cw: new CandidateWindows(this.lines, options), indexes: new Map(), grams: candidateKgrams(this.lines, options) }));
+    return v;
+  }
+}
+
+function indexFor(v: TextView, width: number): WindowIndex {
+  let index = v.indexes.get(width);
+  if (!index) v.indexes.set(width, (index = { fps: new Map() }));
+  return index;
+}
+
+/**
+ * Score of a tombstone on a text, over windows of the tombstone's line count normalized in its language:
+ * the best of raw Jaccard (fingerprint) and, for windows whose raw Jaccard is at least `rawFloor`, identifier-renamed Jaccard (idFingerprint) minus `penalty`.
+ * The renamed score is skipped when the renamed fingerprint has fewer than `minHashes` distinct hashes.
+ * Only scores that can reach `warn` are computed exactly; a lower result may be reported as 0 or as a lower window.
+ * Invariant: similarity >= the raw windowed Jaccard whenever that is >= warn; never above max(raw, renamed - penalty) over the windows; a text that contains the tombstone's lines scores 1;
+ * with penalty Infinity it equals matchWindowedIndexed(t, lines, ..., warn, { language }) whenever that is >= warn.
+ */
+export function scoreTombstone(
+  t: Pick<Tombstone, 'lines' | 'fingerprint' | 'language'> & { idFingerprint?: number[] | undefined },
+  text: TextIndex,
+  warn: number,
+  minHashes: number = DEFAULT_MIN_HASHES,
+  rename: RenameScoring = { penalty: RENAME_PENALTY, rawFloor: RENAME_RAW_FLOOR },
+): WindowedMatch & { renamed: boolean } {
+  const none = { similarity: 0, matchedLines: [0, 0] as [number, number], containment: 0, renamed: false };
+  const width = Math.min(t.lines.length, text.lines.length);
+  if (width === 0 || t.fingerprint.length === 0) return none;
+  const raw = text.view({ language: t.language });
+  const rawIndex = indexFor(raw, width);
+  const useRenamed = Number.isFinite(rename.penalty);
+  const floor = useRenamed ? Math.min(rename.rawFloor, warn) : warn;
+  if (raw.grams && sharedCount(t.fingerprint, raw.grams) < floor * t.fingerprint.length - 1e-9) return none;
+
+  // 1. Raw windows that can reach warn, exactly as before the renamed score existed.
+  let best = none;
+  for (const start of raw.cw.candidateStarts(t.fingerprint, width, rawIndex, warn)) {
+    const fp = raw.cw.fingerprint(start, width, rawIndex);
+    const sim = similarity(t.fingerprint, fp);
+    if (sim > best.similarity) best = { similarity: sim, matchedLines: [start + 1, start + width], containment: containment(t.fingerprint, fp), renamed: false };
+  }
+  if (!useRenamed || best.similarity >= 1 - rename.penalty) return best;
+
+  // 2. Renamed windows: only windows whose raw Jaccard reaches rawFloor, and only when the renamed text can beat the current best after the penalty.
+  const idFp = idFingerprintOf(t);
+  if (idFp.length < minHashes) return best;
+  const need = Math.max(best.similarity, warn) + rename.penalty;
+  const ren = text.view({ language: t.language, renameIds: true });
+  if (ren.grams && sharedCount(idFp, ren.grams) < need * idFp.length - 1e-9) return best;
+  const renIndex = indexFor(ren, width);
+  // Walk the windows by raw Jaccard, best first, and stop at the first renamed score that cannot be beaten (1 - penalty).
+  const ranked: Array<{ start: number; sim: number; fp: number[] }> = [];
+  for (const start of raw.cw.candidateStarts(t.fingerprint, width, rawIndex, rename.rawFloor)) {
+    const fp = raw.cw.fingerprint(start, width, rawIndex);
+    const sim = similarity(t.fingerprint, fp);
+    if (sim >= rename.rawFloor) ranked.push({ start, sim, fp });
+  }
+  ranked.sort((x, y) => y.sim - x.sim || x.start - y.start);
+  for (const { start, fp } of ranked) {
+    const adjusted = similarity(idFp, ren.cw.fingerprint(start, width, renIndex)) - rename.penalty;
+    if (adjusted > best.similarity) best = { similarity: adjusted, matchedLines: [start + 1, start + width], containment: containment(t.fingerprint, fp), renamed: true };
+    if (best.similarity >= 1 - rename.penalty - 1e-9) break;
+  }
+  return best;
+}
+
 /**
  * All tombstones with level != 'none', sorted by similarity desc, id asc.
+ * A tombstone's similarity is max(raw windowed Jaccard, identifier-renamed windowed Jaccard - RENAME_PENALTY), with windows normalized in the tombstone's language;
+ * the renamed score counts only on windows whose raw score is at least RENAME_RAW_FLOOR (scoreTombstone), and a hit that only the renamed score raises is 'warn', never 'block'.
  * With `before` (the lines on disk, empty for a new file), a hit is kept only if the write makes it worse: its level on `before` is 'none',
  * its similarity rose by at least WORSE_BY, or the write recovers at least RECOVERY_SHARE of the tombstone's hashes missing from `before` (distinctRecovery). Unchanged or unrelated edits never raise a score, so they never fire.
  * Tombstones with fewer than `options.minHashes` (default 4) distinct hashes are never watched.
@@ -178,35 +295,38 @@ export function findRevenants(
   candidate: string[],
   thresholds: Thresholds,
   before?: string[],
-  options: { minHashes?: number } = {},
+  options: { minHashes?: number; rename?: RenameScoring } = {},
 ): RevenantHit[] {
   const minHashes = options.minHashes ?? DEFAULT_MIN_HASHES;
+  const rename = options.rename ?? { penalty: RENAME_PENALTY, rawFloor: RENAME_RAW_FLOOR };
   const hits: RevenantHit[] = [];
-  const cache = new Map<number, WindowIndex>();
-  const grams = candidateKgrams(candidate);
-  const beforeCache = new Map<number, WindowIndex>();
-  const beforeGrams = before ? candidateKgrams(before) : undefined;
+  const after = new TextIndex(candidate);
+  const prior = before ? new TextIndex(before) : undefined;
   let recoveryGrams: { before: Set<number>; after: Set<number> } | undefined;
+  let priorText: string | undefined;
   for (const tombstone of graveyard.tombstones) {
     if (tombstone.fingerprint.length < minHashes) continue;
-    // Exact prefilter: a window scores Jaccard >= warn only if it shares >= warn * |fingerprint| hashes with the tombstone,
-    // and every window hash is in `grams`. Fewer shared hashes mean level 'none' for every window.
-    if (grams && sharedCount(tombstone.fingerprint, grams) < thresholds.warn * tombstone.fingerprint.length - 1e-9) continue;
-    const m = matchWindowedIndexed(tombstone, candidate, cache, thresholds.warn);
-    const level = hauntLevel(tombstone, m.similarity, thresholds);
-    if (level === 'none') continue;
-    if (before) {
-      const skipBefore = beforeGrams && sharedCount(tombstone.fingerprint, beforeGrams) < thresholds.warn * tombstone.fingerprint.length - 1e-9;
-      if (!skipBefore) {
-        const sBefore = matchWindowedIndexed(tombstone, before, beforeCache, thresholds.warn).similarity;
-        if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) {
-          recoveryGrams ??= { before: textGrams(before.join('\n')), after: textGrams(candidate.join('\n')) };
-          const { distinct, recovered } = recoveryFromGrams(tombstone, recoveryGrams.before, recoveryGrams.after);
-          if (!(distinct >= 1 && recovered / distinct >= RECOVERY_SHARE)) continue;
-        }
+    const m = scoreTombstone(tombstone, after, thresholds.warn, minHashes, rename);
+    const raised = hauntLevel(tombstone, m.similarity, thresholds);
+    if (raised === 'none') continue;
+    // A score that only the renamed fingerprint reaches is weaker evidence: warn, never block.
+    const level = m.renamed && raised === 'block' ? 'warn' : raised;
+    if (prior && before) {
+      // Shortcut, exact: when the matched window's lines occur unchanged in `before`, its score there is at least m.similarity,
+      // so the hit is "not made worse" exactly as if sBefore were computed.
+      const window = candidate.slice(m.matchedLines[0] - 1, m.matchedLines[1]);
+      priorText ??= `\n${before.join('\n')}\n`;
+      const sameWidth = Math.min(tombstone.lines.length, before.length) === window.length;
+      const sBefore = sameWidth && priorText.includes(`\n${window.join('\n')}\n`) ? m.similarity : scoreTombstone(tombstone, prior, thresholds.warn, minHashes, rename).similarity;
+      if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) {
+        recoveryGrams ??= { before: textGrams(before.join('\n')), after: textGrams(candidate.join('\n')) };
+        const { distinct, recovered } = recoveryFromGrams(tombstone, recoveryGrams.before, recoveryGrams.after);
+        if (!(distinct >= 1 && recovered / distinct >= RECOVERY_SHARE)) continue;
       }
     }
-    hits.push({ tombstone, level, similarity: m.similarity, containment: m.containment, matchedLines: m.matchedLines });
+    const hit: RevenantHit = { tombstone, level, similarity: m.similarity, containment: m.containment, matchedLines: m.matchedLines };
+    if (m.renamed) hit.renamed = true;
+    hits.push(hit);
   }
   return hits.sort((x, y) => y.similarity - x.similarity || (x.tombstone.id < y.tombstone.id ? -1 : 1));
 }

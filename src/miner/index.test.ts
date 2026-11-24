@@ -172,3 +172,65 @@ describe('runIndex – integration tests', () => {
     expect(graveyard.tombstones).toHaveLength(0);
   });
 });
+
+// ─── Post-review fixes 4: deaths that were not deaths, revivals that were not revivals ──────────
+
+describe('runIndex – post-review fixes 4', () => {
+  const day = (n: number): string => commitDate(repo, n);
+  const wrapped = BLOCK_B.split('\n').map(l => l.trim()).join(' '); // the whole function re-wrapped onto one line
+
+  it('a block re-wrapped onto one line (replacement shorter than minBlockLines) is not a tombstone', async () => {
+    timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add', day(0));
+    timedCommit(repo, 'src/x.ts', `${wrapped}\n`, 'reformat', day(10));
+    const g = await runIndex(repo, CFG);
+    expect(g.tombstones).toHaveLength(0);
+  });
+
+  it('a block moved into another file inside a larger block is not a tombstone', async () => {
+    timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add', day(0));
+    mkdirSync(join(repo, 'src'), { recursive: true });
+    writeFileSync(join(repo, 'src/y.ts'), `export const a = 1;\nexport const b = makeThing(a, 2);\n${BLOCK_B}\nexport default computeHash;\n`);
+    execSync('git add src/y.ts', { cwd: repo, stdio: 'ignore' });
+    timedCommit(repo, 'src/x.ts', '// moved\n', 'move to y', day(10));
+    const g = await runIndex(repo, CFG);
+    expect(g.tombstones).toHaveLength(0);
+  });
+
+  it('code that comes back inside a larger added block is a revival (containment in a window, not whole-block Jaccard)', async () => {
+    timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add', day(0));
+    timedCommit(repo, 'src/x.ts', '// gone\n', 'remove computeHash', day(1));
+    const bigger = ['export const seed = 17;', 'export function salt(x: number) { return x ^ seed; }', BLOCK_B, 'export function pepper(y: number) { return salt(y) * 3; }', 'export const ready = true;'].join('\n');
+    timedCommit(repo, 'src/x.ts', `${bigger}\n`, 'Restoring computeHash', day(30));
+    const g = await runIndex(repo, CFG);
+    expect(g.tombstones).toHaveLength(1);
+    expect(g.tombstones[0]!.revivals.map(r => r.subject)).toEqual(['Restoring computeHash']);
+  });
+
+  it('a "revival" while the code is still elsewhere in the tree is not recorded (it never died)', async () => {
+    timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add x', day(0));
+    timedCommit(repo, 'src/keep.ts', `${BLOCK_B}\n`, 'copy to keep', day(1));
+    timedCommit(repo, 'src/x.ts', '// gone\n', 'remove from x', day(2));
+    timedCommit(repo, 'src/z.ts', `${BLOCK_B}\n`, 'copy to z', day(40));
+    const { graveyard, stats } = await runIndexWithStats(repo, CFG);
+    expect(graveyard.tombstones.flatMap(t => t.revivals)).toEqual([]);
+    expect(stats.revivalsNotDead).toBe(1);
+  });
+
+  it('a re-add on a branch that does not contain the death commit is not a revival', async () => {
+    timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add', day(0));
+    const main = execSync('git rev-parse --abbrev-ref HEAD', { cwd: repo }).toString().trim();
+    execSync('git branch side', { cwd: repo, stdio: 'ignore' });
+    timedCommit(repo, 'src/x.ts', '// gone\n', 'remove on main', day(1));
+    execSync('git checkout -q side', { cwd: repo, stdio: 'ignore' });
+    timedCommit(repo, 'src/w.ts', `${BLOCK_B}\n`, 'add on side', day(30));
+    execSync(`git checkout -q ${main}`, { cwd: repo, stdio: 'ignore' });
+    const { graveyard, stats } = await runIndexWithStats(repo, { ...CFG });
+    // The side branch is not merged, so `git log` does not walk it; merge it without resolving anything new.
+    expect(graveyard.tombstones.flatMap(t => t.revivals)).toEqual([]);
+    execSync(`GIT_AUTHOR_DATE="${day(31)}" GIT_COMMITTER_DATE="${day(31)}" git merge -q --no-edit side`, { cwd: repo, stdio: 'ignore', shell: '/bin/bash' });
+    const merged = await runIndexWithStats(repo, CFG);
+    expect(merged.graveyard.tombstones.flatMap(t => t.revivals)).toEqual([]);
+    expect(merged.stats.revivalsNotAncestor).toBe(1);
+    expect(stats.revivalsNotAncestor).toBe(0);
+  });
+});

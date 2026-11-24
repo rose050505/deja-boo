@@ -1,0 +1,42 @@
+watched tombstones >= 8 lines: 1745; seed 20261124
+
+Share of mutated copies scoring >= 0.5 against their own tombstone
+
+| Mutation | n | raw only | p=0.1 floor 0 | p=0.1 floor 0.2 | p=0.15 floor 0.2 | p=0.2 floor 0.2 | p=0.2 floor 0.3 (shipped) |
+|---|---|---|---|---|---|---|---|
+| rename 1 identifier | 1744 | 97.1% | 99.8% | 99.6% | 99.6% | 99.6% | 99.2% |
+| rename 2-4 identifiers | 1741 | 76.0% | 98.6% | 95.5% | 95.3% | 94.9% | 91.4% |
+| reorder statements (2 swaps) | 1694 | 94.1% | 96.3% | 96.2% | 95.7% | 95.4% | 95.2% |
+| rename 2-4 + reorder | 1689 | 59.3% | 89.9% | 86.9% | 83.8% | 80.5% | 76.4% |
+| drop ~20% of lines | 1740 | 83.6% | 84.9% | 84.9% | 84.3% | 84.0% | 84.0% |
+| unrelated tombstone pairs (false alarms) | 1745 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+
+Share of mutated copies scoring >= 0.7 against their own tombstone
+
+| Mutation | n | raw only | p=0.1 floor 0 | p=0.1 floor 0.2 | p=0.15 floor 0.2 | p=0.2 floor 0.2 | p=0.2 floor 0.3 (shipped) |
+|---|---|---|---|---|---|---|---|
+| rename 1 identifier | 1744 | 87.2% | 99.4% | 99.2% | 99.1% | 99.1% | 98.7% |
+| rename 2-4 identifiers | 1741 | 44.8% | 95.6% | 92.9% | 91.9% | 90.2% | 87.0% |
+| reorder statements (2 swaps) | 1694 | 76.1% | 81.1% | 81.1% | 79.2% | 78.7% | 78.5% |
+| rename 2-4 + reorder | 1689 | 27.4% | 65.2% | 63.3% | 56.0% | 50.7% | 48.4% |
+| drop ~20% of lines | 1740 | 52.0% | 55.7% | 55.6% | 54.1% | 53.5% | 53.4% |
+| unrelated tombstone pairs (false alarms) | 1745 | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% | 0.0% |
+
+Ordinary commits replayed (hook-style before/after, 50 random non-restore commits per repo, 504 file writes)
+
+| Scoring | writes with an alarm | alarms |
+|---|---|---|
+| raw only | 5 (1.0%) | 8 |
+| p=0.1 floor 0 | 12 (2.4%) | 23 |
+| p=0.1 floor 0.2 | 7 (1.4%) | 17 |
+| p=0.15 floor 0.2 | 7 (1.4%) | 13 |
+| p=0.2 floor 0.2 | 6 (1.2%) | 9 |
+| p=0.2 floor 0.3 (shipped) | 5 (1.0%) | 8 |
+
+Alarms with the shipped scoring (p=0.2 floor 0.3):
+  cli cfa7199f tests/tests.py: c7657e3c 0.75
+  express 2cb029f8 test/res.sendFile.js: b49453cf 0.75, 0f5560ee 0.50
+  flask 5e1ced3c flask/json/__init__.py: 46f83665 0.50
+  got 2b145373 index.js: 29897560 0.80, 5f76fa01 0.50
+  requests e46351cf test_requests.py: bb16fe81 0.76, bb16fe81 0.61
+Renamed-only hits at level block (must be 0): 0

@@ -11,8 +11,8 @@
  * Any other window (the seam line itself sits inside a comment in G) is "slow" and is normalized on its own.
  * Only windows that contain a k-gram of the tombstone are fingerprinted, because every other window has Jaccard 0.
  */
-import { kgramHashAt, winnowHashes } from './fingerprint.js';
-import { normalizeLineFrom, type CommentState } from './normalize.js';
+import { kgramHashAt, sortedDistinct, winnowHashes } from './fingerprint.js';
+import { normalizeLineFrom, renameIdentifiers, type CommentState } from './normalize.js';
 import { tokenize } from './tokenize.js';
 import { DEFAULT_MINER_CONFIG } from './types.js';
 
@@ -64,10 +64,24 @@ class Stream {
     return this.positions.get(hash) ?? [];
   }
 
-  /** Fingerprint of the window made of lines [s, e). */
+  private mins: Uint32Array | undefined;
+
+  /** Fingerprint of the window made of lines [s, e): the distinct per-position window minimums, precomputed once per stream. */
   fingerprint(s: number, e: number): number[] {
     const from = this.off[s] as number;
-    return winnowHashes(this.hashes, from, Math.max(from, (this.off[e] as number) - K + 1), W);
+    const to = Math.max(from, (this.off[e] as number) - K + 1);
+    if (to - from < W) return winnowHashes(this.hashes, from, to, W);
+    if (!this.mins) {
+      // mins[i] = min(hashes[i .. i + W)), the value winnowing picks for the window of hashes starting at i.
+      const m = new Uint32Array(Math.max(0, this.hashes.length - W + 1));
+      for (let i = 0; i < m.length; i++) {
+        let min = this.hashes[i] as number;
+        for (let j = i + 1; j < i + W; j++) if ((this.hashes[j] as number) < min) min = this.hashes[j] as number;
+        m[i] = min;
+      }
+      this.mins = m;
+    }
+    return sortedDistinct(this.mins.slice(from, to - W + 1));
   }
 }
 
@@ -92,7 +106,8 @@ export class CandidateWindows {
   /** Single-pass stream and the state at each line start; undefined when it equals N (no line leaves 'normal'). */
   private readonly G: { stream: Stream; startsNormal: Uint8Array } | undefined;
 
-  constructor(readonly lines: readonly string[]) {
+  /** `language` picks the comment syntax; `renameIds` replaces identifiers by `_ID_`, like `normalizeBlock` does. */
+  constructor(readonly lines: readonly string[], private readonly options: { language?: string | undefined; renameIds?: boolean } = {}) {
     this.n = lines.length;
     this.memo = new Array<LineOut | undefined>(this.n * 4);
     this.badPrefix = new Int32Array(this.n + 1);
@@ -123,8 +138,8 @@ export class CandidateWindows {
     const key = i * 4 + STATES.indexOf(q);
     let o = this.memo[key];
     if (!o) {
-      const r = normalizeLineFrom(this.lines[i] as string, q);
-      o = { tokens: tokenize(r.text), out: r.state };
+      const r = normalizeLineFrom(this.lines[i] as string, q, this.options.language);
+      o = { tokens: tokenize(this.options.renameIds === true ? renameIdentifiers(r.text) : r.text), out: r.state };
       this.memo[key] = o;
     }
     return o;

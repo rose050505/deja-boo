@@ -6,13 +6,13 @@ import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 
 const CFG: Pick<
   MinerConfig,
-  'graceDays' | 'moveThreshold' | 'kgramSize' | 'windowSize' | 'renameIds' | 'minBlockLines'
+  'graceDays' | 'aliveAfterDeath' | 'kgramSize' | 'windowSize' | 'renameIds' | 'minBlockLines'
 > = {
   ...DEFAULT_MINER_CONFIG,
   kgramSize: 3,
   windowSize: 2,
   graceDays: 7,
-  moveThreshold: 0.9,
+  aliveAfterDeath: 0.9,
   minBlockLines: 4,
 };
 

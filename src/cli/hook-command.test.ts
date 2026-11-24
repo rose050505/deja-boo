@@ -4,6 +4,7 @@ import { decideHook } from './hook-command.js';
 import type { HookDeps } from './hook-command.js';
 import { fingerprintLines } from '../core/match.js';
 import type { Graveyard, Tombstone } from '../core/types.js';
+import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 import { DEFAULT_THRESHOLDS } from '../watch/load.js';
 
 const CWD = '/repo';
@@ -15,7 +16,7 @@ const block = (tag: string): string[] =>
 
 function stone(id: string, lines: string[], over: Partial<Tombstone> = {}): Tombstone {
   return {
-    id, fingerprint: fingerprintLines(lines), lines, path: 'src/a.ts', language: 'typescript',
+    id, fingerprint: fingerprintLines(lines, { ...DEFAULT_MINER_CONFIG, language: over.language ?? 'typescript' }), lines, path: 'src/a.ts', language: 'typescript',
     buriedAt: '2026-03-02T00:00:00Z', buriedAtTimestamp: 0, commit: 'c'.repeat(40), author: 'x@y',
     causeOfDeath: 'leaked memory (PR #42)', links: [{ type: 'pr', ref: '42' }], revivals: [], deaths: [], ...over,
   };

@@ -26,6 +26,14 @@ const EXT_MAP: Record<string, string> = {
   '.sh': 'shell',
   '.bash': 'shell',
   '.md': 'markdown',
+  '.yml': 'yaml',
+  '.yaml': 'yaml',
+  '.toml': 'toml',
+  '.css': 'css',
+  '.scss': 'css',
+  '.html': 'html',
+  '.htm': 'html',
+  '.sql': 'sql',
 };
 
 /** Detect language from file path extension. Returns 'unknown' for unrecognised paths. */

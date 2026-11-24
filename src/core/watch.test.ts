@@ -5,6 +5,12 @@ import type { WindowIndex } from './watch.js';
 import { fingerprintLines, matchWindowed } from './match.js';
 import { hauntLevel } from './level.js';
 import type { Graveyard, Thresholds, Tombstone } from './types.js';
+import { DEFAULT_MINER_CONFIG } from './types.js';
+
+/** Tombstones here are TypeScript, so fingerprints and windows use TypeScript comment syntax. */
+const TS = { ...DEFAULT_MINER_CONFIG, language: 'typescript' };
+/** Raw score only (no identifier-renamed score), for comparisons with matchWindowed. */
+const RAW = { penalty: Infinity, rawFloor: 2 };
 
 const word = fc.stringMatching(/^[a-z]{5,9}$/);
 const blockArb = fc
@@ -14,7 +20,7 @@ const padArb = fc.array(word, { minLength: 3, maxLength: 12 }).map(ws => ws.map(
 
 function stone(id: string, lines: string[], over: Partial<Tombstone> = {}): Tombstone {
   return {
-    id, fingerprint: fingerprintLines(lines), lines, path: 'a.ts', language: 'typescript',
+    id, fingerprint: fingerprintLines(lines, TS), lines, path: 'a.ts', language: 'typescript',
     buriedAt: '2026-03-02T00:00:00Z', buriedAtTimestamp: 0, commit: 'c'.repeat(40), author: 'x@y',
     causeOfDeath: 'Revert "x"', links: [], revivals: [], deaths: [], ...over,
   };
@@ -152,7 +158,7 @@ describe('findRevenants prefilter', () => {
   function naive(g: Graveyard, cand: string[], th: Thresholds): string[] {
     const ids: string[] = [];
     for (const t of g.tombstones) {
-      const m = matchWindowed(t, cand);
+      const m = matchWindowed(t, cand, TS);
       if (hauntLevel(t, m.similarity, th) !== 'none') ids.push(t.id + m.matchedLines.join('-') + m.similarity);
     }
     return ids.sort();
@@ -162,7 +168,7 @@ describe('findRevenants prefilter', () => {
       const g = yard(stone('1'.repeat(40), a), stone('2'.repeat(40), b), stone('3'.repeat(40), [...a, ...b]));
       for (const cand of [[...pre, ...a, ...post], [...pre, ...b, ...a], pre, [...post, ...b]]) {
         for (const th of [T, { warn: 0.2, block: 0.9 }]) {
-          const got = findRevenants(g, cand, th, undefined, { minHashes: 0 }).map(h => h.tombstone.id + h.matchedLines.join('-') + h.similarity).sort();
+          const got = findRevenants(g, cand, th, undefined, { minHashes: 0, rename: RAW }).map(h => h.tombstone.id + h.matchedLines.join('-') + h.similarity).sort();
           expect(got).toEqual(naive(g, cand, th));
         }
       }

@@ -5,11 +5,13 @@ import type {
   DeathRecord,
   Tombstone,
 } from '../core/types.js';
-import { normalizeBlock } from '../core/normalize.js';
-import { kgramWinnow } from '../core/fingerprint.js';
-import { similarity } from '../core/match.js';
+import { containedIn, fingerprintLines, matchWindowed, similarity } from '../core/match.js';
+import { DEFAULT_MINER_CONFIG } from '../core/types.js';
+import { matchWindowedIndexed, type WindowIndex } from '../core/watch.js';
 import { extractBlocks } from './block-extract.js';
 import { parseLinks } from './link-parser.js';
+import { changedRuns, gramsByFile, patchId, unionGrams } from './commit-grams.js';
+import { detectLanguage } from './language.js';
 
 /**
  * Append a RevivalRecord to tombstone.revivals (sorted by committer date asc).
@@ -21,6 +23,7 @@ export function recordRevival(
   tombstone: Tombstone,
   meta: ParsedCommit['meta'],
   sim: number,
+  patch?: string,
 ): void {
   const record: RevivalRecord = {
     commit: meta.hash,
@@ -30,6 +33,7 @@ export function recordRevival(
     similarity: sim,
     isRevert: meta.subject.startsWith('Revert'),
     isMergeArtifact: /^merge/i.test(meta.subject),
+    ...(patch !== undefined ? { patchId: patch } : {}),
   };
   tombstone.revivals.push(record);
   tombstone.revivals.sort((a, b) => a.date.localeCompare(b.date));
@@ -44,12 +48,11 @@ export function recordRevival(
  */
 export function recordReDeath(
   tombstone: Tombstone,
-  block: { lines: string[] },
+  block: { lines: string[]; filePath?: string },
   meta: ParsedCommit['meta'],
   config: MinerConfig,
 ): void {
-  const norm = normalizeBlock(block.lines, config);
-  const fp = kgramWinnow(norm, config);
+  const fp = fingerprintLines(block.lines, { ...config, language: block.filePath !== undefined ? detectLanguage(block.filePath) : undefined });
   const sim = similarity(fp, tombstone.fingerprint);
 
   const causeOfDeath =
@@ -71,10 +74,90 @@ export function recordReDeath(
   tombstone.deaths.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** A tombstone whose code a commit seems to add back, with its best windowed Jaccard against the added lines. */
+export interface RevivalCandidate {
+  tombstone: Tombstone;
+  similarity: number;
+}
+
 /**
- * Scan a commit's added and deleted blocks against confirmed tombstones.
- * Records revivals (added blocks matching a tombstone) and re-deaths
- * (deleted blocks matching a tombstone that already has at least one revival).
+ * Tombstones whose code a commit adds back, matched the way `check` matches a write: some window of the tombstone's line count
+ * inside one run of added lines (any run size, so code that returns inside a larger block counts) has Jaccard >= moveThreshold.
+ * Excluded: the same commit also deletes the code (at least aliveAfterDeath of the fingerprint in its deleted lines: a move or reformat).
+ * These are candidates only: the caller still checks that the code was dead and that the commit follows the death.
+ *
+ * Invariant: a tombstone whose lines all appear, in order and contiguous, among one hunk's added lines, with none of them deleted by that commit, is a candidate for any threshold <= 1.0.
+ */
+export function findRevivalCandidates(
+  tombstones: Map<string, Tombstone>,
+  commit: ParsedCommit,
+  config: MinerConfig,
+): RevivalCandidate[] {
+  if (tombstones.size === 0) return [];
+  const runs = changedRuns(commit, 'added');
+  if (runs.length === 0) return [];
+  const addedByFile = gramsByFile(runs, config);
+  const deletedGrams = unionGrams(changedRuns(commit, 'deleted'), config);
+  const windows = new Map<string, Map<number, WindowIndex>>();
+  const fastWindows = config.kgramSize === DEFAULT_MINER_CONFIG.kgramSize && config.windowSize === DEFAULT_MINER_CONFIG.windowSize && !config.renameIds;
+
+  const out: RevivalCandidate[] = [];
+  for (const tombstone of tombstones.values()) {
+    // Prefilter: a window with Jaccard >= moveThreshold holds at least that share of the fingerprint among its file's k-grams.
+    let best = 0;
+    for (const [file, grams] of addedByFile) {
+      if (containedIn(tombstone.fingerprint, grams) < config.moveThreshold) continue;
+      for (let i = 0; i < runs.length; i++) {
+        const run = runs[i] as (typeof runs)[number];
+        if (run.filePath !== file) continue;
+        const key = `${i}:${tombstone.language}`;
+        let cache = windows.get(key);
+        if (!cache) windows.set(key, (cache = new Map()));
+        // The indexed windows use the default k and w; other values take the plain (slower) windowing.
+        const m = fastWindows
+          ? matchWindowedIndexed(tombstone, run.lines, cache, config.moveThreshold, { language: tombstone.language })
+          : matchWindowed(tombstone, run.lines, { ...config, language: tombstone.language });
+        best = Math.max(best, m.similarity);
+      }
+    }
+    if (best < config.moveThreshold) continue;
+    if (containedIn(tombstone.fingerprint, deletedGrams) >= config.aliveAfterDeath) continue;
+    out.push({ tombstone, similarity: best });
+  }
+  return out;
+}
+
+/**
+ * Record re-deaths: deleted blocks of the commit matching a tombstone that already has at least one revival.
+ * Invariant: never records a re-death for a tombstone without a revival.
+ */
+export function scanForReDeaths(
+  tombstones: Map<string, Tombstone>,
+  commit: ParsedCommit,
+  config: MinerConfig,
+): void {
+  const deletedBlocks: Array<{ lines: string[]; filePath: string; fp: number[] }> = [];
+  for (const hunk of commit.hunks) {
+    for (const block of extractBlocks(hunk, 'deleted', config.minBlockLines)) {
+      const fp = fingerprintLines(block.lines, { ...config, language: detectLanguage(block.filePath) });
+      if (fp.length > 0) deletedBlocks.push({ lines: block.lines, filePath: block.filePath, fp });
+    }
+  }
+  for (const tombstone of tombstones.values()) {
+    if (tombstone.revivals.length === 0) continue;
+    for (const deleted of deletedBlocks) {
+      if (similarity(deleted.fp, tombstone.fingerprint) >= config.moveThreshold) {
+        recordReDeath(tombstone, deleted, commit.meta, config);
+        break; // one re-death per commit per tombstone
+      }
+    }
+  }
+}
+
+/**
+ * Scan a commit against confirmed tombstones using the commit alone: record every revival candidate and every re-death.
+ * `runIndex` does not use this; it also checks the repository (the code was dead, the commit follows the death).
+ * Invariant: records at most one revival and one re-death per tombstone per commit, and never twice for the same patch.
  */
 export function scanForRevivals(
   tombstones: Map<string, Tombstone>,
@@ -82,43 +165,10 @@ export function scanForRevivals(
   config: MinerConfig,
 ): void {
   if (tombstones.size === 0) return;
-
-  // Build added fingerprints and deleted fingerprints per block for this commit.
-  const addedBlocks: Array<{ lines: string[]; fp: number[] }> = [];
-  const deletedBlocks: Array<{ lines: string[]; fp: number[] }> = [];
-
-  for (const hunk of commit.hunks) {
-    for (const block of extractBlocks(hunk, 'added', config.minBlockLines)) {
-      const norm = normalizeBlock(block.lines, config);
-      const fp = kgramWinnow(norm, config);
-      if (fp.length > 0) addedBlocks.push({ lines: block.lines, fp });
-    }
-    for (const block of extractBlocks(hunk, 'deleted', config.minBlockLines)) {
-      const norm = normalizeBlock(block.lines, config);
-      const fp = kgramWinnow(norm, config);
-      if (fp.length > 0) deletedBlocks.push({ lines: block.lines, fp });
-    }
+  const patch = patchId(commit);
+  for (const c of findRevivalCandidates(tombstones, commit, config)) {
+    if (c.tombstone.revivals.some(r => r.patchId === patch)) continue;
+    recordRevival(c.tombstone, commit.meta, c.similarity, patch);
   }
-
-  for (const tombstone of tombstones.values()) {
-    // Check added blocks for revivals.
-    for (const added of addedBlocks) {
-      const sim = similarity(added.fp, tombstone.fingerprint);
-      if (sim >= config.moveThreshold) {
-        recordRevival(tombstone, commit.meta, sim);
-        break; // one revival per commit per tombstone
-      }
-    }
-
-    // Check deleted blocks for re-deaths (only if there's already been a revival).
-    if (tombstone.revivals.length > 0) {
-      for (const deleted of deletedBlocks) {
-        const sim = similarity(deleted.fp, tombstone.fingerprint);
-        if (sim >= config.moveThreshold) {
-          recordReDeath(tombstone, deleted, commit.meta, config);
-          break; // one re-death per commit per tombstone
-        }
-      }
-    }
-  }
+  scanForReDeaths(tombstones, commit, config);
 }

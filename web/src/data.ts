@@ -14,9 +14,14 @@ export interface SiteStats {
   repos: number;
   commits: number;
   tombstones: number;
+  /** Tombstones the page lists (watched); absent in data built before post-review fixes 4. */
+  tombstonesShown?: number;
+  /** Revival events of the listed tombstones. */
   revivals: number;
   revivalsViaRevert: number;
   medianRevivalGapDays: number | null;
+  /** Revival events of all mined tombstones, including those still alive at HEAD that the page does not list. */
+  revivalsAllTombstones?: number;
 }
 
 async function getJson<T>(path: string): Promise<T> {

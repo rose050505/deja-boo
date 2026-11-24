@@ -19,8 +19,8 @@ function makeTombstone(
     causeOfDeath: 'removed caching',
     links: [],
     revivals: revivals.map(
-      (r): RevivalRecord => ({
-        commit: 'b'.repeat(40),
+      (r, i): RevivalRecord => ({
+        commit: String(i).padStart(40, 'b'),
         date: r.date,
         author: 'dev@example.com',
         subject: r.isRevert ? 'Revert "remove caching"' : 'add caching back',
@@ -34,6 +34,19 @@ function makeTombstone(
 }
 
 describe('computeStats', () => {
+  it('counts one revival per event: the same patch reviving two tombstones, or a cherry-pick of it, counts once with the smaller gap', () => {
+    const a = makeTombstone('2024-01-01T00:00:00Z', [{ date: '2024-01-21T00:00:00Z' }]);
+    const b = { ...makeTombstone('2024-01-01T00:00:00Z', [{ date: '2024-01-11T00:00:00Z' }]), id: 'def' };
+    a.revivals[0]!.patchId = 'p1';
+    b.revivals[0]!.patchId = 'p1';
+    b.revivals[0]!.commit = 'c'.repeat(40);
+    const stats = computeStats([a, b], 10);
+    expect(stats.revivals).toBe(1);
+    expect(stats.medianRevivalGapDays).toBe(10);
+    b.revivals[0]!.patchId = 'p2';
+    expect(computeStats([a, b], 10).revivals).toBe(2);
+  });
+
   it('no tombstones → all counts zero, medianRevivalGapDays null', () => {
     const stats = computeStats([], 10);
     expect(stats).toEqual({

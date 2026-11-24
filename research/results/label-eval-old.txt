@@ -1,0 +1,38 @@
+  kept  reformat          axios    5bb39f32 -> 0438dd3b test/specs/transform.spec.js
+  kept  reformat          axios    5bb39f32 -> 0438dd3b test/specs/options.spec.js
+  kept  reformat          axios    3d65057d -> 22c2baf2 lib/helpers/cookies.js
+  kept  move_refactor     axios    d9633689 -> 76f09afc lib/defaults.js
+  kept  reformat          axios    7a2f901f -> 08119634 test/module/typings/cjs/index.ts
+  kept  reformat          axios    08119634 -> ef3711d1 index.d.cts
+  kept  reformat          axios    d676df77 -> ef3711d1 lib/adapters/http.js
+  kept  duplicate_patch   express  28525242 -> 64a9c720 spec/spec.core.js
+  kept  reformat          express  59a74ecc -> 36e9c02f test/response.test.js
+  kept  boilerplate       express  6c2194fd -> c18c2a8e examples/helloworld/app.js
+  kept  non_ancestor      express  e4302b21 -> 084f5d89 test/res.jsonp.js
+  kept  non_ancestor      express  e4302b21 -> 084f5d89 test/res.json.js
+  lost  real              express  e66667e4 -> bb53b20d lib/utils.js
+  lost  real              flask    4f03a769 -> 5544d094 src/flask/cli.py
+  kept  reformat          flask    8285adf5 -> ff6fa22f .github/workflows/tests.yaml
+  kept  move_refactor     got      ce752ac2 -> 2b145373 test/_server.js
+  kept  boilerplate       got      2b145373 -> b504346f test/redirects.js
+  kept  move_refactor     got      058452b0 -> f0b190a3 index.js
+  kept  move_refactor     requests ef8563ab -> 2da7fe08 requests/adapters.py
+  kept  non_ancestor      requests 373166d8 -> 6931bd67 requests/auth.py
+  kept  reformat          requests 74609c5c -> 2a6f290b requests/models.py
+  kept  move_refactor     requests 00c6ad58 -> 9a40d127 requests/adapters.py
+  kept  reformat          cli      05db75bd -> aab5cd9d httpie/input.py
+  kept  reformat          cli      05db75bd -> 7917f1b4 httpie/input.py
+  kept  reformat          cli      aab5cd9d -> 7917f1b4 httpie/downloads.py
+real kept 18/20; false dropped 4/27; ambiguous kept 3/3
+true re-additions found 12/21; of those the old miner missed: 0
+  miss axios    14ede9e1 -> 7fa69152 lib/helpers/buildUrl.js
+  miss axios    d660e29c -> 6b9b05b9 lib/utils.js
+  miss axios    bdf493cf -> abf95418 index.d.ts
+  miss express  e9bcdd39 -> 088856c3 .github/workflows/ci.yml
+  miss express  50b5fa8b -> cc56c63f spec/spec.core.js
+  miss flask    8458cc5c -> 71e10be2 flask/helpers.py
+  miss requests 5172d24e -> e5fc88ad requests/structures.py
+  miss requests bb16fe81 -> e9f94e69 test_requests.py
+  miss requests 7229dbe0 -> e9f94e69 test_requests.py
+revival records 44, events 38, unlabelled records 0
+

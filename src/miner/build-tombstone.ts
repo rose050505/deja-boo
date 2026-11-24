@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { RawBlock, Tombstone, MinerConfig, ParsedCommit } from '../core/types.js';
-import { normalizeBlock } from '../core/normalize.js';
-import { kgramWinnow } from '../core/fingerprint.js';
+import { fingerprintLines } from '../core/match.js';
 import { detectLanguage } from './language.js';
 import { parseLinks } from './link-parser.js';
 
@@ -9,6 +8,7 @@ import { parseLinks } from './link-parser.js';
  * Build a Tombstone from a surviving deleted block and its commit metadata.
  * Returns null if the fingerprint is empty or has fewer than config.minHashes distinct hashes (too short, or an idiom that fires on unrelated code).
  *
+ * Also stores the identifier-renamed fingerprint (`idFingerprint`) that scores multi-identifier renames at check time.
  * Invariant: same inputs always produce the same id.
  */
 export function buildTombstone(
@@ -16,8 +16,8 @@ export function buildTombstone(
   meta: ParsedCommit['meta'],
   config: MinerConfig,
 ): Tombstone | null {
-  const normalized = normalizeBlock(block.lines, config);
-  const fingerprint = kgramWinnow(normalized, config);
+  const language = detectLanguage(block.filePath);
+  const fingerprint = fingerprintLines(block.lines, { ...config, language });
 
   if (fingerprint.length === 0 || fingerprint.length < config.minHashes) return null;
 
@@ -34,9 +34,10 @@ export function buildTombstone(
   return {
     id,
     fingerprint: fingerprint.slice().sort((a, b) => a - b),
+    idFingerprint: fingerprintLines(block.lines, { ...config, renameIds: true, language }),
     lines: block.lines,
     path: block.filePath,
-    language: detectLanguage(block.filePath),
+    language,
     buriedAt: meta.authorDate,
     buriedAtTimestamp: meta.committerTimestamp,
     commit: meta.hash,

@@ -120,6 +120,22 @@ Post-review fixes 3 results (measured 2026-11-24 on clones of click, black, koa 
 - Replay of the first 8 to 12 `Revert` commits of click, black and koa: old and new code agree on all 31 (2, 0 and 0 caught). No detection was lost.
 - Not done: merging the hunks of one commit (item 5). No false-alarm measurement was made, so it stays out.
 
+## Post-review fixes 4
+
+Source: reviewer hand-checked accuracy review (see `graveyard-miner/tasks.md`, "Post-review fixes 4", for the miner side). Write-time rewrites done the way an agent does them (renaming 2-4 identifiers, reordering, partial): the target tombstone was caught 2 of 10 (0.64 and 0.66; others 0.07-0.21). One renamed identifier: 8 of 10. Ordinary unrelated edits: 0 of 10 alarms, which must stay.
+
+- [x] **5. Identifier-renamed score.** Tombstones get `idFingerprint` (all non-reserved identifiers replaced by `_ID_` before k-gramming, built by the miner; `idFingerprintOf` computes it from `lines` for older graveyards and the web). `scoreTombstone`: per window, `max(raw Jaccard, renamed Jaccard - RENAME_PENALTY)`, the renamed part only on windows whose raw Jaccard is >= `RENAME_RAW_FLOOR`. `RENAME_PENALTY` 0.2 and `RENAME_RAW_FLOOR` 0.3 come from `research/scripts/rename-eval.mjs` (section 10): it is the only measured setting that adds no alarm to 504 replayed ordinary file writes. A hit that only the renamed score raises is `warn`, never `block`; `RevenantHit.renamed`, the hook and `check` text say "with identifiers renamed", MCP `check_snippet` returns `renamed: true`.
+- [x] Windows are normalized in the tombstone's language (`CandidateWindows(lines, { language, renameIds })`, `matchWindowedIndexed(..., options)`), matching the miner's per-language fingerprints.
+- [x] **7b. Web counts.** The stats strip counted revivals of all tombstones, but the list leaves out tombstones alive at HEAD (13 revivals in the old data). `stats.json` now has `tombstonesShown`, `revivals` (of listed tombstones) and `revivalsAllTombstones`; the strip shows "tombstones listed" and "revivals of listed tombstones" and says how many there are counting all tombstones. Capped web tombstones are re-fingerprinted in their language.
+- [x] Latency: the 4,000-line / 1,500-tombstone hook benchmark (750 tombstones are renamed copies) stays under its 500 ms budget (360-450 ms). Renamed windows are fingerprinted only where raw windows qualify; the `before` score is skipped when the matched window is unchanged on disk (exact); window fingerprints reuse per-position window minimums and a typed-array sort.
+- [x] Tests: properties for `scoreTombstone` (never below raw at warn; equal to raw with the renamed score off; verbatim lines score 1; 2-4 renamed identifiers reach warn and never block; unrelated code stays below warn), `matchWindowedIndexed` equals `matchWindowed` for every language with and without renaming, `sortedDistinct`, `winnowHashes`, `containedIn`, `kgramSetOfLines`, per-language comments.
+
+Post-review fixes 4 results (`research/matching-eval.md` section 10; 1,745 watched tombstones with >= 8 lines in the 6 research repos; 50 random ordinary commits per repo):
+
+- Share reaching warn: rename 2-4 identifiers 76.0% to 91.4%; rename 2-4 + reorder 59.3% to 76.4%; reorder only 94.1% to 95.2%; rename 1 identifier 97.1% to 99.2%; drop 20% of lines 83.6% to 84.0%.
+- False alarms: unrelated tombstone pairs 0.0% before and after (0 of 1,745). Ordinary commits replayed hook-style: 5 of 504 writes with an alarm (8 alarms) before and after; the renamed score adds none. Those 8 raw alarms already existed (similar test cases) and are not fixed here.
+- Not re-run: the reviewer's own 10 rewrites (not in `research/labels/`).
+
 ## Reviewer decisions
 
 1. A missing graveyard or bad event makes the hook exit 1 (fail open). Agreed.

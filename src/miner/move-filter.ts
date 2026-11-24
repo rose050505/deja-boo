@@ -1,40 +1,46 @@
 import type { RawBlock, MinerConfig } from '../core/types.js';
-import { normalizeBlock } from '../core/normalize.js';
-import { kgramWinnow } from '../core/fingerprint.js';
-import { similarity } from '../core/match.js';
+import { containedIn, fingerprintLines } from '../core/match.js';
+import { detectLanguage } from './language.js';
+import { unionGrams } from './commit-grams.js';
 
 /**
- * Remove deleted blocks that were also added elsewhere in the same commit (i.e. moved).
+ * Remove deleted blocks whose code is still present after the commit: moved, re-indented or re-wrapped, not dead.
  *
- * Algorithm:
- *   1. Fingerprint each added block; union all hashes into one set.
- *   2. For each deleted block, compute Jaccard similarity against the union.
- *   3. If similarity ≥ moveThreshold, discard (it was moved, not dead).
+ * A deleted block is dropped when at least `aliveAfterDeath` (default 0.97) of its fingerprint is contained in the k-grams of
+ *   1. all lines the commit adds, of any size (`added`), or
+ *   2. the post-commit content of the files the commit touches (`postCommitGrams`, when given).
+ * Containment, not Jaccard: a block that moves into a larger file, or is re-wrapped into fewer lines, keeps all of its k-grams but shares few with the whole.
+ * The default is high on purpose: a reformat or move keeps 96-100% of the fingerprint, while a real edit that drops a flag or kwarg keeps 93-95% (research/matching-eval.md section 9).
  *
- * Invariant: an exact copy (Jaccard = 1.0) is always excluded for any threshold ≤ 1.0.
+ * Invariant: a block whose lines all appear in `added` (or whose k-grams all appear in `postCommitGrams`) is excluded for any threshold <= 1.0.
  */
 export function filterMoved(
   deleted: RawBlock[],
   added: RawBlock[],
-  config: Pick<MinerConfig, 'renameIds' | 'kgramSize' | 'windowSize' | 'moveThreshold'>,
+  config: Pick<MinerConfig, 'renameIds' | 'kgramSize' | 'windowSize' | 'aliveAfterDeath'>,
+  postCommitGrams?: ReadonlySet<number>,
 ): RawBlock[] {
-  const { moveThreshold } = config;
+  const addedGrams = unionGrams(added, config);
+  return deleted.filter(block => !isStillAlive(block, addedGrams, postCommitGrams, config));
+}
 
-  // Build the commit-level union fingerprint from all added blocks.
-  const addedUnion = new Set<number>();
-  for (const block of added) {
-    const normalized = normalizeBlock(block.lines, config);
-    const fp = kgramWinnow(normalized, config);
-    for (const h of fp) addedUnion.add(h);
-  }
-  const addedUnionArray = Array.from(addedUnion).sort((a, b) => a - b);
+/**
+ * Whether `block` is contained at aliveAfterDeath in the added grams or the post-commit grams.
+ * Invariant: false for a block with an empty fingerprint (build-tombstone drops those).
+ */
+export function isStillAlive(
+  block: RawBlock,
+  addedGrams: ReadonlySet<number>,
+  postCommitGrams: ReadonlySet<number> | undefined,
+  config: Pick<MinerConfig, 'renameIds' | 'kgramSize' | 'windowSize' | 'aliveAfterDeath'>,
+): boolean {
+  const fp = blockFingerprint(block, config);
+  if (fp.length === 0) return false;
+  if (containedIn(fp, addedGrams) >= config.aliveAfterDeath) return true;
+  return postCommitGrams !== undefined && containedIn(fp, postCommitGrams) >= config.aliveAfterDeath;
+}
 
-  // Keep only deleted blocks that do NOT match the added-union at or above the threshold.
-  return deleted.filter(block => {
-    const normalized = normalizeBlock(block.lines, config);
-    const fp = kgramWinnow(normalized, config);
-    if (fp.length === 0) return true; // empty fingerprint — keep (build-tombstone will drop it)
-    const sim = similarity(fp, addedUnionArray);
-    return sim < moveThreshold;
-  });
+/** Fingerprint of a block in its file's language. */
+export function blockFingerprint(block: RawBlock, config: Pick<MinerConfig, 'renameIds' | 'kgramSize' | 'windowSize'>): number[] {
+  return fingerprintLines(block.lines, { ...config, language: detectLanguage(block.filePath) });
 }

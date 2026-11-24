@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Graveyard, GraveyardStats, Tombstone } from '../../src/core/types.ts';
-import { stripGraveyard, type Fingerprinter } from './strip.ts';
+import { isWatched, stripGraveyard, type Fingerprinter } from './strip.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const OUT = join(ROOT, 'web/public/graveyards');
@@ -67,7 +67,11 @@ async function main(): Promise<void> {
     if (c.name === 'haunted-http') throw new Error('haunted-http is built from the fixture; do not pass it');
   }
 
-  const core = (await import(pathToFileURL(join(ROOT, 'dist/core/match.js')).href)) as { fingerprintLines: Fingerprinter };
+  const match = (await import(pathToFileURL(join(ROOT, 'dist/core/match.js')).href)) as {
+    fingerprintLines: (lines: string[], config: Record<string, unknown>) => number[];
+  };
+  const types = (await import(pathToFileURL(join(ROOT, 'dist/core/types.js')).href)) as { DEFAULT_MINER_CONFIG: Record<string, unknown> };
+  const fingerprintOf: Fingerprinter = (lines, language) => match.fingerprintLines(lines, { ...types.DEFAULT_MINER_CONFIG, language });
   const statsMod = (await import(pathToFileURL(join(ROOT, 'dist/miner/stats.js')).href)) as {
     computeStats: (t: Tombstone[], commits: number) => GraveyardStats;
   };
@@ -81,6 +85,8 @@ async function main(): Promise<void> {
     mkdirSync(OUT, { recursive: true });
     const perRepo: Record<string, GraveyardStats> = {};
     const publicTombstones: Tombstone[] = [];
+    /** The tombstones the web lists (watched: not alive at HEAD, or a Revert); the stats strip counts these so it matches the list. */
+    const shownTombstones: Tombstone[] = [];
     let publicCommits = 0;
     let publicRepos = 0;
     const index: { name: string; github: string | null; tombstones: number; mined: number }[] = [];
@@ -90,10 +96,11 @@ async function main(): Promise<void> {
       perRepo[name] = full.stats;
       if (name !== 'haunted-http') {
         publicTombstones.push(...full.tombstones);
+        shownTombstones.push(...full.tombstones.filter(isWatched));
         publicCommits += full.stats.commits;
         publicRepos++;
       }
-      const stripped = stripGraveyard(full.tombstones, core.fingerprintLines);
+      const stripped = stripGraveyard(full.tombstones, fingerprintOf);
       const text = json(stripped);
       const bytes = Buffer.byteLength(text);
       if (bytes >= MAX_BYTES) throw new Error(`${name}.json is ${bytes} bytes; limit is ${MAX_BYTES}`);
@@ -103,6 +110,7 @@ async function main(): Promise<void> {
     }
 
     const total = statsMod.computeStats(publicTombstones, publicCommits);
+    const shown = statsMod.computeStats(shownTombstones, publicCommits);
     writeFileSync(join(OUT, 'index.json'), json(index));
     writeFileSync(
       join(ROOT, 'web/public/stats.json'),
@@ -110,16 +118,18 @@ async function main(): Promise<void> {
         repos: publicRepos,
         commits: total.commits,
         tombstones: total.tombstones,
-        revivals: total.revivals,
-        revivalsViaRevert: total.revivalsViaRevert,
-        medianRevivalGapDays: total.medianRevivalGapDays,
+        tombstonesShown: shown.tombstones,
+        // Revivals of the tombstones the page lists; revivals of tombstones still alive at HEAD are not listed, so they are counted apart.
+        revivals: shown.revivals,
+        revivalsViaRevert: shown.revivalsViaRevert,
+        medianRevivalGapDays: shown.medianRevivalGapDays,
+        revivalsAllTombstones: total.revivals,
         perRepo,
       }),
     );
     console.log(
-      `public total: ${publicRepos} repos, ${total.commits} commits, ${total.tombstones} tombstones, ${total.revivals} revivals (${total.revivalsViaRevert} via Revert), median gap ${total.medianRevivalGapDays} days`,
+      `public total: ${publicRepos} repos, ${total.commits} commits, ${total.tombstones} tombstones (${shown.tombstones} listed), ${total.revivals} revivals (${total.revivalsViaRevert} via Revert); listed tombstones: ${shown.revivals} revivals (${shown.revivalsViaRevert} via Revert), median gap ${shown.medianRevivalGapDays} days`,
     );
-    console.log('research/matching-eval.md (measured earlier, same 6 repos): 19,908 commits, 7,094 tombstones. Commits should match; tombstones follow the miner as it is now.');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

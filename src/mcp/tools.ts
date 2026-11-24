@@ -15,6 +15,8 @@ export interface RevenantInfo {
   level: 'warn' | 'block';
   similarity: number;
   containment: number;
+  /** True when only the identifier-renamed score reached the threshold (warn only). */
+  renamed?: boolean;
   matchedLines: [number, number];
   path: string;
   commit: string;
@@ -55,6 +57,7 @@ export function checkSnippet(
     level: h.level,
     similarity: h.similarity,
     containment: h.containment,
+    ...(h.renamed ? { renamed: true } : {}),
     matchedLines: h.matchedLines,
     path: h.tombstone.path,
     commit: h.tombstone.commit,

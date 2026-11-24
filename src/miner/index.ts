@@ -2,10 +2,12 @@ import type { Graveyard, MinerConfig, Tombstone } from '../core/types.js';
 import { spawnGitLog } from './git-log.js';
 import { parseDiff } from './parse-diff.js';
 import { extractBlocks } from './block-extract.js';
-import { filterMoved } from './move-filter.js';
+import { filterMoved, isStillAlive } from './move-filter.js';
 import { buildTombstone } from './build-tombstone.js';
 import { applyGrace } from './grace-filter.js';
-import { scanForRevivals } from './revival-tracker.js';
+import { findRevivalCandidates, recordRevival, scanForReDeaths } from './revival-tracker.js';
+import { changedRuns, patchId } from './commit-grams.js';
+import { RepoReader } from './repo-reader.js';
 import { computeStats } from './stats.js';
 import { fingerprintHead } from './head-tree.js';
 import { isAliveAtHead } from '../core/match.js';
@@ -22,7 +24,15 @@ export interface IndexStats {
   revivals: number;
   mergeArtifacts: number;
   aliveAtHead: number;
+  /** Revival candidates rejected because the code was still in the parent tree (it never died). */
+  revivalsNotDead: number;
+  /** Revival candidates rejected because the death commit is not an ancestor of the revival commit. */
+  revivalsNotAncestor: number;
+  /** Revival candidates rejected because the same patch already revived the tombstone (cherry-pick, duplicate). */
+  revivalsDuplicate: number;
 }
+
+
 
 /**
  * Mine git history and return a fully-assembled Graveyard.
@@ -66,61 +76,97 @@ export async function runIndexWithStats(
     revivals: 0,
     mergeArtifacts: 0,
     aliveAtHead: 0,
+    revivalsNotDead: 0,
+    revivalsNotAncestor: 0,
+    revivalsDuplicate: 0,
   };
+  const reader = new RepoReader(repo, config);
 
-  for (const rawCommit of rawCommits) {
-    const parsed = parseDiff(rawCommit, config.skipPatterns);
-    runStats.hunksParsed += parsed.hunks.length;
+  try {
+    for (const rawCommit of rawCommits) {
+      const parsed = parseDiff(rawCommit, config.skipPatterns);
+      runStats.hunksParsed += parsed.hunks.length;
 
-    // Collect deleted and added blocks across all hunks.
-    const deletedBlocks = parsed.hunks.flatMap(h =>
-      extractBlocks(h, 'deleted', config.minBlockLines),
-    );
-    const addedBlocks = parsed.hunks.flatMap(h =>
-      extractBlocks(h, 'added', config.minBlockLines),
-    );
+      // Collect deleted and added blocks across all hunks.
+      const deletedBlocks = parsed.hunks.flatMap(h =>
+        extractBlocks(h, 'deleted', config.minBlockLines),
+      );
 
-    runStats.blocksFound += deletedBlocks.length;
+      runStats.blocksFound += deletedBlocks.length;
 
-    // Move-filter: skip blocks that were just relocated in the same commit.
-    const survived = filterMoved(deletedBlocks, addedBlocks, config);
-    runStats.movesExcluded += deletedBlocks.length - survived.length;
+      // Move-filter: skip blocks whose code is still there after the commit (moved, re-indented, re-wrapped).
+      // First against everything the commit adds, then against the post-commit content of the files it touches.
+      let survived = filterMoved(deletedBlocks, changedRuns(parsed, 'added'), config);
+      if (survived.length > 0) {
+        const post = await reader.fileGrams(parsed.meta.hash, parsed.hunks.map(h => h.filePath));
+        const none = new Set<number>();
+        survived = survived.filter(b => !isStillAlive(b, none, post, config));
+      }
+      runStats.movesExcluded += deletedBlocks.length - survived.length;
 
-    // Age-out pending tombstones whose grace window has expired before processing new ones.
-    // Use committerTimestamp for all date math to stay correct across non-monotonic author dates.
-    const commitTimeMs = parsed.meta.committerTimestamp * 1000;
-    for (const [id, tombstone] of pendingGrace) {
-      const buriedTimeMs = tombstone.buriedAtTimestamp * 1000;
-      const daysDiff = (commitTimeMs - buriedTimeMs) / 86_400_000;
-      if (daysDiff > config.graceDays) {
-        confirmed.set(id, tombstone);
+      // Age-out pending tombstones whose grace window has expired before processing new ones.
+      // Use committerTimestamp for all date math to stay correct across non-monotonic author dates.
+      const commitTimeMs = parsed.meta.committerTimestamp * 1000;
+      for (const [id, tombstone] of pendingGrace) {
+        const buriedTimeMs = tombstone.buriedAtTimestamp * 1000;
+        const daysDiff = (commitTimeMs - buriedTimeMs) / 86_400_000;
+        if (daysDiff > config.graceDays) {
+          confirmed.set(id, tombstone);
+          pendingGrace.delete(id);
+          runStats.tombstonesAdded++;
+        }
+      }
+
+      // Build tombstones from surviving deleted blocks.
+      for (const block of survived) {
+        const tombstone = buildTombstone(block, parsed.meta, config);
+        if (tombstone === null) {
+          runStats.skippedEmpty++;
+          continue;
+        }
+        // Dedup by id: first occurrence wins.
+        if (!confirmed.has(tombstone.id) && !pendingGrace.has(tombstone.id)) {
+          pendingGrace.set(tombstone.id, tombstone);
+        }
+      }
+
+      // Grace-filter: drop pending tombstones re-added within the grace window.
+      const toDrop = applyGrace(pendingGrace, parsed, config);
+      for (const id of toDrop) {
         pendingGrace.delete(id);
-        runStats.tombstonesAdded++;
+        runStats.graceDropped++;
       }
-    }
 
-    // Build tombstones from surviving deleted blocks.
-    for (const block of survived) {
-      const tombstone = buildTombstone(block, parsed.meta, config);
-      if (tombstone === null) {
-        runStats.skippedEmpty++;
-        continue;
+      // Scan confirmed tombstones for revivals / re-deaths in this commit.
+      const candidates = findRevivalCandidates(confirmed, parsed, config);
+      if (candidates.length > 0) {
+        const patch = patchId(parsed);
+        let live = candidates.filter(c => {
+          const dup = c.tombstone.revivals.some(r => r.patchId === patch);
+          if (dup) runStats.revivalsDuplicate++;
+          return !dup;
+        });
+        const followed: typeof live = [];
+        for (const c of live) {
+          if (await reader.isAncestor(c.tombstone.commit, parsed.meta.hash)) followed.push(c);
+          else runStats.revivalsNotAncestor++;
+        }
+        live = followed;
+        if (live.length > 0) {
+          const wanted = Array.from(new Set(live.flatMap(c => c.tombstone.fingerprint))).sort((a, b) => a - b);
+          const found = await reader.treeContains(`${parsed.meta.hash}^`, wanted);
+          for (const c of live) {
+            const fp = c.tombstone.fingerprint;
+            const present = found === null ? 0 : fp.filter(h => found.has(h)).length / fp.length;
+            if (present >= config.aliveBeforeRevival) { runStats.revivalsNotDead++; continue; }
+            recordRevival(c.tombstone, parsed.meta, c.similarity, patch);
+          }
+        }
       }
-      // Dedup by id: first occurrence wins.
-      if (!confirmed.has(tombstone.id) && !pendingGrace.has(tombstone.id)) {
-        pendingGrace.set(tombstone.id, tombstone);
-      }
+      scanForReDeaths(confirmed, parsed, config);
     }
-
-    // Grace-filter: drop pending tombstones re-added within the grace window.
-    const toDrop = applyGrace(pendingGrace, parsed, config);
-    for (const id of toDrop) {
-      pendingGrace.delete(id);
-      runStats.graceDropped++;
-    }
-
-    // Scan confirmed tombstones for revivals / re-deaths in this commit.
-    scanForRevivals(confirmed, parsed, config);
+  } finally {
+    reader.close();
   }
 
   // After the stream ends, flush remaining pending tombstones as confirmed.
@@ -129,14 +175,6 @@ export async function runIndexWithStats(
     runStats.tombstonesAdded++;
   }
   pendingGrace.clear();
-
-  // Count total revivals across all tombstones.
-  for (const t of confirmed.values()) {
-    for (const r of t.revivals) {
-      if (r.isMergeArtifact) runStats.mergeArtifacts++;
-      else runStats.revivals++;
-    }
-  }
 
   // Sort tombstones: buriedAt asc, then id asc for determinism.
   const tombstones = Array.from(confirmed.values()).sort((a, b) => {
@@ -158,6 +196,8 @@ export async function runIndexWithStats(
   }
 
   const stats = computeStats(tombstones, runStats.commitsWalked);
+  runStats.revivals = stats.revivals;
+  runStats.mergeArtifacts = stats.mergeArtifactRevivals;
 
   return { graveyard: { tombstones, stats }, stats: runStats };
 }

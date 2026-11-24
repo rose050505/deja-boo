@@ -524,6 +524,28 @@ Post-review fixes 3 results (6 research repos, miner before vs after; `research/
 
 ---
 
+## Post-review fixes 4
+
+Source: reviewer hand-checked accuracy review of the miner and matcher. Every reported revival was opened in git (`research/labels/revivals-50-hand.jsonl`): 20 of 50 real (18 events); 27 false (13 reformats, 6 moves or refactors, 4 boilerplate, 3 non-ancestor branches, 1 duplicate patch). Tombstone noise in a 20-tombstone sample: 8 of 20. Revival recall: 12 of 21 independently found re-additions (`true-readds-21.jsonl`). The matcher side (fix 5) is in `revenant-watch/tasks.md`.
+
+- [x] **1. Move and grace filters by containment.** `filterMoved` and `applyGrace` compared a deleted block with the union of the commit's added blocks of >= 4 lines by Jaccard (express 347aa56a: 0.04 / containment 0.88; requests ef8563ab: 0.08 / 1.00; httpie 05db75bd: 0.00 / 1.00, the replacement is 3 lines). Now a deleted block is dropped when at least `aliveAfterDeath` of its fingerprint is contained in the k-grams of **all** lines the commit adds (any run size, `commit-grams.ts`) or of the **post-commit content** of the touched files (`repo-reader.ts`, one long-lived `git cat-file --batch`). Grace uses the same test.
+- [x] **2. A revival needs the code to have been dead.** `runIndex` skips a candidate when at least `aliveBeforeRevival` of the fingerprint is in the revival commit's parent tree (any tracked, non-skipped file), or when the same commit deletes at least `aliveAfterDeath` of it (a move). Counted in `IndexStats.revivalsNotDead`.
+- [x] **3. Revival match by window.** `findRevivalCandidates`: a window of the tombstone's line count inside one run of added lines (any size) with Jaccard >= `moveThreshold` (0.9), the same windowed matching as `check` (`matchWindowedIndexed`, in the tombstone's language). Containment >= 0.9 alone was measured and rejected: 60 events instead of 32 for 3 more true re-additions, mostly partial matches in test-suite rewrites (research section 9).
+- [x] **4. Ancestry and duplicates.** A revival is recorded only if `git merge-base --is-ancestor <death> <revival>` (`IndexStats.revivalsNotAncestor`). `RevivalRecord.patchId` (changed lines without whitespace and line numbers, per file) gives one revival per (tombstone, patch); `computeStats` counts one revival per patch (an event), with the smallest gap.
+- [x] **6. Comment syntax per language.** `normalizeBlock(lines, { renameIds, language })`, `commentSyntax(language)`: `#` only for Python, Ruby, shell, YAML, TOML; `//` and `/* */` for C-like; `<!-- -->` for HTML and Markdown; all markers for unknown. Quoted strings are skipped for block openers too (flask `tests.yaml` `'docs/**'`). `detectLanguage` knows `.yml`, `.yaml`, `.toml`, `.css`, `.scss`, `.html`, `.sql`. Tombstone fingerprints, revival windows, the move filter and `aliveAtHead` use the file's language; `aliveAtHead` now compares with the full k-gram sets of HEAD files instead of their winnowed fingerprints.
+- [x] **7a. `--grace-days` help.** The help said 5, the code uses 7. All numeric defaults in `deja-boo --help` now come from `DEFAULT_MINER_CONFIG`.
+- [x] **Thresholds measured, not guessed.** The reviewer proposed 0.9 (move) and 0.8 (parent tree). `research/scripts/label-containment.mjs` on every labelled case: false ones keep 0.96-1.00 of the fingerprint, several real ones are edits that keep 0.93-0.95 (express de129c28 `--no-exit`, axios 08119634, the requests 24bcb9ea Revert, requests 087a27ab at 0.83 in the parent tree). Defaults `aliveAfterDeath` 0.97 and `aliveBeforeRevival` 0.97 (`--alive-after-death`, `--alive-before-revival`). With 0.9 / 0.8 the miner keeps 12 of the 20 real rows and loses the 2023 requests re-landing; with 0.97 / 0.97 it keeps 16.
+- [x] Tests: `move-filter` (containment, larger block, re-wrap shorter than a block, post-commit content, one-flag edit survives), `index` (re-wrap, move into a larger block, code back inside a larger block, revival while still in the tree, non-ancestor branch), `revival-tracker` (candidate inside any larger block, move excluded, same patch once), `commit-grams` (properties), `stats` (one revival per event), core properties in `src/core/post-review-4.test.ts`. PBT found `commentSyntax("valueOf")` returning a prototype function (`research/pbt-findings.md` finding 10).
+
+Post-review fixes 4 results (6 research repos, same clones, old = fixes 3; `research/matching-eval.md` sections 6 and 9):
+
+- Tombstones 5,970 to 5,169; alive at HEAD 642 to 364; revivals 44 records to 32 events (35 records), via Revert 6 to 6. Tombstones with >= 95% of the fingerprint still in the touched files after the death commit: 952 (15.9%) to 100 (1.9%).
+- Reviewer labels: real rows kept 18 to 16 of 20 (15 of 18 events at the labelled commit, one more at an earlier commit that really re-adds the lines); false rows dropped 4 to 26 of 27; true re-additions found 12 to 14 of 21. 14 revival records (13 events) are not labelled; my reading is about four real, the rest boilerplate, data and an ambiguous table. They need labels.
+- Index time: express 1.7 s to 12 s (reading post-commit files and, for candidates, parent trees). Output stays byte-identical across runs.
+- `web/public/graveyards/*.json` and `stats.json` regenerated with `npm run web:data`.
+
+---
+
 ## Dependency notes
 
 No new npm dependencies are introduced by this spec beyond what is already in the project. The implementation uses only:

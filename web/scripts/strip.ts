@@ -21,7 +21,8 @@ export interface WebTombstone {
   totalLines?: number;
 }
 
-export type Fingerprinter = (lines: string[]) => number[];
+/** Fingerprints lines the way the miner does for a tombstone of `language`. */
+export type Fingerprinter = (lines: string[], language: string) => number[];
 
 /**
  * Keep a tombstone in the web graveyard unless it is alive at HEAD without a Revert cause (hauntLevel ignores those).
@@ -47,7 +48,7 @@ export function stripTombstone(t: Tombstone, fingerprintOf: Fingerprinter): WebT
     causeOfDeath: t.causeOfDeath,
     links: t.links,
     lines,
-    fingerprint: capped ? fingerprintOf(lines).slice().sort((a, b) => a - b) : t.fingerprint,
+    fingerprint: capped ? fingerprintOf(lines, t.language).slice().sort((a, b) => a - b) : t.fingerprint,
     revivals: t.revivals,
   };
   if (t.aliveAtHead === true) out.aliveAtHead = true;

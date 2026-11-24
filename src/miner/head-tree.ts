@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import type { MinerConfig } from '../core/types.js';
 import { isSkippedPath } from '../core/skip.js';
-import { fingerprintLines } from '../core/match.js';
+import { kgramSetOfLines } from '../core/match.js';
+import { detectLanguage } from './language.js';
 
 const MAX_FILE_BYTES = 1_000_000;
 const CHUNK = 200;
@@ -20,28 +21,29 @@ function run(repo: string, args: string[], input?: string): Promise<Buffer> {
   });
 }
 
-/** Parse `git cat-file --batch` output into file contents (missing objects are dropped). */
-function parseBatch(buf: Buffer): string[] {
-  const files: string[] = [];
+/** Parse `git cat-file --batch` output into file contents, in request order (missing objects and binary files are null). */
+function parseBatch(buf: Buffer): (string | null)[] {
+  const files: (string | null)[] = [];
   let pos = 0;
   while (pos < buf.length) {
     const nl = buf.indexOf(0x0a, pos);
     if (nl < 0) break;
-    const header = buf.toString('utf8', pos, nl).split(' ');
+    const header = /^[0-9a-f]+ (\w+) (\d+)$/.exec(buf.toString('utf8', pos, nl));
     pos = nl + 1;
-    if (header[1] !== 'blob') continue;
+    if (!header) { files.push(null); continue; } // "<spec> missing", "<oid> submodule": no body
     const size = parseInt(header[2] as string, 10);
+    if (header[1] !== 'blob') { pos += size + 1; files.push(null); continue; }
     const body = buf.subarray(pos, pos + size);
     pos += size + 1;
-    if (body.includes(0)) continue; // binary
-    files.push(body.toString('utf8'));
+    files.push(body.includes(0) ? null : body.toString('utf8')); // binary: null
   }
   return files;
 }
 
 /**
- * Fingerprint every tracked text file at HEAD, honouring the same skip list as the miner.
- * Returns the union of all file fingerprints, or null when the repo has no HEAD.
+ * The k-gram hashes of every tracked text file at HEAD, each normalized in its own language, honouring the same skip list as the miner.
+ * Full k-gram sets, not winnowed fingerprints: a tombstone embedded unchanged in a larger file is then fully contained.
+ * Returns their union, or null when the repo has no HEAD.
  */
 export async function fingerprintHead(repo: string, config: Pick<MinerConfig, 'skipPatterns' | 'kgramSize' | 'windowSize' | 'renameIds'>): Promise<Set<number> | null> {
   let listing: string;
@@ -67,11 +69,12 @@ export async function fingerprintHead(repo: string, config: Pick<MinerConfig, 's
 
   const head = new Set<number>();
   for (let i = 0; i < paths.length; i += CHUNK) {
-    const input = paths.slice(i, i + CHUNK).map(p => `HEAD:${p}\n`).join('');
-    const out = await run(repo, ['cat-file', '--batch'], input);
-    for (const text of parseBatch(out)) {
-      for (const h of fingerprintLines(text.split('\n'), config)) head.add(h);
-    }
+    const chunk = paths.slice(i, i + CHUNK);
+    const out = await run(repo, ['cat-file', '--batch'], chunk.map(p => `HEAD:${p}\n`).join(''));
+    parseBatch(out).forEach((text, j) => {
+      if (text === null) return;
+      for (const h of kgramSetOfLines(text.split('\n'), { ...config, language: detectLanguage(chunk[j] as string) })) head.add(h);
+    });
   }
   return head;
 }

@@ -16,10 +16,14 @@ export interface MinerConfig {
   windowSize: number;
   /** Replace identifier tokens with _ID_ before fingerprinting. */
   renameIds: boolean;
-  /** Jaccard threshold for move detection and grace/revival matching. */
+  /** Share of a tombstone's fingerprint that a commit's added lines must contain to count as re-adding it (grace window, revivals). */
   moveThreshold: number;
   /** Days after deletion within which a re-add drops the tombstone. */
   graceDays: number;
+  /** A deleted block is not a death when at least this share of its fingerprint is in the commit's added lines or the touched files after the commit (moved, reformatted). See research/matching-eval.md section 9. */
+  aliveAfterDeath: number;
+  /** A revival candidate is skipped when at least this share of the tombstone's fingerprint is in the revival commit's parent tree (the code never died). See research/matching-eval.md section 9. */
+  aliveBeforeRevival: number;
   /** A deleted block becomes a tombstone only with at least this many distinct winnowed hashes (idioms with 1-3 hashes fire on unrelated code). */
   minHashes: number;
   /** Limit walk to commits after this date (ISO or git date string). */
@@ -41,6 +45,8 @@ export const DEFAULT_MINER_CONFIG: MinerConfig = {
   renameIds: false,
   moveThreshold: 0.9,
   graceDays: 7,
+  aliveAfterDeath: 0.97,
+  aliveBeforeRevival: 0.97,
   skipPatterns: resolveSkipPatterns(),
 };
 
@@ -59,10 +65,13 @@ export interface RevivalRecord {
   date: string;        // ISO 8601
   author: string;
   subject: string;
+  /** Best windowed Jaccard of the tombstone against the commit's added lines (window = tombstone line count). */
   similarity: number;
   isRevert: boolean;
   /** True when the commit subject starts with "merge" (conflict-resolution commit); excluded from stats by default. */
   isMergeArtifact: boolean;
+  /** Hash of the commit's change, ignoring line numbers and whitespace; the same patch cherry-picked or re-applied shares it. Revivals are counted once per patch. */
+  patchId?: string;
 }
 
 export interface DeathRecord {
@@ -83,6 +92,8 @@ export interface Tombstone {
   id: string;
   /** Winnowed k-gram hashes, sorted ascending. */
   fingerprint: number[];
+  /** Winnowed k-gram hashes with every identifier renamed to a placeholder, sorted ascending. Scores multi-identifier renames; computed from `lines` when absent. */
+  idFingerprint?: number[];
   /** Raw deleted lines without the leading '-'. */
   lines: string[];
   /** File path relative to repo root. */
@@ -169,6 +180,8 @@ export interface RevenantHit {
   containment: number;
   /** 1-based inclusive line range in the candidate. */
   matchedLines: [number, number];
+  /** True when the identifier-renamed fingerprint produced `similarity` (after its penalty), not the raw one. */
+  renamed?: boolean;
 }
 
 // ─── Internal miner types ─────────────────────────────────────────────────────

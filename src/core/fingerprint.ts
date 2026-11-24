@@ -22,7 +22,7 @@ export function fnv1a32(text: string): number {
 export function kgramHashSet(text: string, kgramSize: number): Set<number> {
   const tokens = tokenize(text);
   const out = new Set<number>();
-  for (let i = 0; i + kgramSize <= tokens.length; i++) out.add(fnv1a32(tokens.slice(i, i + kgramSize).join(' ')));
+  for (let i = 0; i + kgramSize <= tokens.length; i++) out.add(kgramHashAt(tokens, i, kgramSize));
   return out;
 }
 
@@ -47,19 +47,29 @@ export function kgramHashAt(tokens: readonly string[], at: number, k: number): n
 export function winnowHashes(hashes: ArrayLike<number>, from: number, to: number, w: number): number[] {
   const n = to - from;
   if (n <= 0) return [];
-  const selected = new Set<number>();
   if (n < w) {
     let min = hashes[from] as number;
     for (let j = from + 1; j < to; j++) if ((hashes[j] as number) < min) min = hashes[j] as number;
-    selected.add(min);
-  } else {
-    for (let i = from; i + w <= to; i++) {
-      let min = hashes[i] as number;
-      for (let j = i + 1; j < i + w; j++) if ((hashes[j] as number) < min) min = hashes[j] as number;
-      selected.add(min);
-    }
+    return [min];
   }
-  return Array.from(selected).sort((a, b) => a - b);
+  const picked = new Uint32Array(n - w + 1);
+  for (let i = from; i + w <= to; i++) {
+    let min = hashes[i] as number;
+    for (let j = i + 1; j < i + w; j++) if ((hashes[j] as number) < min) min = hashes[j] as number;
+    picked[i - from] = min;
+  }
+  return sortedDistinct(picked);
+}
+
+/**
+ * Sorted distinct values of `values` (sorted in place).
+ * Invariant: equals Array.from(new Set(values)).sort((a, b) => a - b).
+ */
+export function sortedDistinct(values: Uint32Array): number[] {
+  values.sort();
+  const out: number[] = [];
+  for (let i = 0; i < values.length; i++) if (i === 0 || values[i] !== values[i - 1]) out.push(values[i] as number);
+  return out;
 }
 
 /**

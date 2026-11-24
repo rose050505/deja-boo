@@ -9,8 +9,8 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 **🪦 Live demo: https://rose050505.github.io/deja-boo/** (paste any snippet and see whether it has died before)
 
 ## Status
-All three specs are implemented, with 410 unit and property tests.
-- ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/). Indexes express (5,701 commits) in 1.7 s.
+All three specs are implemented, with 438 unit and property tests.
+- ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/). Indexes express (5,701 commits) in 12 s.
 - ✅ **Revenant watch**: `deja-boo check`, the Kiro guard hooks (`PreToolUse` write + `Stop` diff) and the MCP server. Spec [`revenant-watch`](.kiro/specs/revenant-watch/).
 - ✅ **Haunted graveyard** web app, deployed to GitHub Pages. Spec [`haunted-graveyard`](.kiro/specs/haunted-graveyard/).
 - ✅ **Kiro Power** ([`power/`](power/)) and the [`graveyard-keeper`](.kiro/agents/graveyard-keeper.json) custom agent.
@@ -20,11 +20,9 @@ All product code was written by Kiro CLI running headless. The logs of every run
 See [`.kiro/steering/product.md`](.kiro/steering/product.md) for the product brief.
 
 ## Why it matters
-We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, flask, got and requests. That is 19,909 commits and 5,970 tombstones.
-- Deleted code came back more than a week after its death **44 times**, 6 of them by Revert.
-- In an earlier run with 44 such comebacks (not the same 44), we judged every one by hand. **12 were clearly real**: 6 reverts, plus 6 re-introductions that the commit message admits.
-
-The counts dropped from 6,301 tombstones and 50 comebacks after a review on three more repos (click, black, koa): the miner now ignores lock files, comment-only blocks and fingerprints with fewer than 4 hashes. The last rule also removed 2 of the 12 clearly real comebacks; see [`research/matching-eval.md`](research/matching-eval.md) section 8.
+We ran the miner on 6 popular open-source repos: axios, httpie/cli, express, flask, got and requests. That is 19,908 commits and 5,169 tombstones.
+- Deleted code came back more than a week after its death **32 times** (one count per commit), 6 of them by Revert.
+- A reviewer opened every comeback an earlier version reported (50) in git: only 20 were real. Most of the rest were reformats and moves where the code never died. The miner now ignores those, checks that the code was really gone and that the re-adding commit comes after the death, and counts a cherry-picked patch once. On the reviewer's labels it keeps 16 of the 20 real comebacks and drops 26 of the 27 false ones, and it finds 14 of 21 re-additions the reviewer found independently (12 before). 14 of the 32 comebacks are not in the reviewer's labels yet. Details: [`research/matching-eval.md`](research/matching-eval.md) section 9.
 
 **We also tried it on real history.** We checked out psf/requests as it was in April 2023 and asked Kiro to "simplify" the upload code.
 - **Without Déjà Boo:** Kiro re-wrote exactly the code requests had reverted in 2020.
@@ -50,11 +48,12 @@ If the graveyard is missing, the hook does not block. It prints one line to stde
 
 ## What it can't see
 
-Déjà Boo finds code that comes back as a block of 4 or more lines, close to how it was deleted. A reviewer replayed real history on three repos it had never been tuned on (click 3,416 commits, black 2,525, koa 1,328). Blocks of 4 or more lines that came back were caught 8 of 9 times, and ordinary writes fired about once in 212 (0.5%). The same replay shows what it misses:
+Déjà Boo finds code that comes back as a block of 4 or more lines, close to how it was deleted. Renaming identifiers is covered: with 2 to 4 renamed identifiers, 91% of rewritten tombstones still reach warn (76% before the renamed score; section 10 of the research). A match that needs the renaming is only a warning, never a block. A reviewer replayed real history on three repos it had never been tuned on (click 3,416 commits, black 2,525, koa 1,328). Blocks of 4 or more lines that came back were caught 8 of 9 times, and ordinary writes fired about once in 212 (0.5%). The same replay shows what it misses:
 
 - **Scattered small deletions.** Of 18 real revert and restore commits, 3 were caught. A revert that is spread over many 1 to 3 line hunks leaves no block of 4 lines to remember (click 0d1b8ea: six hunks of 1 to 2 lines). Merging the hunks of one commit might catch some of these, but it would also create false alarms, and no one has measured how many, so it is not done.
 - **Code lost in a merge resolution.** The miner skips merge commits (`--no-merges`), so a deletion made while resolving a conflict has no tombstone (click c52f43c).
-- **Short idioms.** A deleted block with fewer than 4 distinct fingerprint hashes is not watched, because such idioms fired on unrelated code. In the 6 research repos this dropped 196 of 6,166 tombstones (3.2%), among them 2 of the 12 clearly real comebacks. Lower it with `deja-boo index --min-hashes 1` and `"minHashes": 1` in `.deja-boo/config.json`.
+- **Short idioms.** A deleted block with fewer than 4 distinct fingerprint hashes is not watched, because such idioms fired on unrelated code. In the 6 research repos this dropped 196 of 6,166 tombstones (3.2%), among them 1 of the 20 real comebacks the reviewer labelled. Lower it with `deja-boo index --min-hashes 1` and `"minHashes": 1` in `.deja-boo/config.json`.
+- **Small edits are deaths, reformats are not.** A deleted block counts as moved or reformatted, not dead, when 97% of its fingerprint is still in the commit. Changing one flag in four lines keeps about 93%, so that is a death; this keeps real reverts such as requests' chunked upload. Change it with `--alive-after-death` and `--alive-before-revival`.
 - **Comments and generated files.** Comment-only blocks, lock files, `dist/`, vendored code and prose docs are skipped on purpose.
 
 ## Using the guard

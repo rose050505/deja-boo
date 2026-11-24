@@ -98,21 +98,29 @@ Exempting Reverts costs nothing: only 84 of 7,052 stones are Reverts. Exempting 
 
 **Known limit:** the guard checks only the lines a write *adds*. Copying the surviving non-chunked call to a new place would still match the Revert stone at about 0.78.
 
-## 6. Re-run with the shipped miner (2026-11-24, after post-review fixes 3)
+## 6. Re-run with the shipped miner (2026-11-24, after post-review fixes 4)
 
-These numbers come from the miner as it ships now: punctuation tokens with k = 5, the default skip list (now with all lock files), prose docs excluded, merge artifacts excluded, comment-only blocks dropped, tombstones with fewer than 4 distinct hashes dropped (section 8), and aliveAtHead. They match the stats strip on the web app.
+These numbers come from the miner as it ships now: punctuation tokens with k = 5, per-language comment syntax, the default skip list (with all lock files), prose docs excluded, merge artifacts excluded, comment-only blocks dropped, tombstones with fewer than 4 distinct hashes dropped (section 8), moves and reformats dropped by containment, revivals checked against ancestry and the parent tree and counted once per patch (section 9), and aliveAtHead. They match the stats strip on the web app, except that the web lists only watched tombstones (see below).
 
-| Repo | Commits | Tombstones | Alive at HEAD | Revivals | Via Revert | Median gap (days) |
+Command, per clone (the clones are the reviewer's, at axios 9f0f4ddf, httpie/cli 5b604c3, express 43fca52d, flask 49943b5a, got c196ad0, requests 3c7baaa0):
+
+    npm run build && node dist/cli/main.js index probe/repos/<repo> --out /tmp/<repo>.json
+
+| Repo | Commits | Tombstones (old → new) | Alive at HEAD (old → new) | Revivals (old → new) | Via Revert (old → new) | Median gap, days (old → new) |
 |---|---|---|---|---|---|---|
-| axios | 2,083 | 768 | 227 | 11 | 2 | 73 |
-| httpie/cli | 1,690 | 649 | 64 | 3 | 0 | 798 |
-| express | 5,701 | 1,332 | 62 | 15 | 2 | 140 |
-| flask | 3,832 | 1,202 | 69 | 1 | 0 | 49 |
-| got | 1,719 | 1,313 | 192 | 5 | 0 | 84 |
-| requests | 4,884 | 706 | 28 | 9 | 2 | 231 |
-| **total** | **19,909** | **5,970** | **642** | **44** | **6** | |
+| axios | 2,082 | 768 → 559 | 227 → 98 | 11 → 5 | 2 → 2 | 73 → 14 |
+| httpie/cli | 1,690 | 649 → 555 | 64 → 34 | 3 → 0 | 0 → 0 | 798 → none |
+| express | 5,701 | 1,332 → 1,176 | 62 → 42 | 15 → 13 | 2 → 2 | 140 → 145 |
+| flask | 3,832 | 1,202 → 1,100 | 69 → 37 | 1 → 4 | 0 → 0 | 49 → 73 |
+| got | 1,719 | 1,313 → 1,190 | 192 → 137 | 5 → 5 | 0 → 0 | 84 → 254 |
+| requests | 4,884 | 706 → 589 | 28 → 16 | 9 → 5 | 2 → 2 | 231 → 205 |
+| **total** | **19,908** | **5,970 → 5,169** | **642 → 364** | **44 → 32** | **6 → 6** | |
 
-Before post-review fixes 3 the same clones gave 6,301 tombstones, 660 alive, 50 revivals (6 via Revert). Axios has one more commit upstream now (2,083 instead of 2,082); it adds no tombstone. Two merge-conflict revivals are excluded. The hand-labelled study (44 revivals, 12 clearly real) was done on the 11-22 miner. It has not been redone for these 44.
+"Old" is the miner after post-review fixes 3 (commit 8348de1) run on the same clones. Old revivals are revival records; new revivals are events (one per patch, so a commit that brings back two tombstones counts once). The new miner writes 35 revival records for the 32 events, plus 2 merge-conflict records that are excluded as before. The axios clone has 2,082 non-merge commits (the 2,083 in the earlier version of this table came from a different clone). "Alive at HEAD" fell for two reasons: the move filter now removes most of the tombstones that were alive (they were moves and reformats), and HEAD is now compared by full k-gram sets in each file's language, so the 364 that remain are tombstones whose code really is at HEAD.
+
+The web app lists 4,808 of the 5,169 tombstones: the alive-at-HEAD ones are not watched and not shown, unless their cause of death is a Revert. Its stats strip counts the revivals of the listed tombstones (24 events, 5 via Revert) and says that counting all tombstones gives 32.
+
+Before post-review fixes 3 the same clones gave 6,301 tombstones, 660 alive, 50 revivals (6 via Revert). The hand-labelled results for the old and the new miner are in section 9.
 
 ## 7. End-to-end on the real history (2026-11-24, Kiro CLI 3.5.0)
 
@@ -171,6 +179,88 @@ The cost is real. Six revivals disappear with the dropped tombstones (50 to 44),
 The benchmark test in `src/cli/hook-command.test.ts` writes a 4,000-line file with 1,500 tombstones (half of them cut from the file itself) and budgets 500 ms for the whole hook decision; it measured about 300 ms with and without block comments.
 
 **Revert replay (regression check).** The first 8 to 12 revert commits of click, black and koa were replayed with a graveyard mined up to the parent commit and the pre-/post-revert file as before/after. Old and new code agree on all 31: 2 of 12 (click), 0 of 11 (black), 0 of 8 (koa) are caught. No detection was lost. The misses are what the README calls out of scope: reverts that touch many 1 to 3 line hunks, and code lost in merge resolution.
+
+## 9. Post-review fixes 4: deaths that were not deaths, revivals that were not revivals (2026-11-24)
+
+A reviewer opened every one of the 50 revivals the 11-22 miner reported, in git (`research/labels/revivals-50-hand.jsonl`), and independently searched the same repos for true re-additions (`true-readds-21.jsonl`). Only 20 of the 50 were real (18 distinct events). The 27 false ones were reformats (13), moves or refactors where the code stayed alive (6), common boilerplate written again in another file (4), re-adds on a branch that does not contain the death commit (3) and one duplicate patch. 22 of the 27 had at least 98% of the tombstone's fingerprint still in the tree right after the death commit: the code never died. Of the 21 true re-additions, the old miner found 12.
+
+### Causes and fixes
+
+| Cause | Fix |
+|---|---|
+| The move and grace filters compared a deleted block with the union of the commit's added blocks of 4 or more lines by **Jaccard**. A block that moves into a larger file, or is re-wrapped into fewer lines, keeps all its k-grams but shares few with the whole (express 347aa56a: Jaccard 0.04, containment 0.88; requests ef8563ab: 0.08 / 1.00; httpie 05db75bd: 0.00 / 1.00, because the 3-line replacement is not a block). | A deleted block is not a death when at least `aliveAfterDeath` (0.97) of its fingerprint is contained in the k-grams of **all** lines the commit adds (any size), or in the **post-commit content** of the files it touches (read with one long-lived `git cat-file --batch`). The grace filter uses the same test for re-adds within 7 days. |
+| A revival was recorded even when the code was still in the tree. | A revival candidate is skipped when at least `aliveBeforeRevival` (0.97) of the fingerprint is in the revival commit's **parent tree** (any file), or when the same commit also deletes at least 0.97 of it (a move). |
+| A revival needed whole-block Jaccard >= 0.9, so code that came back inside a larger block was missed. | A revival is a window of the tombstone's line count inside one run of added lines (any size) with Jaccard >= 0.9: the same windowed matching as `check`. |
+| Re-adds on other branches, cherry-picks and duplicate patches were counted. | A revival is recorded only if `git merge-base --is-ancestor <death> <revival>`. Each record carries a `patchId` (hash of the changed lines without whitespace or line numbers); a tombstone gets one revival per patch, and stats count one revival per patch (an event), however many tombstones it brings back. |
+| The comment remover treated `/*` inside a string as a comment opener in every language (flask `.github/workflows/tests.yaml`: `'docs/**'` turned a 64-line tombstone into 4 hashes). | Comment syntax per language: `#` only for Python, Ruby, shell, YAML and TOML; `//` and `/* */` for C-like languages; `<!-- -->` for HTML and Markdown; every marker for unknown files. Quoted strings are skipped. Fingerprints, windows and the HEAD check all use the tombstone's (or file's) language. |
+
+### Why 0.97 and not 0.9 / 0.8
+
+The reviewer proposed 0.9 for the move filter and 0.8 for the parent tree. `research/scripts/label-containment.mjs` measured, for every labelled case, how much of the tombstone was still present (`research/results/label-containment.txt`). The false ones are reformats and moves: 0.96 to 1.00 present after the death, 0.98 to 1.00 in the parent tree. Several real ones are edits that keep most of the code: express de129c28 adds `--no-exit` to four scripts (0.93 present after the death), axios 08119634 renames a type (0.94), requests 24bcb9ea is the Revert of the chunked upload (0.95, because the surviving non-chunked call overlaps it), and requests 087a27ab's re-enabled tests share 0.83 of their k-grams with other tests. At 0.9 / 0.8 all four are lost, among them the 2023 re-landing of the chunked change that the README uses as an example. At 0.97 / 0.97 they are kept, and the reformats and moves still go.
+
+| On the reviewer's labels | Old miner (fixes 3) | 0.9 / 0.8 | **0.97 / 0.97 (shipped)** |
+|---|---|---|---|
+| Real revival rows kept (of 20) | 18 | 12 | **16** |
+| False revival rows dropped (of 27) | 4 | 26 | **26** |
+| Ambiguous rows kept (of 3) | 3 | 0 | 1 |
+| True re-additions found (of 21) | 12 | 11 | **14** |
+| Revivals reported (events) | 44 records | 20 | **32** (35 records) |
+| Via Revert | 6 | 6 | **6** |
+
+Measured with `research/scripts/label-eval.py` (outputs in `research/results/label-eval-*.txt`). A row counts as kept when a tombstone buried by the labelled death commit, at the labelled path, has a revival at the labelled commit.
+
+- **The 20 real rows.** 16 kept. Lost: express e66667e4 (`charsetRegExp`, only 10% of it came back in `response.js`, also lost by the old miner) and flask 4f03a769 (3 hashes, dropped by `minHashes` since fixes 3); axios 08119634 → 2a71f49b in `index.d.cts`, the second block of an event whose `index.d.ts` row is kept; and express 1bf2dbb7 → 8420ae93, whose lines are now reported at the earlier commit 3d597a55 ("moved files from lib/express/* to lib/"), which really re-adds the four `path` lines while the parent tree lacks them. So 15 of the 18 real events are reported at the labelled commit, plus that one at an earlier commit.
+- **The 27 false rows.** 26 dropped: all 13 reformats, 6 moves, 4 boilerplate, 3 non-ancestors. The one kept is the duplicate patch express 64a9c720: its twin a872f92a (labelled ambiguous) is no longer reported, so 64a9c720 is now the single record of that event.
+- **The 21 true re-additions.** 14 found (12 before): new are express 088856c3 and flask 71e10be2, which came back inside larger blocks. Still missed: axios 7fa69152 and express cc56c63f (the labelled death commit moved the code, so it is not a tombstone; the code died later in another commit), axios bdf493cf → abf95418 (still in the parent tree), axios 6b9b05b9, requests e5fc88ad and e9f94e69 (windowed Jaccard 0.72, 0.85 and 0.82 / 0.44: the code came back changed or interleaved with new lines). A first version that also accepted containment >= 0.9 in the added lines of one file found 17 of the 21, but it reported 60 revival events instead of 32, and the extra ones were mostly partial matches inside large test-suite rewrites, so the miner uses windowed Jaccard only.
+- **Revivals nobody labelled.** The new miner reports 14 revival records (13 events) that are in neither label file, mostly because windowed matching finds code inside larger blocks. My reading, not a reviewer's: about four look like real re-additions (axios 0c3a1e9f → abf95418 type declarations, got 3a069190 → fb03d84e the hand-written `delay`, got 0a79ccbe → 8cc6e03d, express 1bf2dbb7 → 3d597a55 above); the rest are boilerplate (flask `LICENSE` text copied into examples, got retry defaults), data (axios `docs/data/sponsors.json`) and the express STATUS_CODES table the reviewer called ambiguous. They are listed in `research/results/label-eval-new.txt`. **These need a reviewer's labels before the new revival count can be called precise.**
+
+### Tombstone noise
+
+Share of tombstones whose fingerprint is at least 95% inside the files the death commit touched, after that commit (`research/scripts/tombstone-noise.mjs`, full k-gram sets in each file's language):
+
+| | Tombstones | >= 95% still present | >= 90% |
+|---|---|---|---|
+| Old miner (fixes 3) | 5,970 | 952 (15.9%) | 1,239 (20.8%) |
+| New miner | 5,169 | 100 (1.9%) | 407 (7.9%) |
+
+The reviewer's count on the 6,301-tombstone graveyard was 927 (14.7%). The 100 that remain are between 0.95 and 0.97 on purpose: edits that keep most of a block, like de129c28. The reviewer's 20-tombstone noise sample (8 of 20) is not in `research/labels/`, so it was not re-checked.
+
+### Cost
+
+Indexing reads the touched files after every commit and, for revival candidates only, the parent tree. express (5,701 commits) takes 12 s instead of 1.7 s on this laptop; the six repos in parallel take 4 to 11 s each. The output is deterministic (two runs are byte-identical).
+
+## 10. Agent-style rewrites: an identifier-renamed score (2026-11-24)
+
+The reviewer rewrote 10 tombstones the way an agent does (renaming 2 to 4 identifiers, reordering, partial copies): `check` caught the target in 2 of 10 (0.64 and 0.66; the others scored 0.07 to 0.21). One renamed identifier was caught 8 of 10. Ordinary unrelated edits fired 0 of 10.
+
+**Change.** Each tombstone also gets `idFingerprint`: the same k-gram winnowing after every non-reserved identifier is replaced by `_ID_`. A window's score is `max(raw Jaccard, renamed Jaccard - 0.2)`, and the renamed score counts only on windows whose raw Jaccard is at least 0.3, so some of the tombstone's own k-grams must be in the same place. A hit that only the renamed score raises is reported as `warn`, never `block`, and the report says "with identifiers renamed". The penalty and the floor were chosen from the table below.
+
+`research/scripts/rename-eval.mjs` (output in `research/results/rename-eval.txt`): every watched tombstone with at least 8 lines (1,745) is mutated and scored against itself with the shipped `scoreTombstone`; unrelated pairs are the tombstone against a random tombstone of the same repo in another file. Then 50 random ordinary commits per repo (no Revert or restore in the subject) are replayed like the PreToolUse hook: before = the parent's version of each touched file, after = the commit's version, against the tombstones buried before that commit.
+
+Share of mutated copies at warn (>= 0.5):
+
+| Mutation | n | Raw only (before) | p = 0.1, no floor | p = 0.1, floor 0.2 | p = 0.2, floor 0.2 | **p = 0.2, floor 0.3 (shipped)** |
+|---|---|---|---|---|---|---|
+| rename 1 identifier | 1,744 | 97.1% | 99.8% | 99.6% | 99.6% | **99.2%** |
+| rename 2-4 identifiers | 1,741 | 76.0% | 98.6% | 95.5% | 94.9% | **91.4%** |
+| reorder statements (2 swaps) | 1,694 | 94.1% | 96.3% | 96.2% | 95.4% | **95.2%** |
+| rename 2-4 + reorder | 1,689 | 59.3% | 89.9% | 86.9% | 80.5% | **76.4%** |
+| drop ~20% of lines | 1,740 | 83.6% | 84.9% | 84.9% | 84.0% | **84.0%** |
+| unrelated tombstone pairs (false alarms) | 1,745 | 0.0% | 0.0% | 0.0% | 0.0% | **0.0%** |
+
+| Ordinary commits replayed (504 file writes) | Writes with an alarm | Alarms |
+|---|---|---|
+| Raw only (before) | 5 (1.0%) | 8 |
+| p = 0.1, no floor | 12 (2.4%) | 23 |
+| p = 0.1, floor 0.2 | 7 (1.4%) | 17 |
+| p = 0.2, floor 0.2 | 6 (1.2%) | 9 |
+| **p = 0.2, floor 0.3 (shipped)** | **5 (1.0%)** | **8** |
+
+The shipped setting is the only one that adds no alarm to ordinary commits: its 8 alarms are the same 8 the raw score already gives (similar test cases in express `res.sendFile`, requests `test_requests.py`, a `got` index rewrite). Those 8 existed before this change and are not fixed by it; the earlier estimate of 0.5% per write (section 8) came from a different replay. The false-alarm rate against unrelated tombstones stays 0.0% (no pair of 1,745 at 0.5, so under 0.1%). Renamed-only hits that reached block: 0.
+
+The reviewer's own 10 rewrites are not in `research/labels/`, so their 2-of-10 result was not re-run. The "rename 2-4 identifiers" row is the closest equivalent: 76.0% to 91.4% at warn.
+
+**Cost.** The renamed windows are fingerprinted only where the raw windows already qualify, the hook skips the `before` scoring when the matched window is unchanged on disk, and window fingerprints now reuse per-position minimums. The 4,000-line / 1,500-tombstone hook benchmark (750 tombstones are renamed copies of the file) measures 360 to 450 ms against its 500 ms budget (about 300 ms before this change).
 
 ## Recommendations (sent to Kiro as review comments)
 

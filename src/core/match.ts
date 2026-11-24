@@ -1,9 +1,9 @@
 import type { MinerConfig, Tombstone, WindowedMatch } from './types.js';
 import { DEFAULT_MINER_CONFIG } from './types.js';
 import { normalizeBlock } from './normalize.js';
-import { kgramWinnow } from './fingerprint.js';
+import { kgramHashSet, kgramWinnow } from './fingerprint.js';
 
-type MatchConfig = Pick<MinerConfig, 'kgramSize' | 'windowSize' | 'renameIds'>;
+type MatchConfig = Pick<MinerConfig, 'kgramSize' | 'windowSize' | 'renameIds'> & { language?: string | undefined };
 
 /**
  * Jaccard similarity between two sorted fingerprint arrays.
@@ -55,6 +55,26 @@ export function containment(a: number[], b: number[]): number {
   return hit / a.length;
 }
 
+/**
+ * Fraction of the fingerprint `a` whose hashes are in `set`: |A ∩ S| / |A|; 0 when `a` is empty.
+ * Used against the full k-gram hash set of a container, so a block embedded unchanged scores 1 even though winnowing a larger text picks different hashes.
+ * Invariant: in [0, 1]; 1 when every hash of `a` is in `set`.
+ */
+export function containedIn(a: readonly number[], set: ReadonlySet<number>): number {
+  if (a.length === 0) return 0;
+  let hit = 0;
+  for (const h of a) if (set.has(h)) hit++;
+  return hit / a.length;
+}
+
+/**
+ * The full (unwinnowed) k-gram hash set of source lines, normalized as one block.
+ * Invariant: every hash of fingerprintLines(lines, config) is in it.
+ */
+export function kgramSetOfLines(lines: string[], config: MatchConfig = DEFAULT_MINER_CONFIG): Set<number> {
+  return kgramHashSet(normalizeBlock(lines, config), config.kgramSize);
+}
+
 /** Minimum share of a tombstone's fingerprint that must occur at HEAD to count as alive. */
 export const ALIVE_AT_HEAD_THRESHOLD = 0.8;
 
@@ -70,7 +90,7 @@ export function isAliveAtHead(fingerprint: number[], head: ReadonlySet<number>):
 }
 
 /**
- * Fingerprint a list of source lines with the shared normalizer, tokenizer and winnower.
+ * Fingerprint a list of source lines with the shared normalizer, tokenizer and winnower; `config.language` picks the comment syntax.
  * Invariant: identical lines always give identical fingerprints.
  */
 export function fingerprintLines(lines: string[], config: MatchConfig = DEFAULT_MINER_CONFIG): number[] {

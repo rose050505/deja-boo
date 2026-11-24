@@ -25,6 +25,8 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       'rename-ids': { type: 'boolean', default: false },
       'move-threshold': { type: 'string' },
       'grace-days': { type: 'string' },
+      'alive-after-death': { type: 'string' },
+      'alive-before-revival': { type: 'string' },
       since: { type: 'string' },
       until: { type: 'string' },
       skip: { type: 'string', multiple: true },
@@ -65,6 +67,14 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       values['grace-days'] !== undefined
         ? parseInt(values['grace-days'] as string, 10)
         : DEFAULT_MINER_CONFIG.graceDays,
+    aliveAfterDeath:
+      values['alive-after-death'] !== undefined
+        ? parseFloat(values['alive-after-death'] as string)
+        : DEFAULT_MINER_CONFIG.aliveAfterDeath,
+    aliveBeforeRevival:
+      values['alive-before-revival'] !== undefined
+        ? parseFloat(values['alive-before-revival'] as string)
+        : DEFAULT_MINER_CONFIG.aliveBeforeRevival,
     skipPatterns: resolveSkipPatterns({
       extra: (values['skip'] as string[] | undefined) ?? [],
       defaults: values['no-default-skip'] !== true,
@@ -91,7 +101,8 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
     console.log(`Skipped tiny     : ${stats.skippedEmpty} (empty, or fewer than ${baseConfig.minHashes} distinct hashes)`);
     console.log(`Grace dropped    : ${stats.graceDropped}`);
     console.log(`Tombstones added : ${stats.tombstonesAdded}`);
-    console.log(`Revivals found   : ${stats.revivals}`);
+    console.log(`Revivals found   : ${stats.revivals} (events: one per patch)`);
+    console.log(`Not revivals     : ${stats.revivalsNotDead} still alive before, ${stats.revivalsNotAncestor} not after the death, ${stats.revivalsDuplicate} same patch again`);
     console.log(`Merge artifacts  : ${stats.mergeArtifacts} (excluded from revivals)`);
     console.log(`Alive at HEAD    : ${stats.aliveAtHead} (${graveyard.stats.aliveAtHeadReverts} Reverts stay watched)`);
     console.log(`Output           : ${out}`);

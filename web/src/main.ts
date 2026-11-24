@@ -15,14 +15,18 @@ function renderStats(el: HTMLElement, st: SiteStats): void {
     ['repos', fmt(st.repos)],
     ['commits walked', fmt(st.commits)],
     ['tombstones mined', fmt(st.tombstones)],
-    ['revivals found in history', fmt(st.revivals)],
+    ...(st.tombstonesShown !== undefined ? [['tombstones listed', fmt(st.tombstonesShown)] as [string, string]] : []),
+    ['revivals of listed tombstones', fmt(st.revivals)],
     ['revivals via Revert', fmt(st.revivalsViaRevert)],
     ['median gap', st.medianRevivalGapDays === null ? 'n/a' : `${st.medianRevivalGapDays} days`],
   ];
   clear(el);
   el.append(
     h('dl', { class: 'stat-list' }, ...items.map(([k, v]) => h('div', { class: 'stat' }, h('dd', {}, v), h('dt', {}, k)))),
-    h('p', { class: 'muted small' }, `Measured by the deja-boo CLI on ${st.repos} public repos (requests, express, axios, flask, got, httpie/cli) when this page was built. Gap = days from burial to revival.`),
+    h('p', { class: 'muted small' }, `Measured by the deja-boo CLI on ${st.repos} public repos (requests, express, axios, flask, got, httpie/cli) when this page was built. Gap = days from burial to revival. A revival is one commit (one patch), however many tombstones it brings back.${
+      st.revivalsAllTombstones !== undefined && st.revivalsAllTombstones !== st.revivals
+        ? ` The list leaves out tombstones whose code is still alive at HEAD; counting their revivals too gives ${fmt(st.revivalsAllTombstones)}.`
+        : ''}`),
   );
 }
 

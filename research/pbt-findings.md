@@ -155,3 +155,19 @@ against the full reserved-word set.
 
 **Status:** resolved
 
+
+---
+
+## Finding 10 — `commentSyntax("valueOf")` returned a function
+
+**Property:** `commentSyntax` is total and gives the same syntax for an unknown or undefined language (`src/core/post-review-4.test.ts`, post-review fixes 4).
+
+**Shrunk input:** `"valueOf"`
+
+**Observed:** `SYNTAX["valueOf"]` is `Object.prototype.valueOf`, so the lookup returned a function instead of a syntax, and `syntax.line` was undefined.
+
+**Cause:** the per-language comment table was a plain object indexed by a string that comes from file paths and graveyard JSON.
+
+**Fix:** look up own keys only (`Object.hasOwn`) and fall back to the all-markers syntax.
+
+**Status:** resolved

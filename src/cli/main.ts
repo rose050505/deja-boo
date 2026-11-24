@@ -16,6 +16,7 @@
 import { runIndexCommand } from './index-command.js';
 import { runCheckCommand } from './check-command.js';
 import { runHookCommand } from './hook-command.js';
+import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 
 const [, , subcommand, ...rest] = process.argv;
 
@@ -45,13 +46,19 @@ Usage:
 
 Options for \`index\`:
   --out <file>          Output JSON path (default: <repo>/.deja-boo/graveyard.json, the path check and the hooks read)
-  --min-block-lines <n> Minimum deleted lines per block (default: 4)
-  --min-hashes <n>      Fewest distinct fingerprint hashes a tombstone needs (default: 4)
-  --kgram-size <n>      k-gram width for fingerprinting (default: 5)
-  --window-size <n>     Winnowing window size (default: 4)
+  --min-block-lines <n> Minimum deleted lines per block (default: ${DEFAULT_MINER_CONFIG.minBlockLines})
+  --min-hashes <n>      Fewest distinct fingerprint hashes a tombstone needs (default: ${DEFAULT_MINER_CONFIG.minHashes})
+  --kgram-size <n>      k-gram width for fingerprinting (default: ${DEFAULT_MINER_CONFIG.kgramSize})
+  --window-size <n>     Winnowing window size (default: ${DEFAULT_MINER_CONFIG.windowSize})
   --rename-ids          Normalise identifier names before fingerprinting
-  --move-threshold <n>  Jaccard threshold for move detection (default: 0.9)
-  --grace-days <n>      Days after deletion within which a re-add drops the tombstone (default: 5)
+  --move-threshold <n>  Share of a tombstone's fingerprint that added lines must contain to re-add it (default: ${DEFAULT_MINER_CONFIG.moveThreshold})
+  --grace-days <n>      Days after deletion within which a re-add drops the tombstone (default: ${DEFAULT_MINER_CONFIG.graceDays})
+  --alive-after-death <n>
+                        A deleted block whose fingerprint is at least this share in the commit's added lines or touched
+                        files afterwards was moved or reformatted, not killed (default: ${DEFAULT_MINER_CONFIG.aliveAfterDeath})
+  --alive-before-revival <n>
+                        Skip a revival when at least this share of the fingerprint is still in the parent tree
+                        (default: ${DEFAULT_MINER_CONFIG.aliveBeforeRevival})
   --since <date>        Only walk commits after this date
   --until <date>        Only walk commits before this date
   --skip <pattern>      Also skip files matching this glob (repeatable; adds to the defaults)

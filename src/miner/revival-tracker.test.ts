@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { recordRevival, recordReDeath, scanForRevivals } from './revival-tracker.js';
+import { findRevivalCandidates, recordRevival, recordReDeath, scanForRevivals } from './revival-tracker.js';
 import type { MinerConfig, Tombstone, ParsedCommit, Hunk } from '../core/types.js';
 import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 import { normalizeBlock } from '../core/normalize.js';
@@ -259,5 +259,38 @@ describe('revival-tracker – property tests', () => {
       ),
       { numRuns: 300 },
     );
+  });
+});
+
+describe('findRevivalCandidates (post-review fixes 4)', () => {
+  const DEF: MinerConfig = { ...DEFAULT_MINER_CONFIG };
+  const LINES = [
+    'function computeHash(input: string) {',
+    '  let h = 0;',
+    '  for (const c of input) h = (h * 31 + c.charCodeAt(0)) >>> 0;',
+    '  return h;',
+    '}',
+  ];
+  const tomb = (): Tombstone => ({ ...makeTombstone('2024-01-01T00:00:00Z', LINES), fingerprint: kgramWinnow(normalizeBlock(LINES, { renameIds: false, language: 'typescript' }), DEF) });
+
+  it('property: the tombstone lines inside any larger added block are a candidate; deleting them in the same commit (a move) is not', () => {
+    const filler = fc.array(fc.stringMatching(/^export const [a-z]{4,8} = [0-9]{1,4};$/), { maxLength: 12 });
+    fc.assert(fc.property(filler, filler, (pre, post) => {
+      const added = makeCommit('2024-03-01T00:00:00Z', [...pre, ...LINES, ...post]);
+      const map = new Map([['ts1', tomb()]]);
+      expect(findRevivalCandidates(map, added, DEF).map(c => c.similarity)).toEqual([1]);
+      const moved = makeCommit('2024-03-01T00:00:00Z', [...pre, ...LINES, ...post], LINES);
+      expect(findRevivalCandidates(map, moved, DEF)).toEqual([]);
+    }), { numRuns: 100 });
+  });
+
+  it('unit: scanForRevivals records the same patch only once', () => {
+    const t = tomb();
+    const map = new Map([['ts1', t]]);
+    const c = makeCommit('2024-03-01T00:00:00Z', LINES);
+    scanForRevivals(map, c, DEF);
+    scanForRevivals(map, { ...c, meta: { ...c.meta, hash: 'c'.repeat(40) } }, DEF);
+    expect(t.revivals).toHaveLength(1);
+    expect(t.revivals[0]!.patchId).toMatch(/^[0-9a-f]{40}$/);
   });
 });

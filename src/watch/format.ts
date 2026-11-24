@@ -26,7 +26,7 @@ export function formatHookEntry(hit: RevenantHit, file?: string): string {
   const build = (cause: string): string => {
     const head = `[${hit.level}] 👻 Déjà Boo: this code was buried on ${day(t.buriedAt)} in ${t.commit.slice(0, 7)} — ${cause}${links ? ` (${links})` : ''}`;
     return `${head}${head.endsWith('.') ? '' : '.'} ` +
-      `Similarity ${hit.similarity.toFixed(2)} to tombstone ${t.id}, lines ${hit.matchedLines[0]}-${hit.matchedLines[1]} of ${file ?? 'this write'}. ` +
+      `Similarity ${hit.similarity.toFixed(2)}${hit.renamed ? ' (with identifiers renamed)' : ''} to tombstone ${t.id}, lines ${hit.matchedLines[0]}-${hit.matchedLines[1]} of ${file ?? 'this write'}. ` +
       `Read it with the MCP tool get_tombstone. If the cause no longer applies, add the comment \`deja-boo: checked ${t.id}\` near the code${file ? '.' : ' and write again.'}`;
   };
   let cause = causeText(t);
@@ -58,7 +58,7 @@ export function formatCheckReport(hits: RevenantHit[]): string {
       `  cause:       ${causeText(t)}`,
       ...(links ? [`  links:       ${links}`] : []),
       `  matched:     lines ${h.matchedLines[0]}-${h.matchedLines[1]} of the input`,
-      `  similarity:  ${h.similarity.toFixed(2)}  containment: ${h.containment.toFixed(2)}`,
+      `  similarity:  ${h.similarity.toFixed(2)}${h.renamed ? ' (with identifiers renamed; warn only)' : ''}  containment: ${h.containment.toFixed(2)}`,
       `  deleted lines:`,
       ...t.lines.slice(0, MAX_DELETED_LINES).map(l => `    - ${l}`),
       ...(t.lines.length > MAX_DELETED_LINES ? [`    … ${t.lines.length - MAX_DELETED_LINES} more lines`] : []),
