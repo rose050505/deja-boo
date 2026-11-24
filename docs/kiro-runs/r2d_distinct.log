@@ -1,0 +1,50 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=11
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=37
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=59
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=50
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=351
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=29
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=490
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=89
+[tool] status: Completed
+Now the specs, then the full run and build.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=431
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The hook now reports a tombstone when `level_after != 'none'` and any of three things holds. Either `level_before == 'none'`, or `s_after >= s_before + 0.1`, or `distinct >= 1` and `recovered / distinct >= 0.5`. The fast path and prefilter are unchanged. `npm test` (331 tests) and `npx tsc --noEmit` pass, and `dist` is rebuilt. I did not re-run your psf/requests repro, so the 0.90/0.95 and 1.00/0.50/0.00 figures are yours, not re-measured.
+- **Helper:** `distinctRecovery(tombstone, beforeText, afterText)` is in `src/core/watch.ts` and uses `kgramHashSet` over `normalizeBlock`. A property test checks that `recovered` is 0 when after equals before, and that `recovered <= distinct`.
+- **Tests:** event D in `demo-hook.test.ts` copies the surviving non-chunked call into a new method and exits 0. A synthetic test in `watch.test.ts` uses a tombstone that equals a live block plus one `chunked=chunked,` line. Writing that line back fires, while the old +0.1 margin alone would have stayed silent.
+- **Specs:** REQ-4 in `requirements.md` and the matching sections of `design.md` carry the new rule and your numbers.
+
+The synthetic test needed a 24-line tombstone. My first 13-line version scored above 0.1 on the single added line, so the old rule would already have fired.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=95
+
+EXIT 0

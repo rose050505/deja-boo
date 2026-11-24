@@ -1,0 +1,50 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=11
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=41
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=55
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=61
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=766
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=782
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now tests, spec updates.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1352
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=18
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+`deja-boo hook` now handles `Stop` events. `npm test` passes (339 tests), `npx tsc --noEmit` is clean, and `dist` is rebuilt. I haven't re-run your psf/requests rehearsal with Kiro itself.
+
+1. **Spec:** I added REQ-10 to `requirements.md` and tasks 13–15, all marked done, to `tasks.md`.
+2. **Stop hook:** The new code is in `src/cli/stop-command.ts`, dispatched from `hook-command.ts`. It diffs the working tree against `HEAD`, reusing `findRevenants` and the acknowledgement scan. A hit prints `{"decision":"block","reason":…}` and exits 0, with the file path in each entry. A non-git directory, missing git or a missing graveyard exits 0 silently. I skip `.deja-boo/` paths, binary files and files over 1 MB. I did not time the 1 s budget for 10 changed files.
+3. **Loop guard:** Blocked ids are stored per `session_id` in `.deja-boo/stop-state.json`, which is now gitignored. A repeat Stop with the same id set prints nothing. A different id set in the same session blocks again.
+4. **Dogfood and docs:** `deja-boo-guard.json` has the second `Stop` entry, `kiro-config.test.ts` expects it, and the README "Using the guard" step 3 explains the two hooks.
+5. **Tests:** `src/cli/stop-command.test.ts` runs on the `haunted-http` fixture. A shell-style edit to the native adapter blocks and names the Revert tombstone. Unchanged tree, repeat Stop in one session, acknowledged, and not-a-git-repo all give no output. An untracked file with the buried block blocks, and a spawned `dist` run of the hook exits 0 with block JSON. The REQ-5 message no longer prints `..` after a cause ending in a period.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=125
+
+EXIT 0

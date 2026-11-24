@@ -1,0 +1,121 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=10
+I'll start by looking at the spec and the current hook code.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=53
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=34
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=36
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=38
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=31
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=68
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=69
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=487
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=601
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Green. Now the spec text for REQ-4 and the design.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=811
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=59
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=522
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=886
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=60
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=153
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=124
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=95
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=559
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=83
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=145
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The hook now fires on the demo, and tasks 9–12 are done and ticked in `tasks.md`. `npm test` passes with 27 files and 297 tests. `npx tsc --noEmit` is clean, and the earlier batches' totals are in the logs.
+
+1. **Hook fix:** `findRevenants` now takes `before` lines instead of `added`. It reports a tombstone only if `level_after != 'none'` and (`level_before == 'none'` or `s_after >= s_before + 0.1`). The prefilter runs on both texts, and the `addedLineNumbers` fast path stays. REQ-4, REQ-8 and the design are rewritten. I added properties (a) and (b), plus a hook-level test that a rewrite reusing live lines fires.
+2. **Batch E (tasks 9–10):** I added the hook file, the MCP file, `.deja-boo/config.json`, the `.gitignore` entry, `npm run bury` and `src/kiro-config.test.ts`. `src/cli/demo-hook.test.ts` runs event A (exit 2, with id, commit7, verbatim cause and line range, and a score rise of at least 0.1), event B (silent) and event C (exit 2). It also spawns `node dist/cli/main.js hook` once with event A and gets exit 2 with the evidence on stderr.
+3. **Batch F (tasks 11–12):** I added a "Using the guard" section to the README. `research/pbt-findings.md` has a new Finding 9 for the demo miss. Strictly, an end-to-end run found it, not a shrunk property. `npm run bury` indexed this repo (17 commits, 4 tombstones). `check` on `src/cli/hook-command.ts` exits 0. Piping a tombstone's own lines through `check -` exits 1 with the full report.
+4. **Latency:** `decideHook` took 17 ms for 1,500 tombstones and a 300-line write, against a 200 ms budget.
+5. **Assumptions:**
+   - Event C's `oldStr` is the whole manual `if/else` block, because replacing only the `else:` branch would leave invalid Python.
+   - The 0.1 comparison has a 1e-9 float tolerance.
+   - The demo test rebuilds `dist/` only when it is older than the sources.
+
+I did not rerun the exact `0.78 → 0.94` numbers separately. The test asserts only that the score rose by at least 0.1.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=155
+
+EXIT 0

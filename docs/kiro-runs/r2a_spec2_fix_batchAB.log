@@ -1,0 +1,76 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=9
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=31
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=61
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=179
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1704
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1854
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=118
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=80
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Link refs are bare (e.g. `42`). Now Batch B code.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1286
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1381
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=80
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=43
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=126
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=60
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Batch A (tasks 1-2) and Batch B (tasks 3-4) are done and marked `[x]` in tasks.md. After each batch, `npm test` and `npx tsc --noEmit` were green.
+
+1. **Spec:** requirements.md, design.md and tasks.md now use the line-diff rule. The new text adds REQ-9 event C, the matched line range in the REQ-5 message, and no 300-line cap. It also records your answers to Q1–Q4.
+2. **Batch A:** `addedLineNumbers` is a Myers line diff on trimmed lines. `findRevenants` scores over the full post-write text and keeps a hit only if at least half of its matched window is added. `hauntLevel` has the optional `thresholds` parameter. Tests: 224 → 236 (+12), including the two `addedLineNumbers` properties you asked for.
+3. **Batch B:** `src/watch/load.ts` and `src/watch/format.ts` hold config/graveyard loading and message formatting. The hook entry carries a `[warn]`/`[block]` prefix and `lines 16-25`, and a long cause is cut with `…` to stay under 1,200 characters. `deja-boo check` is wired into `main.ts`, with exit 0/1/2/3 and a test on the haunted-http fixture. Tests: 236 → 256 (+20).
+4. **Not done:** the event A/B/C hook tests and the latency measurement come with tasks 5-6. I did not build the prefilter, since the budget is unmeasured.
+5. **Assumption:** blank lines can count as added lines, so the diff doesn't special-case them.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=116
+
+EXIT 0

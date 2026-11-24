@@ -1,0 +1,170 @@
+[tool] List spec files
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now I have a full picture of all three files. Let me apply all four review comments precisely.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now add REQ-14 at the end, before the final newline:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `design.md`. Several sections need touching: types, move-filter, the orchestrator, serializer, and data flow.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update the orchestrator section in design.md:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update the data flow diagram to include the new passes:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update the module map at the top of design.md:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update the determinism table and error table in design.md to cover revivals/deaths:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now also update the serializer section to reflect `Graveyard` (tombstones + stats):
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `tasks.md`. Changes needed:
+1. Task 1 — add new config fields and new types
+2. Task 8 — fix blank-line rule
+3. Task 9 — rewrite move-filter to Jaccard
+4. Task 12 — update orchestrator signature and flow
+5. Task 13 — update serializer for `Graveyard` shape
+6. Task 14 — update CLI flags and summary
+7. Add new Task 17 (grace filter), Task 18 (revival tracker), Task 19 (stats), and property tests per comment 4
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now add the new tasks (15 stays as audit, then new tasks 17–19 for the new modules, inserted before Task 15 to keep implementation order):
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Failed: Replace in File
+[tool] Find current task numbering
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The old Task 16 (perf smoke test) still exists with the old number. Let me fix that:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now also update the REQ-11 CLI flags table in requirements.md to add the new flags:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Also update REQ-10 (serialization) to reflect the `Graveyard` shape with `stats`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now do a final sanity check on all three files:
+[tool] Spot-check requirements.md structure
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Check final task list
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+All 19 tasks are correctly numbered and sequenced. The three files are consistent. Here is a summary of every change made.
+
+---
+
+## Changes made
+
+### `requirements.md`
+
+**REQ-3** — Replaced the contradictory two-clause rule with a single unambiguous rule: blank removed lines are *skipped* (not counted, not included in content, do not end the run). A run ends only at a context or added line.
+
+**REQ-4** — Rewrote move detection from exact-normalized-text equality to Jaccard fingerprint similarity against the commit's union of all added content (`--move-threshold`, default 0.9). Added the grace period: if a later commit within `--grace-days` (default 7) re-adds the block at similarity ≥ the threshold, the tombstone is dropped. Added `--grace-days 0` to disable it.
+
+**REQ-10** — Updated the output shape from a bare tombstone array to a `Graveyard` object `{ tombstones, stats }`. Added `revivals` and `deaths` to the determinism rules.
+
+**REQ-11** — Added `--move-threshold` and `--grace-days` to the options table.
+
+**REQ-14** *(new)* — Full historical revivals spec: `RevivalRecord` and `DeathRecord` types, re-death tracking, revert detection (`isRevert`), `GraveyardStats` shape, `medianRevivalGapDays` computation, determinism rules for the new arrays.
+
+---
+
+### `design.md`
+
+**Module map** — Added `grace-filter.ts`, `revival-tracker.ts`, `stats.ts`. Updated `move-filter.ts` signature note.
+
+**Data flow diagram** — Extended with the grace-filter and revival-tracker passes after tombstone accumulation.
+
+**Types** — Added `moveThreshold` and `graceDays` to `MinerConfig`. Added `RevivalRecord`, `DeathRecord`, `GraveyardStats`, `Graveyard`. Extended `Tombstone` with `revivals` and `deaths`.
+
+**`block-extract.ts`** — Clarified that blank lines are *skipped*, not break-points.
+
+**`move-filter.ts`** — Replaced exact-match set lookup with Jaccard fingerprint comparison against the commit's union added-fingerprint. Added prose for `grace-filter.ts` and `revival-tracker.ts` modules.
+
+**Orchestrator** — Updated return type to `Graveyard`, added grace and revival passes, updated `IndexStats` with `graceDropped` and `revivals`.
+
+**Fingerprint similarity note** — Extended to mention the miner's internal uses (move, grace, revival).
+
+**Determinism table** — Added rows for `revivals`/`deaths` ordering and `DeathRecord.fingerprint`.
+
+---
+
+### `tasks.md`
+
+**Task 1** — Added `moveThreshold`, `graceDays`, `RevivalRecord`, `DeathRecord`, `GraveyardStats`, `Graveyard` to the types list.
+
+**Task 8** — Rewrote blank-line rule to match the corrected REQ-3. Added a property test: no blank lines in output.
+
+**Task 9** — Rewrote `filterMoved` signature and logic to use Jaccard on the commit-level union fingerprint. Updated unit tests to cover re-indented and lightly edited moves. Updated property tests to cover indentation-only change and low-similarity survival.
+
+**Task 12** — Updated `runIndex` return type to `Graveyard`, added grace/revival passes to the wiring, added integration tests for grace period and revival.
+
+**Task 13** — Updated serializer to operate on `Graveyard` instead of `Tombstone[]`. Added round-trip test for revivals/deaths.
+
+**Task 14** — Added `--move-threshold` and `--grace-days` flags, extended summary output, added `--grace-days 0` test.
+
+**Tasks 15–17** *(new)* — Grace filter, revival tracker, and stats modules, each with unit and property tests covering the invariants from comment 4: indentation-only move never creates a tombstone, grace re-add never creates a tombstone, revivals are always after the death they refer to.
+
+**Task 18/19** — Renumbered the former Tasks 15/16 (audit and perf smoke) to 18/19. Updated Task 18's property-test reference list to include Tasks 15–16.
+EXIT 0

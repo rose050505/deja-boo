@@ -1,0 +1,60 @@
+[tool] Explore existing .kiro directory structure
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Check existing src structure
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now I have a clear picture of the project. Let me create the spec.
+[tool] Create spec directory
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Verify spec files were created
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The spec is written. Here's what it covers:
+
+**`requirements.md`** — 13 EARS-format requirements spanning: git log ingestion with configurable date ranges, file filtering (binaries, lockfiles, vendored dirs), deleted-block extraction with configurable minimum run length, move detection via exact normalized-text matching across the same commit, normalization (whitespace, comments, optional identifier renaming), k-gram winnowing fingerprinting (FNV-1a, configurable k and window), tombstone construction with all fields, language detection from extensions, link extraction from `#123` and GitHub URLs, deterministic JSON serialization, the full CLI interface with flags, a 60-second performance target, and the browser-safety module boundary.
+
+**`design.md`** — covers the full data-flow pipeline (stream → parse → extract → move-filter → fingerprint → accumulate → serialize), all key TypeScript types, per-module design decisions (sentinel-based commit boundary detection, hand-rolled skip-list without a glob library, inline FNV-1a, two-pointer Jaccard, SHA-1 for stable ids), streaming architecture to stay under ~50 MB memory, determinism guarantees for each source of non-determinism, and an error-handling table.
+
+**`tasks.md`** — 16 ordered tasks:
+1. Core types
+2. `normalize.ts` + 4 fast-check property tests (idempotency, whitespace invariance, comment-only invariance, renameIds symmetry)
+3. `fingerprint.ts` + 6 property tests (determinism, self-similarity, symmetry, bounded, short-text empty, sorted)
+4. `match.ts` + 5 property tests (identity, symmetry, bounded, monotonicity, empty)
+5–6. Language detection and link parser (unit tests)
+7–9. Diff parser, block extractor, move filter (unit tests + 3 property tests)
+10–11. Git log streamer and tombstone builder with fixture-repo tests
+12–13. Orchestrator with integration tests and sorted JSON serializer
+14. CLI `index` command
+15. Coverage audit and `research/pbt-findings.md`
+16. Performance smoke script against a real public repo
+EXIT 0

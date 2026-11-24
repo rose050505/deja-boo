@@ -1,0 +1,154 @@
+[tool] Survey current project structure
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] List all source files excluding dist
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] List source files only
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Let me read all the relevant files before making changes.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: Completed
+Let me read the remaining relevant files before writing any code.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now I have a complete picture. Let me also check the tasks.md and the existing test for the index command to understand the full scope.
+[tool] Find tasks.md and other markdown files
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now I have everything I need. Let me plan the three changes precisely:
+
+1. **BUG fix**: Add `committerDate` field to `RawCommit`/`ParsedCommit`, use `%ct` (committer timestamp) for all date logic, keep `%aI` as author date for display only.
+2. **CLI entry point**: Create `src/cli/main.ts` with shebang + subcommand dispatch.
+3. **Skip patterns**: Add `CHANGELOG*`, `HISTORY*`, `*.snap`, `docs/**/*.html` to default skip list.
+4. **Tests**: Add fixture-repo test with non-monotonic author dates + property test for non-monotonic dates.
+5. **tasks.md**: Add post-review fixes section.
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now I have a complete picture. Let me make all changes systematically.
+
+**Step 1: Add `committerDate` to types and wire it through git-log → parse-diff → all date consumers.**
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now add `committerTimestamp` to the `ParsedCommit.meta` (which is `Omit<RawCommit, 'rawDiff'>`). That happens automatically because `ParsedCommit.meta` is typed as `Omit<RawCommit, 'rawDiff'>`, so it will inherit the new field. Let me verify:
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Good. `ParsedCommit.meta` is `Omit<RawCommit, 'rawDiff'>` so it already carries `committerTimestamp`. Now update `git-log.ts` to capture `%ct`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update the `Builder` and `flushBuilder` to handle the new field, and change to `--reverse --topo-order`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `spawnGitLog` to use `--reverse --topo-order` and stream oldest-first (removing the need to reverse in `index.ts`):
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update the `processLine` function to parse the new `%ct` field (4th field, index 3) and shift subject to index 4:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+**Step 2: Update `index.ts` — remove the reverse since git now streams oldest-first, and use `committerTimestamp` for all date math:**
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `index.ts` to use `committerTimestamp` instead of `authorDate` for all date logic (grace window age-out and ordering):
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now I need to add `buriedAtTimestamp` to the `Tombstone` type, since the grace age-out in `index.ts` needs it. Let me check: actually, the simpler approach is to keep `buriedAt` as ISO but also store `buriedAtTimestamp: number` on `Tombstone`, or we can just use the committer timestamp from `buildTombstone`. Let me look at this more carefully — `tombstone.buriedAt` is set from `meta.authorDate` in `build-tombstone.ts`. I should add a `buriedAtTimestamp` field to `Tombstone` using `meta.committerTimestamp`.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `build-tombstone.ts` to set `buriedAtTimestamp`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `grace-filter.ts` to use `committerTimestamp` for the date diff:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `revival-tracker.ts` to use `committerTimestamp` for `RevivalRecord.date` and `DeathRecord.date`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now update `stats.ts` to use `buriedAtTimestamp` for the median gap calculation:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+**Step 3: Update the default skip patterns in `parse-diff.ts`:**
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+The `shouldSkip` function uses simple glob matching. `CHANGELOG*` and `HISTORY*` are glob patterns on the basename; `*.snap` matches any `.snap` file. I need to verify `shouldSkip` handles glob patterns on basenames (not just full paths). Looking at the code — it already handles the `*` wildcard via regex. Let me trace through `CHANGELOG*`:
+
+The pattern `CHANGELOG*` has no `/` and has `*` → goes to the glob branch → `escaped = 'CHANGELOG[^/]*'` → regex `(^|/)CHANGELOG[^/]*(/|$)`. That matches `CHANGELOG.md`, `CHANGELOG` etc. Good.
+
+For `docs/**/*.html` — the `**` needs special handling. The current regex only replaces `*` with `[^/]*`, so `**` becomes `[^/]*[^/]*` which won't match across path separators. Let me fix `shouldSkip` to handle `**`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Error: You're using credits faster than your rate limit allows. Please wait a few minutes before trying again. (Request ID: <request-id redacted>) (code -32000): {"errorType":"ClientThrottleError","retryErrorType":"THROTTLING","requestId":"<request-id redacted>"}
+EXIT 1

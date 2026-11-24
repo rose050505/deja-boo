@@ -1,0 +1,35 @@
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=42
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=53
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=7
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=80
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=961
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=709
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The Power bundle, the review agent and the two hooks are in place. `npm run build`, `npm test` (32 files, 341 tests) and `npx tsc --noEmit` all pass. I ran them once at the end, not after each step. I did not test the `npx github:` install or `kiro-cli powers install`, since you said the reviewer will try those.
+
+1. **`power/`:** `plugin.json`, `mcp.json`, the `check-before-resurrecting` skill, `README.md` and `hooks/deja-boo-guard.json`. The README says to copy the hooks into `.kiro/hooks/` yourself, since powers don't install them.
+2. **CLI and package:** `deja-boo mcp` now starts the MCP server. A `prepare` script builds `dist/` when the package is installed from GitHub. I only checked that `mcp` starts and exits cleanly when stdin is empty.
+3. **`.kiro/agents/graveyard-keeper.json`:** tools are read, shell and `@deja-boo`, and shell is limited to `git *` and `node dist/cli/main.js *`. I also added `allowedTools` for read and `@deja-boo` so those don't prompt.
+4. **Hooks:** `test-on-save.json` (PostFileSave) and `session-brief.json` (SessionStart). The brief's command printed "…graveyard (4 tombstones)…" when I ran it by hand. I did not add a graveyard-refresh Stop hook or a PostTaskExec hook, because `npm run bury` rebuilds and re-mines, which is too slow to run per task. `npm run bury` is documented in the README instead.
+5. **Docs and tests:** I added a "kiro-packaging" section to `.kiro/specs/revenant-watch/tasks.md` and an items 7–8 entry to the README's "Using the guard" section. I also added tests for the new files to `src/kiro-config.test.ts`.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=125
+
+EXIT 0

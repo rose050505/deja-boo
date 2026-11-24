@@ -12,3 +12,6 @@ coverage/
 # Rebuilt with: npm run bury
 .deja-boo/graveyard.json
 .deja-boo/stop-state.json
+
+# Kiro CLI run logs are part of the submission evidence
+!docs/kiro-runs/*.log

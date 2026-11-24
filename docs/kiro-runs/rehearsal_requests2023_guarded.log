@@ -1,0 +1,65 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=9
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=35
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=31
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=145
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+No `python`; use python3.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=154
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=64
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The `HTTPResponse` import is now unused, so I'll remove it. I'm leaving `DEFAULT_POOL_TIMEOUT` in place because it's a public module constant.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=56
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+`HTTPAdapter.send()` in `requests/adapters.py` now makes one `conn.urlopen(...)` call that passes `chunked=chunked`. The hand-rolled chunked upload branch is gone. That branch used `_get_conn`, `putrequest`, manual chunk framing and `HTTPResponse.from_httplib`.
+
+I also removed the `from urllib3.response import HTTPResponse` import, which nothing uses now. I left `DEFAULT_POOL_TIMEOUT` in place because it's a module-level constant that other code might import.
+
+I didn't run the test suite because pytest isn't installed here. The only check was that `requests.adapters` still imports. The installed urllib3 is 2.6.3, and the import printed a `RequestsDependencyWarning` saying it doesn't match a supported version.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=60
+
+[tool] Tool Load
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=26
+[tool] @deja-boo/get_tombstone
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=24
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=78
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=137
+I kept the change and added the marker `deja-boo: checked a36a5b61502a63ed9b4b2b875e7420e118a72156` as a comment above the `conn.urlopen(...)` call in `requests/adapters.py`. I couldn't confirm that the original problem is gone.
+
+- **The tombstone:** Déjà Boo flagged the old `urlopen(..., chunked=chunked)` code. It was buried in 24bcb9e, a 2020 revert of 2da7fe0 ("Use urllib for chunked requests"). The tombstone's only cause is the revert message, with no stated reason or linked issue. Nothing in the repo explains it.
+- **Why I kept it:** You asked for this change explicitly. `HISTORY.md` also records a later "two Host headers for chunked requests" fix (#5391), which suggests the manual path had its own bugs.
+- **Not verified:** I couldn't run the tests or an upload, because pytest isn't installed. The installed urllib3 is 2.6.3, which is outside the repo's declared `<1.27` range, so chunked uploads haven't been exercised on a supported urllib3. The 2020 revert may have been tied to a urllib3 1.25.x bug. Run the chunked-upload tests, such as generator bodies, against the urllib3 versions you support before merging.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=107
+

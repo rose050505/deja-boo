@@ -1,0 +1,320 @@
+Let me start by reading the relevant files to understand the current state.
+[tool] Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now let me check the existing test for build-tombstone and the fingerprint test:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] Run Command
+[tool] status: Completed
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Good - all 130 tests pass. Now I'll implement all the required tasks. Let me plan them out and implement them in order:
+
+**Tasks 17 → 15 → 16 → 13 → 12 → 14** (stats first, then grace/revival, then serialize, then orchestrator, then CLI)
+
+Also, I need to fix the build-tombstone PBT issue: add a property test that no tombstone ever has an empty fingerprint, and restore a generator that can produce empty-fingerprint blocks (and show the skip happens correctly).
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now implementing grace filter, revival tracker, serialize, orchestrator, and CLI in sequence.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the orchestrator — the most complex piece:
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the CLI index command:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now writing all the test files, then checking compilation and running tests.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now the orchestrator integration test and CLI test:
+[tool] Check fixture-repo helper pattern used in git-log tests
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now add the PBT for empty-fingerprint tombstones to build-tombstone.test.ts, and also restore a generator that can produce empty-fingerprint blocks:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now run the tests to see the current state:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Two issues to fix:
+
+1. **`graceDays: 0` boundary** — the condition `daysDiff > config.graceDays` passes when both are 0, so `daysDiff == 0` triggers the drop. The check should be `daysDiff >= 0 && daysDiff < config.graceDays` only when `graceDays > 0`; with `graceDays: 0` nothing should ever drop.
+
+2. **Fixture repo tests** — directories like `src/` don't exist in the temp repo; need `mkdirSync` before writing.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now fix the fixture tests — add `mkdirSync` before writing files in subdirectories:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Also need to add the `mkdirSync` import to index-command.test.ts (already there) and index.test.ts:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Good, `mkdirSync` is already imported. Now run tests again:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Two classes of issues:
+
+1. CLI test: `mkdirSync` not imported — need to add it to the import line.
+2. Orchestrator grace/revival logic: the `parseDiff` call in the orchestrator uses the raw commit but I'm not passing the right format. Let me check the actual issue — the grace test shows the block still appears (grace not working). The revival test shows no revivals recorded. The issue is likely that `parseDiff` returns `ParsedCommit` with a `meta` from the `RawCommit`, but I'm calling `parseDiff(rawCommit, ...)` and then using `parsed.meta.authorDate` for `commitTime`. Let me trace through the logic.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The CLI test import is missing `mkdirSync`. Fix that, and then debug the grace/revival issue:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now diagnose the grace/revival failure. The core issue is timing: git commits in `timedCommit` use `GIT_AUTHOR_DATE` but git outputs dates in its own format. Let me check what format `spawnGitLog` actually yields for `authorDate`:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Good — `%aI` gives ISO 8601 strict format, which is what we set in `GIT_AUTHOR_DATE`. The dates should parse correctly.
+
+The real issue is likely the ordering — git log returns commits in reverse-chronological order (newest first). The orchestrator processes commits newest → oldest. When we process commit "remove fetchUser" (Jan 15) first, the tombstone goes into `pendingGrace`. Then we process "add fetchUser" (Jan 1) — but that's the original *addition*, not a re-addition. The grace filter correctly doesn't trigger. Then "restore fetchUser" (Jan 10) — but we never see it because git log newest-first means Jan 15 comes before Jan 10. Wait, actually Jan 20 (restore) → Jan 15 (delete) → Jan 10 (re-add within grace). Let me re-read the grace test scenario:
+
+The grace test: add Jan 1 → delete Jan 5 → restore Jan 10 (within grace). Git processes Jan 10 first, then Jan 5, then Jan 1. When processing Jan 5 (delete), tombstone enters pendingGrace. Then Jan 1 (add) — `applyGrace` checks if added fingerprints match and if the commit date is within graceDays of buriedAt. But Jan 1 is BEFORE Jan 5 — `daysDiff` is negative. So the condition `daysDiff < 0` exits. 
+
+The problem is that git processes in reverse order (newest first), so the "restore" commit (Jan 10) comes BEFORE the "delete" commit (Jan 5). The tombstone doesn't exist yet when we process the restore. The grace filter can only work if we also look forward — but we're processing backwards.
+
+This is a fundamental ordering issue. The grace filter needs to look at commits that come AFTER the deletion in real time, but git delivers them in reverse order. The solution: either process git history forward (oldest first by using `--reverse`), or buffer all commits first.
+
+Looking at the design: the spec says "after each commit, run grace-filter: if any pending tombstone's `buriedAt` is within `config.graceDays` of the current commit date, and the commit's added fingerprints match it at ≥ `config.moveThreshold`, remove that tombstone." This only makes sense if we process commits oldest-first.
+
+Let me check whether `git log` with `--reverse` is the right fix, or if we need to buffer:
+[tool] Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The design spec says "Stream commits in reverse-chronological order" and "for each commit that falls within the grace window of an existing tombstone, run the grace filter." Processing in reverse order (newest first) means: when we see a deletion commit, tombstones older than it will already be in `confirmed` (processed earlier as newer dates). So we see the RESTORE commit first (newest), then the DELETE commit, then the original ADD.
+
+This means the grace filter, as designed for reverse order, works differently: when we process the DELETE commit and add it to `pendingGrace`, we then process older commits. The restore commit was already processed — it's too late.
+
+The correct approach for reverse-chronological processing: **collect all commits first, then replay them in forward (oldest-first) order** for the grace/revival passes. OR: process tombstones completely differently. 
+
+Looking at the design more carefully: "grace-filter.ts receives `laterCommits`" in the data flow. "Later" in git-reverse-log order = earlier in calendar time. The spec says the grace filter runs streaming, checking if commits with ADDED blocks whose date is within `graceDays` of a tombstone's `buriedAt`. Since git processes newest→oldest, a commit that ADDS code and falls within graceDays of a tombstone will only appear AFTER (in processing order = later in real time) the tombstone's deletion. But in reverse-chronological order, the restore (Jan 10) comes BEFORE the deletion (Jan 5) in the stream.
+
+**Solution**: collect all raw commits into an array, then process them in **oldest-first (forward) order** for the full pipeline. The spec says "stream" but the performance requirement is a 60-second budget on 5,000 commits — buffering all commits is fine.
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+All 175 tests pass. Now check TypeScript:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Two TS errors to fix:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+The issue is `exactOptionalPropertyTypes: true` — optional properties can't be assigned `string | undefined` directly. Need to use spread conditionally:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Let me read the full current state of index-command.ts to make a clean fix:
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+The `finalConfig` variable is unused — the real call still uses `config`. Also the TS error on line 63 is about the spread config. Let me rewrite cleanly:
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+Now fix the serialize.ts TS error — cast through `unknown`:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+TypeScript clean. Run tests one more time to confirm everything still passes:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+175/175. Now run the CLI on this repository and capture the stats line:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Need to build first, then run:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The CLI works on this repo. Now update the tasks file and append PBT findings:
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+Now mark tasks 12–17 as done in the tasks file:
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Now append the new PBT findings to research/pbt-findings.md:
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Replace in File
+[tool] status: Pending
+[tool] status: Completed
+Final check — both commands clean, then the CLI stats line:
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: Completed
+All clean. Here's the 5-line summary:
+
+**175 tests pass, `tsc --noEmit` clean.** Tasks 12–17 implemented: `stats.ts` computes graveyard-level metrics including median revival gap; `grace-filter.ts` drops tombstones re-added within the grace window; `revival-tracker.ts` records `RevivalRecord` and `DeathRecord` entries; `serialize.ts` produces deterministic alphabetically-keyed JSON; the orchestrator (`index.ts`) collects commits from git, reverses them to oldest-first (Finding 7 fix), then pipelines parse → extract → move-filter → build → grace → age-out → revival-scan; `index-command.ts` wires this to the CLI with all flags.
+
+**Three new PBT findings documented (6–8):** `graceDays: 0` dropped same-day tombstones (fixed with an early-out guard); the orchestrator's reverse-chronological processing silently broke grace and revival tracking (fixed by buffering and reversing the commit stream); a new `anyLine` generator was restored to `build-tombstone.test.ts` to cover the empty-fingerprint skip path, with the property "no tombstone ever has a non-empty fingerprint" now explicitly tested over 500 runs.
+
+**CLI on this repo:**
+```
+Commits walked: 6 | Hunks parsed: 60 | Blocks found: 2 | Moves excluded: 0 | Skipped empty: 0 | Grace dropped: 0 | Tombstones added: 2 | Revivals found: 0
+```
+EXIT 0

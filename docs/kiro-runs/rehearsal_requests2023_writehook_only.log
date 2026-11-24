@@ -1,0 +1,43 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=8
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=41
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=31
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=162
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=151
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=112
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=148
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+`HTTPAdapter.send()` in `requests/adapters.py` now makes one `conn.urlopen(...)` call for every request, with `chunked=chunked` added. I deleted the hand-rolled chunked loop, which was the `_get_conn`/`putrequest`/`putheader` code and the manual chunk framing. I also removed the `HTTPResponse` import, which nothing uses any more. I left `DEFAULT_POOL_TIMEOUT` in place because it's a module-level constant that other code may import.
+
+I couldn't run the test suite because pytest isn't installed here. Instead I ran a POST with a generator body against a local HTTP server. The server received `Transfer-Encoding: chunked` and the request completed.
+
+The `urllib3>=1.21.1` lower bound in `setup.py` and `setup.cfg` may now be too low. I believe `urlopen(chunked=...)` only exists from urllib3 1.26, but I didn't verify that. Raising the minimum is a separate change, so I left it alone.
+
+The installed urllib3 is 2.6.3, which is outside the repo's `<1.27` pin. Importing requests prints a `RequestsDependencyWarning` about this, but the request worked.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=101
+

@@ -1,0 +1,45 @@
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=45
+[tool] status: Failed: Run Command
+The interrupted command didn't run, so I'm redoing the cleanup, task ticks and README note.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=187
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=108
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=25
+The commit didn't happen because the command was cut off, so I'm committing again.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=72
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=25
+The `pkill -f` pattern matched my own shell, which is why those calls died. I'll commit without it.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=91
+[tool] status: Failed: Run Command
+1. **Spec:** `.kiro/specs/haunted-graveyard/` has requirements, design and tasks, with all 9 tasks ticked. Everything is in commit `24f1aa1`.
+2. **Data:** `npm run web:data -- <clones>` built 7 graveyard JSONs plus `index.json` and `stats.json`. The largest file is `flask.json` at 2.6 MB, under the 3 MB limit. Alive-at-HEAD stones are dropped except Reverts. Lines are capped at 60, and a capped stone's fingerprint is recomputed from the kept lines.
+3. **App:** The graveyard view (time × directory, epitaphs, cracked Revert stones, detail dialog with a GitHub commit link) and the summon panel run the real `src/core` `findRevenants` in the browser. The "Try the haunted chunked upload" button gives a BLOCK at 100% on the `haunted-http` Revert stone, with the `deja-boo: checked <id>` text. I checked this by driving the built app in jsdom, since Chrome here blocks local URLs by policy.
+4. **Checks:** `npm test` passes (328 tests), `npx tsc --noEmit` and `npm run web:check` are clean, and `npm run web:build` works. `npx vite preview web` served `/` and the demo JSON with HTTP 200. Reduced motion and AA contrast are covered by tests, and `.github/workflows/pages.yml` builds with base `/deja-boo/`.
+5. **Discrepancy:** The stats strip shows 19,908 commits, which matches `research/matching-eval.md`. It shows 6,301 tombstones against that file's 7,094, because the miner has changed since that measurement. I haven't explained the gap and left the numbers as measured. The strip also shows 50 revivals, 6 via Revert, and a 139-day median gap.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=128
+
+EXIT 0

@@ -6,11 +6,16 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 
 > 🎃 Built for **Kiroween 2026** (Costume Contest) with [Kiro](https://kiro.dev): specs, steering, hooks, MCP, property-based tests, and a Kiro Power.
 
+**🪦 Live demo: https://rose050505.github.io/deja-boo/** (paste any snippet and see whether it has died before)
+
 ## Status
-🚧 Work in progress (Kiroween 2026 runs until Dec 4).
-- ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/), 177 unit + property tests. Indexes express (5,701 commits) in 1.7 s.
-- ✅ **Revenant watch**: `deja-boo check`, the Kiro `PreToolUse` guard hook and the MCP server. Spec [`revenant-watch`](.kiro/specs/revenant-watch/).
-- 🔜 **Haunted graveyard** web UI and the Kiro Power.
+All three specs are implemented, with 341 unit and property tests.
+- ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/). Indexes express (5,701 commits) in 1.7 s.
+- ✅ **Revenant watch**: `deja-boo check`, the Kiro guard hooks (`PreToolUse` write + `Stop` diff) and the MCP server. Spec [`revenant-watch`](.kiro/specs/revenant-watch/).
+- ✅ **Haunted graveyard** web app, deployed to GitHub Pages. Spec [`haunted-graveyard`](.kiro/specs/haunted-graveyard/).
+- ✅ **Kiro Power** ([`power/`](power/)) and the [`graveyard-keeper`](.kiro/agents/graveyard-keeper.json) custom agent.
+
+All product code was written by Kiro CLI running headless. The logs of every run are in [`docs/kiro-runs/`](docs/kiro-runs/).
 
 See [`.kiro/steering/product.md`](.kiro/steering/product.md) for the product brief.
 
@@ -57,7 +62,7 @@ A static page that draws the graveyard and runs the detector in the browser.
     npm run web:build && npm run web:preview   # production build, served locally
     npm run web:data -- <requests> <express> <axios> <flask> <got> <cli>   # rebuild web/public/graveyards from local clones
 
-`.github/workflows/pages.yml` deploys `web/` to GitHub Pages under `/deja-boo/`.
+`.github/workflows/pages.yml` deploys `web/` to GitHub Pages under `/deja-boo/`: https://rose050505.github.io/deja-boo/
 
 ## License
 [MIT](LICENSE)

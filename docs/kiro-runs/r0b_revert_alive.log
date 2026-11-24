@@ -1,0 +1,53 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=8
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=46
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=68
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=85
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=442
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=39
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now update tests and add the fixture test.
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=581
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=220
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=116
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+`hauntLevel` now suppresses an `aliveAtHead` tombstone only when its cause of death does not start with "Revert" (case-insensitive). `npm test` (224 tests) and `npx tsc --noEmit` are green, and `dist` is rebuilt.
+
+- **Code:** Revert tombstones are judged by similarity as usual, and the JSDoc invariant is updated. `aliveAtHead` is unchanged in the graveyard and in stats. `stats.aliveAtHeadReverts` is new and also appears in the CLI summary line. I added `isRevertCause` in `src/core/level.ts`, which matches `/^revert/i`. The existing block-evidence check still uses `/^revert\b/i`, so "Reverted…" is a Revert for suppression but not for block evidence.
+- **Tests:** The two new properties are in `src/core/windowed.test.ts`, replacing the old "alive is never flagged" property. I also added a unit test that an alive Revert below 0.5 stays `none`. The fixture is `src/test-fixtures/haunted-http.sh` (a copy of your builder) with `src/miner/haunted-http.test.ts`. It asserts 2 tombstones, both alive at HEAD, and 1 Revert revival. The `raw`→`response` re-landing of the Revert-buried block yields `block`. I did not add a `computeStats` unit test for `aliveAtHeadReverts`; the fixture test only checks it is at least 1.
+- **Tasks:** I added one line to "Post-review fixes 2" in `tasks.md`. The 6-repo re-measurement item there is still open, because those checkouts aren't in this workspace.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=99
+
+EXIT 0

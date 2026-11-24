@@ -1,0 +1,38 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=8
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=41
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=31
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=142
+[tool] status: Completed
+Python isn't named `python` here; use python3.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=148
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=75
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=35
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+`HTTPAdapter.send()` in `requests/adapters.py` now makes a single `conn.urlopen(...)` call and passes `chunked=chunked`. The hand-rolled loop that wrote the chunks and read the response through `low_conn` is gone.
+
+`requests.adapters` imports without errors, but I didn't run any tests because pytest isn't installed here. Chunked uploads haven't been exercised against the installed urllib3 2.6.3.
+
+I also removed the `HTTPResponse` import, which nothing uses now. I left `DEFAULT_POOL_TIMEOUT` in place, since other code may import it.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=41
+

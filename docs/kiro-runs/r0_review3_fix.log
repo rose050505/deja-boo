@@ -1,0 +1,91 @@
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=11
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=45
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=90
+[tool] status: Completed
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=53
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1756
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=611
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1181
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=53
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=407
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=185
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=1223
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=49
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=477
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=329
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+I made all the requested fixes. `npm test` passes (220 tests), `npx tsc --noEmit` is clean, and `dist/` is rebuilt. I did not re-run the 6-repo measurement, because the repo checkouts and your scripts aren't in this workspace. `kiro_runs/next_review.md` wasn't there either, so I worked from the comments you pasted and `research/matching-eval.md`.
+
+1. **Skip list:**
+   - `DEFAULT_MINER_CONFIG.skipPatterns` now holds the defaults, and the list lives in the new `src/core/skip.ts`.
+   - `--skip` adds to the defaults, `--no-default-skip` turns them off, and `--include-docs` mines `*.md`, `*.rst` and `*.txt`.
+   - `docs/**/*.html` now matches `docs/api.html`.
+   - I also fixed a bug you didn't report: the binary-extension entries (`.png` and the rest) never matched any file, so they are now `*.png` and so on.
+   - I added `Pipfile.lock`, `*.pem`, `*.crt` and `*/packages/`. A top-level `packages/core/…` in a monorepo is kept.
+   - The end-to-end CLI test on a fixture repo confirms lockfiles, `dist/`, generated docs, certs and vendored `packages/` yield no tombstones.
+2. **Merge artifacts:** revivals whose commit subject starts with "merge" (any case) get `isMergeArtifact: true`. They are left out of `stats.revivals` and counted in `stats.mergeArtifactRevivals`.
+3. **Matching:**
+   - The shared tokenizer is `src/core/tokenize.ts`, and k now defaults to 5 with w = 4.
+   - `matchWindowed(tombstone, candidateLines)` returns the best-window Jaccard, a 1-based `[start, end]` line range, and containment as evidence only.
+   - I added `src/core/level.ts` for the warn/block rule: warn at 0.5 or above, block at 0.7 or above only with a Revert cause or an issue/PR link, and never for code alive at HEAD.
+4. **aliveAtHead:** the new `src/miner/head-tree.ts` fingerprints the HEAD tree with the same skip list. `index` flags tombstones that are at least 80% contained in it, and stats report them separately. They stay in the graveyard so `check` can ignore them.
+5. **Tests and spec:**
+   - The new fast-check properties cover the three you asked for: the one-identifier rename, embedding the tombstone in unrelated lines, and verbatim HEAD content.
+   - I changed the existing "fewer tokens than k yields []" property test in `fingerprint.test.ts` to count tokens with the new tokenizer instead of whitespace.
+   - The "post-review fixes 2" section is in `.kiro/specs/graveyard-miner/tasks.md`, with the 6-repo re-run left as an open item.[INFO] [KRS] <-- GenerateAssistantResponseCommand done totalEvents=181
+
+EXIT 0
