@@ -47,6 +47,8 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r5_web_overflow.log` | `r5_web_overflow_prompt.md` | Fixed sideways page scroll on the live demo (found while recording the video) |
 | `r6_web_ghost.log` | `r6_web_ghost_prompt.md` | Ghost no longer clipped in small graveyards; caption resets on repo change (found while recording the video) |
 | `r7_web_square.log` | `r7_web_square_prompt.md` | Square corners by default (from the video review). **Reverted afterwards** on the owner's correction: rounded corners are only a problem when overused |
+| `r8_realuse_fixes.log` | `r8_realuse_fixes_prompt.md` | Seven defects from a review on click, black and koa: large-file latency (4.3 s → 45 ms), comment fragments, tiny fingerprints, HEAD-aware check, new-user path, lock files |
+| `r8b_miner_accuracy.log` | `r8b_miner_accuracy_prompt.md` | Accuracy fixes from hand labels (`research/labels/`): reformats/moves no longer become tombstones or revivals, ancestry check, one revival per patch, windowed revival matching, identifier-renamed score (warn only) |
 
 ## Rehearsals: Kiro as the test subject
 
