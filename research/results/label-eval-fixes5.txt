@@ -1,0 +1,21 @@
+revivals-50-hand.jsonl: real kept 16/20; false dropped 26/27; ambiguous kept 1/3
+revivals-new-hand.jsonl: real kept 3/3; false dropped 7/10; ambiguous kept 1/1
+  lost  duplicate_of_real axios    08119634 -> 2a71f49b index.d.cts
+  kept  duplicate_patch   express  28525242 -> 64a9c720 spec/spec.core.js
+  lost  real              express  1bf2dbb7 -> 8420ae93 lib/express/view/view.js
+  lost  real              express  e66667e4 -> bb53b20d lib/utils.js
+  lost  real              flask    4f03a769 -> 5544d094 src/flask/cli.py
+  kept  move_refactor     express  1bf2dbb7 -> 3d597a55 lib/express/view/view.js
+  kept  boilerplate       got      95c7c2c2 -> 30023f73 source/normalize-arguments.js
+  kept  boilerplate       got      3a069190 -> fb03d84e source/create.ts
+both revival files: real kept 19/23; false dropped 33/37; ambiguous kept 2/4
+true re-additions found 14/21; of those the old miner missed: 2
+  miss axios    14ede9e1 -> 7fa69152 lib/helpers/buildUrl.js
+  miss axios    d660e29c -> 6b9b05b9 lib/utils.js
+  miss axios    bdf493cf -> abf95418 index.d.ts
+  miss express  50b5fa8b -> cc56c63f spec/spec.core.js
+  miss requests 5172d24e -> e5fc88ad requests/structures.py
+  miss requests bb16fe81 -> e9f94e69 test_requests.py
+  miss requests 7229dbe0 -> e9f94e69 test_requests.py
+revival records 29, events 26, unlabelled records 1
+  axios    08119634 -> c44d2f23 index.d.ts | Revert "fix(types): export CJS types from ESM (#6218)" (#672

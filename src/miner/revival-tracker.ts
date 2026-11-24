@@ -84,7 +84,7 @@ export interface RevivalCandidate {
 /**
  * Tombstones whose code a commit adds back, matched the way `check` matches a write: some window of the tombstone's line count
  * inside one run of added lines (any run size, so code that returns inside a larger block counts) has Jaccard >= moveThreshold.
- * Excluded: the same commit also deletes the code (at least aliveAfterDeath of the fingerprint in its deleted lines: a move or reformat).
+ * Excluded: the same commit also deletes the code (at least the match's similarity minus aliveMargin of the fingerprint in its deleted lines: a move or reformat).
  * These are candidates only: the caller still checks that the code was dead and that the commit follows the death.
  *
  * Invariant: a tombstone whose lines all appear, in order and contiguous, among one hunk's added lines, with none of them deleted by that commit, is a candidate for any threshold <= 1.0.
@@ -122,7 +122,7 @@ export function findRevivalCandidates(
       }
     }
     if (best < config.moveThreshold) continue;
-    if (containedIn(tombstone.fingerprint, deletedGrams) >= config.aliveAfterDeath) continue;
+    if (containedIn(tombstone.fingerprint, deletedGrams) >= best - config.aliveMargin - 1e-9) continue;
     out.push({ tombstone, similarity: best });
   }
   return out;

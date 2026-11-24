@@ -161,7 +161,7 @@ export async function runIndexWithStats(
           for (const c of live) {
             const fp = c.tombstone.fingerprint;
             const present = found === null ? 0 : fp.filter(h => found.has(h)).length / fp.length;
-            if (present >= config.aliveBeforeRevival) { runStats.revivalsNotDead++; continue; }
+            if (present >= c.similarity - config.aliveMargin - 1e-9) { runStats.revivalsNotDead++; continue; }
             recordRevival(c.tombstone, parsed.meta, c.similarity, patch);
           }
         }

@@ -20,6 +20,9 @@ const K = DEFAULT_MINER_CONFIG.kgramSize;
 const W = DEFAULT_MINER_CONFIG.windowSize;
 const STATES: readonly CommentState[] = ['normal', 'slash_star', 'html', 'haskell'];
 
+/** Reused by `Stream.fingerprint`; its content never outlives a call. */
+let scratch = new Uint32Array(1024);
+
 interface LineOut { tokens: string[]; out: CommentState }
 
 /** All lines tokenized into one stream, with k-gram hashes and the line each token sits on. */
@@ -65,14 +68,12 @@ class Stream {
   }
 
   private mins: Uint32Array | undefined;
+  /** Prefix counts of run starts in `mins` (a run is a maximal stretch of equal values), and the repeats: run starts whose value occurred earlier, with that last earlier index. */
+  private runInfo: { runs: Int32Array; repeatAt: Int32Array; repeatPrev: Int32Array } | undefined;
 
-  /** Fingerprint of the window made of lines [s, e): the distinct per-position window minimums, precomputed once per stream. */
-  fingerprint(s: number, e: number): number[] {
-    const from = this.off[s] as number;
-    const to = Math.max(from, (this.off[e] as number) - K + 1);
-    if (to - from < W) return winnowHashes(this.hashes, from, to, W);
+  /** mins[i] = min(hashes[i .. i + W)), the value winnowing picks for the window of hashes starting at i. */
+  private picks(): Uint32Array {
     if (!this.mins) {
-      // mins[i] = min(hashes[i .. i + W)), the value winnowing picks for the window of hashes starting at i.
       const m = new Uint32Array(Math.max(0, this.hashes.length - W + 1));
       for (let i = 0; i < m.length; i++) {
         let min = this.hashes[i] as number;
@@ -81,8 +82,78 @@ class Stream {
       }
       this.mins = m;
     }
-    return sortedDistinct(this.mins.slice(from, to - W + 1));
+    return this.mins;
   }
+
+  /** Fingerprint of the window made of lines [s, e): the distinct per-position window minimums, precomputed once per stream. */
+  fingerprint(s: number, e: number): number[] {
+    const from = this.off[s] as number;
+    const to = Math.max(from, (this.off[e] as number) - K + 1);
+    if (to - from < W) return winnowHashes(this.hashes, from, to, W);
+    const mins = this.picks();
+    // Consecutive windows often share their minimum: collapse those runs before sorting (the distinct set is unchanged and the sort sees about 2.5x fewer values).
+    const end = to - W + 1;
+    if (scratch.length < end - from) scratch = new Uint32Array(Math.max(end - from, scratch.length * 2));
+    let m = 0;
+    let prev = -1;
+    for (let i = from; i < end; i++) {
+      const v = mins[i] as number;
+      if (v !== prev) scratch[m++] = prev = v;
+    }
+    return sortedDistinct(scratch.subarray(0, m));
+  }
+
+  /**
+   * Number of distinct values in the fingerprint of lines [s, e), without building it; undefined for a window too short to use the precomputed picks.
+   * Invariant: equals fingerprint(s, e).length whenever it is defined.
+   */
+  fingerprintSize(s: number, e: number): number | undefined {
+    const from = this.off[s] as number;
+    const to = Math.max(from, (this.off[e] as number) - K + 1);
+    if (to - from < W) return undefined;
+    const mins = this.picks();
+    const end = to - W + 1;
+    if (!this.runInfo) {
+      const n = mins.length;
+      const runs = new Int32Array(n + 1);
+      const at: number[] = [];
+      const prevIdx: number[] = [];
+      // Open-addressing table: value -> last index seen.
+      let cap = 16;
+      while (cap < 2 * n) cap *= 2;
+      const keys = new Uint32Array(cap);
+      const vals = new Int32Array(cap).fill(-1);
+      for (let i = 0; i < n; i++) {
+        const v = mins[i] as number;
+        const start = i === 0 || v !== mins[i - 1];
+        runs[i + 1] = (runs[i] as number) + (start ? 1 : 0);
+        let slot = (Math.imul(v, 0x9e3779b1) >>> 0) & (cap - 1);
+        while ((vals[slot] as number) >= 0 && keys[slot] !== v) slot = (slot + 1) & (cap - 1);
+        if (start && (vals[slot] as number) >= 0) { at.push(i); prevIdx.push(vals[slot] as number); }
+        keys[slot] = v;
+        vals[slot] = i;
+      }
+      this.runInfo = { runs, repeatAt: Int32Array.from(at), repeatPrev: Int32Array.from(prevIdx) };
+    }
+    const { runs, repeatAt, repeatPrev } = this.runInfo;
+    // Runs in [from, end): the run starts inside, plus the one that began before `from` and continues into it.
+    let distinct = (runs[end] as number) - (runs[from] as number) + (from > 0 && mins[from] === mins[from - 1] ? 1 : 0);
+    // A run start whose value last occurred at or after `from` repeats a value already counted.
+    let lo = 0;
+    let hi = repeatAt.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if ((repeatAt[mid] as number) < from) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let r = lo; r < repeatAt.length && (repeatAt[r] as number) < end; r++) if ((repeatPrev[r] as number) >= from) distinct--;
+    return distinct;
+  }
+}
+
+/** Number of a fingerprint's distinct hashes a window must hold among its k-grams to reach Jaccard `minSimilarity`: ceil(minSimilarity * size), at least 1. */
+export function sharedNeeded(minSimilarity: number, size: number): number {
+  return Math.max(1, Math.ceil(minSimilarity * size - 1e-9));
 }
 
 /** Per-width cache: fingerprints already computed, and the slow windows with their hash index. */
@@ -145,6 +216,11 @@ export class CandidateWindows {
     return o;
   }
 
+  /** Distinct hashes of every token k-gram of the whole text, normalized line by line from outside a comment (the plain stream). */
+  plainGrams(): Set<number> {
+    return new Set(this.N.hashes);
+  }
+
   private isN(s: number, width: number): boolean {
     return (this.badPrefix[s + width] as number) - (this.badPrefix[s] as number) === 0;
   }
@@ -168,6 +244,27 @@ export class CandidateWindows {
     return !this.isN(s, width) && !this.isG(s, width) && !this.isMixed(s, width);
   }
 
+  /** Hashes of the k-grams across the seam of a mixed window (the last K-1 tokens of its N part with the first tokens of its G part). */
+  private acrossHashes(s: number, width: number, seam: number): number[] {
+    const G = (this.G as NonNullable<typeof this.G>).stream;
+    const aEnd = this.N.off[seam] as number;
+    const bStart = G.off[seam] as number;
+    const bEnd = G.off[s + width] as number;
+    const across: number[] = [];
+    for (let t = Math.max(this.N.off[s] as number, aEnd - K + 1); t < aEnd; t++) {
+      const fromA = aEnd - t;
+      if (bStart + (K - fromA) > bEnd) continue;
+      let hash = 0x811c9dc5;
+      for (let j = 0; j < K; j++) {
+        if (j > 0) hash = Math.imul(hash ^ 32, 0x01000193) >>> 0;
+        const tok = (j < fromA ? this.N.tokens[t + j] : G.tokens[bStart + j - fromA]) as string;
+        for (let i = 0; i < tok.length; i++) hash = Math.imul(hash ^ tok.charCodeAt(i), 0x01000193) >>> 0;
+      }
+      across.push(hash >>> 0);
+    }
+    return across;
+  }
+
   /** Hashes of the k-grams across the seam of a mixed window, and the hashes of the whole window in stream order. */
   private mixedHashes(s: number, width: number, seam: number): { across: number[]; all: Uint32Array } {
     const G = (this.G as NonNullable<typeof this.G>).stream;
@@ -177,16 +274,22 @@ export class CandidateWindows {
     const bEnd = G.off[s + width] as number;
     const aHashes = this.N.hashes.subarray(aStart, Math.max(aStart, aEnd - K + 1));
     const bHashes = G.hashes.subarray(bStart, Math.max(bStart, bEnd - K + 1));
-    const across: number[] = [];
-    for (let t = Math.max(aStart, aEnd - K + 1); t < aEnd; t++) {
-      const tokens = this.N.tokens.slice(t, aEnd).concat(G.tokens.slice(bStart, Math.min(bEnd, bStart + K - (aEnd - t))));
-      if (tokens.length === K) across.push(kgramHashAt(tokens, 0, K));
-    }
+    const across = this.acrossHashes(s, width, seam);
     const all = new Uint32Array(aHashes.length + across.length + bHashes.length);
     all.set(aHashes, 0);
     all.set(across, aHashes.length);
     all.set(bHashes, aHashes.length + across.length);
     return { across, all };
+  }
+
+  /**
+   * `fingerprint(s, width, ...).length`, computed without the fingerprint, for plain and single-pass windows; undefined for mixed and slow windows and for very short ones.
+   * Invariant: when defined, equals fingerprint(s, width, index).length.
+   */
+  fingerprintSize(s: number, width: number): number | undefined {
+    if (this.isN(s, width)) return this.N.fingerprintSize(s, s + width);
+    if (this.isG(s, width)) return (this.G as NonNullable<typeof this.G>).stream.fingerprintSize(s, s + width);
+    return undefined;
   }
 
   /** Fingerprint of lines [s, s + width), equal to `fingerprintLines(lines.slice(s, s + width))`. */
@@ -222,9 +325,18 @@ export class CandidateWindows {
    * so a window needs at least ceil(minSimilarity * |fingerprint|) of the tombstone's distinct hashes among its k-grams.
    */
   candidateStarts(fingerprint: readonly number[], width: number, index: WindowIndex, minSimilarity = 0): number[] {
+    return [...this.candidateBounds(fingerprint, width, index, minSimilarity).keys()].sort((a, b) => a - b);
+  }
+
+  /**
+   * The windows of `candidateStarts`, each with the number of the tombstone's distinct hashes it holds among its k-grams (at least `sharedNeeded(minSimilarity, ...)`;
+   * the Jaccard of a window is at most that number over |fingerprint|). The count is exact for plain windows and an upper bound for mixed ones.
+   * Invariant: for a >= b, the windows of candidateBounds(a) are exactly those of candidateBounds(b) whose count is at least sharedNeeded(a, |fingerprint|).
+   */
+  candidateBounds(fingerprint: readonly number[], width: number, index: WindowIndex, minSimilarity = 0): Map<number, number> {
     const last = this.n - width;
-    const need = Math.max(1, Math.ceil(minSimilarity * fingerprint.length - 1e-9));
-    const starts = new Set<number>();
+    const need = sharedNeeded(minSimilarity, fingerprint.length);
+    const starts = new Map<number, number>();
     const bump = (delta: Map<number, number>, at: number, by: number): void => { delta.set(at, (delta.get(at) ?? 0) + by); };
     /** delta[x] = change in the number of tombstone hashes that occur as a k-gram in windows starting at x. */
     const deltaOf = (stream: Stream): Map<number, number> => {
@@ -253,7 +365,7 @@ export class CandidateWindows {
         count += delta.get(points[i] as number) as number;
         if (count < need) continue;
         const to = (points[i + 1] ?? last + 1) - 1;
-        for (let s = points[i] as number; s <= to; s++) if (accept(s)) starts.add(s);
+        for (let s = points[i] as number; s <= to; s++) if (accept(s)) starts.set(s, count);
       }
     };
     const dN = deltaOf(this.N);
@@ -267,7 +379,7 @@ export class CandidateWindows {
         for (let s = 0; s <= last; s++) {
           const seam = this.seamLine(s, width);
           if (seam < 0) continue;
-          for (const h of new Set(this.mixedHashes(s, width, seam).across)) {
+          for (const h of new Set(this.acrossHashes(s, width, seam))) {
             const bucket = byHash.get(h);
             if (bucket) bucket.push(s);
             else byHash.set(h, [s]);
@@ -295,8 +407,8 @@ export class CandidateWindows {
       }
       const shared = new Map<number, number>();
       for (const h of fingerprint) for (const s of index.slow.byHash.get(h) ?? []) shared.set(s, (shared.get(s) ?? 0) + 1);
-      for (const [s, c] of shared) if (c >= need) starts.add(s);
+      for (const [s, c] of shared) if (c >= need) starts.set(s, c);
     }
-    return [...starts].sort((a, b) => a - b);
+    return starts;
   }
 }

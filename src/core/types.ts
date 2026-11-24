@@ -22,8 +22,11 @@ export interface MinerConfig {
   graceDays: number;
   /** A deleted block is not a death when at least this share of its fingerprint is in the commit's added lines or the touched files after the commit (moved, reformatted). See research/matching-eval.md section 9. */
   aliveAfterDeath: number;
-  /** A revival candidate is skipped when at least this share of the tombstone's fingerprint is in the revival commit's parent tree (the code never died). See research/matching-eval.md section 9. */
-  aliveBeforeRevival: number;
+  /**
+   * A revival candidate is skipped when the share of the tombstone's fingerprint that is in the revival commit's parent tree, or in the lines the same commit deletes,
+   * is at least the revival's own similarity minus this margin (the code never died, or it moved). Relative on purpose: see research/matching-eval.md section 11.
+   */
+  aliveMargin: number;
   /** A deleted block becomes a tombstone only with at least this many distinct winnowed hashes (idioms with 1-3 hashes fire on unrelated code). */
   minHashes: number;
   /** Limit walk to commits after this date (ISO or git date string). */
@@ -46,7 +49,7 @@ export const DEFAULT_MINER_CONFIG: MinerConfig = {
   moveThreshold: 0.9,
   graceDays: 7,
   aliveAfterDeath: 0.97,
-  aliveBeforeRevival: 0.97,
+  aliveMargin: 0,
   skipPatterns: resolveSkipPatterns(),
 };
 

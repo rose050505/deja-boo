@@ -3,6 +3,7 @@
 
 Usage: python3 research/scripts/label-eval.py <dir with axios.json cli.json express.json flask.json got.json requests.json>
 
+Labels: revivals-50-hand.jsonl, revivals-new-hand.jsonl, true-readds-21.jsonl.
 A labelled revival counts as reported when some tombstone buried by the labelled death commit, at the labelled path,
 has a revival record whose commit starts with the labelled revival commit.
 """
@@ -20,7 +21,17 @@ def main(d):
     def reported(repo, death, rev, path):
         return any(t['commit'].startswith(death) and t['path'] == path and any(v['commit'].startswith(rev) for v in t['revivals'])
                    for t in g[key(repo)]['tombstones'])
-    hand = [json.loads(l) for l in open(os.path.join(LABELS, 'revivals-50-hand.jsonl'))]
+    files = ['revivals-50-hand.jsonl', 'revivals-new-hand.jsonl']
+    hand = []
+    for f in files:
+        rows = [dict(json.loads(l), file=f) for l in open(os.path.join(LABELS, f))]
+        hand += rows
+        hc = collections.Counter()
+        for h in rows:
+            hit = reported(h['repo'], h['death_commit'], h['revival_commit'], h['path'])
+            hc[(h['verdict'] in REAL, h['verdict'] in FALSE, h['verdict'] == 'ambiguous', hit)] += 1
+        n = lambda i, hit: sum(v for k, v in hc.items() if k[i] and (hit is None or k[3] == hit))
+        print(f'{f}: real kept {n(0, True)}/{n(0, None)}; false dropped {n(1, False)}/{n(1, None)}; ambiguous kept {n(2, True)}/{n(2, None)}')
     c = collections.Counter()
     for h in hand:
         hit = reported(h['repo'], h['death_commit'], h['revival_commit'], h['path'])
@@ -30,7 +41,7 @@ def main(d):
     real = sum(n for (v, hit), n in c.items() if v in REAL and hit), sum(n for (v, _), n in c.items() if v in REAL)
     false = sum(n for (v, hit), n in c.items() if v in FALSE and not hit), sum(n for (v, _), n in c.items() if v in FALSE)
     amb = sum(n for (v, hit), n in c.items() if v == 'ambiguous' and hit), sum(n for (v, _), n in c.items() if v == 'ambiguous')
-    print(f'real kept {real[0]}/{real[1]}; false dropped {false[0]}/{false[1]}; ambiguous kept {amb[0]}/{amb[1]}')
+    print(f'both revival files: real kept {real[0]}/{real[1]}; false dropped {false[0]}/{false[1]}; ambiguous kept {amb[0]}/{amb[1]}')
     readds = [json.loads(l) for l in open(os.path.join(LABELS, 'true-readds-21.jsonl'))]
     found = [x for x in readds if reported(x['repo'], x['death_commit'], x['readd_commit'], x['path'])]
     print(f'true re-additions found {len(found)}/{len(readds)}; of those the old miner missed: {sum(1 for x in found if not x["reported"])}')

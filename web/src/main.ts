@@ -18,8 +18,8 @@ function renderStats(el: HTMLElement, st: SiteStats): void {
     ['commits walked', fmt(st.commits)],
     ['tombstones mined', fmt(st.tombstones)],
     ...(st.tombstonesShown !== undefined ? [['tombstones listed', fmt(st.tombstonesShown)] as [string, string]] : []),
-    ['revivals of listed tombstones', fmt(st.revivals)],
-    ['revivals via Revert', fmt(st.revivalsViaRevert)],
+    ['comebacks of listed tombstones', fmt(st.revivals)],
+    ['comebacks via Revert', fmt(st.revivalsViaRevert)],
     ['median gap', st.medianRevivalGapDays === null ? 'n/a' : `${st.medianRevivalGapDays} days`],
   ];
   clear(el);

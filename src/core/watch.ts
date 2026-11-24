@@ -4,7 +4,7 @@ import { kgramHashSet } from './fingerprint.js';
 import { normalizeBlock } from './normalize.js';
 import { DEFAULT_MINER_CONFIG, DEFAULT_MIN_HASHES } from './types.js';
 import { hauntLevel } from './level.js';
-import { CandidateWindows, type WindowIndex } from './windows.js';
+import { CandidateWindows, sharedNeeded, type WindowIndex } from './windows.js';
 
 /** Minimum rise in similarity, versus the file on disk, for a tombstone that already scored at or above warn to count as made worse. */
 export const WORSE_BY = 0.1;
@@ -131,14 +131,12 @@ export function matchWindowedIndexed(
 }
 
 /**
- * Hashes of all token k-grams of the whole candidate, or undefined when the candidate has a block-comment opener
- * (`/*`, `<!--`, `{-`). Without openers, a window normalizes to a contiguous run of the candidate's normalized lines, so
- * every window k-gram is a candidate k-gram. With openers, a window can start inside a comment, so no prefilter is used.
+ * Whether a text has a block-comment opener (`/*`, `<!--`, `{-`). Without openers, a window normalizes to a contiguous run of the text's normalized lines, so
+ * every window k-gram is a k-gram of the whole text (`CandidateWindows.plainGrams`) and can serve as a prefilter. With openers, a window can start inside a comment, so no prefilter is used.
  */
-function candidateKgrams(candidate: string[], options: WindowOptions = {}): Set<number> | undefined {
+function hasCommentOpener(candidate: string[]): boolean {
   const raw = candidate.join('\n');
-  if (raw.includes('/*') || raw.includes('<!--') || raw.includes('{-')) return undefined;
-  return kgramHashSet(normalizeBlock(candidate, { renameIds: options.renameIds === true, language: options.language }), DEFAULT_MINER_CONFIG.kgramSize);
+  return raw.includes('/*') || raw.includes('<!--') || raw.includes('{-');
 }
 
 function sharedCount(fingerprint: number[], grams: ReadonlySet<number>): number {
@@ -214,7 +212,10 @@ export class TextIndex {
   view(options: WindowOptions): TextView {
     const key = `${options.language ?? ''}:${options.renameIds === true ? 1 : 0}`;
     let v = this.views.get(key);
-    if (!v) this.views.set(key, (v = { cw: new CandidateWindows(this.lines, options), indexes: new Map(), grams: candidateKgrams(this.lines, options) }));
+    if (!v) {
+      const cw = new CandidateWindows(this.lines, options);
+      this.views.set(key, (v = { cw, indexes: new Map(), grams: hasCommentOpener(this.lines) ? undefined : cw.plainGrams() }));
+    }
     return v;
   }
 }
@@ -250,10 +251,30 @@ export function scoreTombstone(
   if (raw.grams && sharedCount(t.fingerprint, raw.grams) < floor * t.fingerprint.length - 1e-9) return none;
 
   // 1. Raw windows that can reach warn, exactly as before the renamed score existed.
+  // One candidate search serves both passes: the windows for rawFloor are a superset of those for warn, each with its shared count.
+  const bounds = raw.cw.candidateBounds(t.fingerprint, width, rawIndex, floor);
+  const size = t.fingerprint.length;
+  const needWarn = sharedNeeded(warn, size);
+  /** Upper bound of the window's Jaccard: I / (|A| + |B| - I) grows with I <= min(shared, |B|), and |B| is known exactly for plain windows. */
+  const upper = (start: number, shared: number): number => {
+    const b = raw.cw.fingerprintSize(start, width);
+    if (b === undefined) return shared / size;
+    const i = Math.min(shared, b);
+    return i / (size + b - i);
+  };
+  const bound = new Map<number, number>();
+  const sims = new Map<number, number>();
   let best = none;
-  for (const start of raw.cw.candidateStarts(t.fingerprint, width, rawIndex, warn)) {
+  for (const start of [...bounds.keys()].sort((a, b) => a - b)) {
+    const shared = bounds.get(start) as number;
+    if (shared < sharedNeeded(floor, size)) continue;
+    const ub = upper(start, shared);
+    bound.set(start, ub);
+    // A window whose bound is below warn cannot be reported; its exact score is only needed for the ranking in pass 2, and is computed there when it matters.
+    if (shared < needWarn || ub < warn) continue;
     const fp = raw.cw.fingerprint(start, width, rawIndex);
     const sim = similarity(t.fingerprint, fp);
+    sims.set(start, sim);
     if (sim > best.similarity) best = { similarity: sim, matchedLines: [start + 1, start + width], containment: containment(t.fingerprint, fp), renamed: false };
   }
   if (!useRenamed || best.similarity >= 1 - rename.penalty) return best;
@@ -265,20 +286,64 @@ export function scoreTombstone(
   const ren = text.view({ language: t.language, renameIds: true });
   if (ren.grams && sharedCount(idFp, ren.grams) < need * idFp.length - 1e-9) return best;
   const renIndex = indexFor(ren, width);
-  // Walk the windows by raw Jaccard, best first, and stop at the first renamed score that cannot be beaten (1 - penalty).
-  const ranked: Array<{ start: number; sim: number; fp: number[] }> = [];
-  for (const start of raw.cw.candidateStarts(t.fingerprint, width, rawIndex, rename.rawFloor)) {
-    const fp = raw.cw.fingerprint(start, width, rawIndex);
-    const sim = similarity(t.fingerprint, fp);
-    if (sim >= rename.rawFloor) ranked.push({ start, sim, fp });
+  // Walk the windows by raw Jaccard (best first, then lower start) and stop at the first renamed score that cannot be beaten (1 - penalty).
+  // Raw Jaccard is computed lazily: a window's Jaccard is at most its bound (`upper`), so a computed window is next in line as soon as it beats that bound for every window not yet computed.
+  const needFloor = sharedNeeded(rename.rawFloor, size);
+  const ready: Array<{ start: number; sim: number }> = [];
+  const pending: Array<{ start: number; ub: number }> = [];
+  const insert = (start: number, sim: number): void => {
+    let i = ready.length;
+    while (i > 0 && ((ready[i - 1] as { sim: number }).sim < sim || ((ready[i - 1] as { sim: number }).sim === sim && (ready[i - 1] as { start: number }).start > start))) i--;
+    ready.splice(i, 0, { start, sim });
+  };
+  for (const [start, shared] of bounds) {
+    if (shared < needFloor) continue;
+    const known = sims.get(start);
+    if (known === undefined) {
+      const ub = bound.get(start) as number;
+      if (ub >= rename.rawFloor) pending.push({ start, ub });
+    }
+    else if (known >= rename.rawFloor) insert(start, known);
   }
-  ranked.sort((x, y) => y.sim - x.sim || x.start - y.start);
-  for (const { start, fp } of ranked) {
-    const adjusted = similarity(idFp, ren.cw.fingerprint(start, width, renIndex)) - rename.penalty;
-    if (adjusted > best.similarity) best = { similarity: adjusted, matchedLines: [start + 1, start + width], containment: containment(t.fingerprint, fp), renamed: true };
+  pending.sort((x, y) => y.ub - x.ub || x.start - y.start);
+  let next = 0;
+  for (;;) {
+    // Compute windows, highest bound first, until the best computed one beats the bound of every window left (or none is computed yet).
+    while (next < pending.length && (ready.length === 0 || !((ready[0] as { sim: number }).sim > (pending[next] as { ub: number }).ub))) {
+      const w = pending[next++] as { start: number };
+      const sim = similarity(t.fingerprint, raw.cw.fingerprint(w.start, width, rawIndex));
+      if (sim >= rename.rawFloor) insert(w.start, sim);
+    }
+    const top = ready.shift();
+    if (!top) break;
+    const adjusted = similarity(idFp, ren.cw.fingerprint(top.start, width, renIndex)) - rename.penalty;
+    if (adjusted > best.similarity) best = { similarity: adjusted, matchedLines: [top.start + 1, top.start + width], containment: containment(t.fingerprint, raw.cw.fingerprint(top.start, width, rawIndex)), renamed: true };
     if (best.similarity >= 1 - rename.penalty - 1e-9) break;
   }
   return best;
+}
+
+/** Positions of every distinct line in `lines`, ascending. */
+function lineIndex(lines: string[]): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  for (let i = 0; i < lines.length; i++) {
+    const at = out.get(lines[i] as string);
+    if (at) at.push(i);
+    else out.set(lines[i] as string, [i]);
+  }
+  return out;
+}
+
+/** Whether `run` occurs as consecutive whole lines of `lines` (`index` = lineIndex(lines)). Invariant: equals `\n${lines.join('\n')}\n`.includes(`\n${run.join('\n')}\n`) for a non-empty run. */
+function containsRun(index: Map<string, number[]>, lines: string[], run: string[]): boolean {
+  if (run.length === 0) return lines.length === 0;
+  for (const p of index.get(run[0] as string) ?? []) {
+    if (p + run.length > lines.length) break;
+    let k = 1;
+    while (k < run.length && lines[p + k] === run[k]) k++;
+    if (k === run.length) return true;
+  }
+  return false;
 }
 
 /**
@@ -303,7 +368,7 @@ export function findRevenants(
   const after = new TextIndex(candidate);
   const prior = before ? new TextIndex(before) : undefined;
   let recoveryGrams: { before: Set<number>; after: Set<number> } | undefined;
-  let priorText: string | undefined;
+  let priorLines: Map<string, number[]> | undefined;
   for (const tombstone of graveyard.tombstones) {
     if (tombstone.fingerprint.length < minHashes) continue;
     const m = scoreTombstone(tombstone, after, thresholds.warn, minHashes, rename);
@@ -315,9 +380,9 @@ export function findRevenants(
       // Shortcut, exact: when the matched window's lines occur unchanged in `before`, its score there is at least m.similarity,
       // so the hit is "not made worse" exactly as if sBefore were computed.
       const window = candidate.slice(m.matchedLines[0] - 1, m.matchedLines[1]);
-      priorText ??= `\n${before.join('\n')}\n`;
+      priorLines ??= lineIndex(before);
       const sameWidth = Math.min(tombstone.lines.length, before.length) === window.length;
-      const sBefore = sameWidth && priorText.includes(`\n${window.join('\n')}\n`) ? m.similarity : scoreTombstone(tombstone, prior, thresholds.warn, minHashes, rename).similarity;
+      const sBefore = sameWidth && containsRun(priorLines, before, window) ? m.similarity : scoreTombstone(tombstone, prior, thresholds.warn, minHashes, rename).similarity;
       if (hauntLevel(tombstone, sBefore, thresholds) !== 'none' && m.similarity < sBefore + WORSE_BY - 1e-9) {
         recoveryGrams ??= { before: textGrams(before.join('\n')), after: textGrams(candidate.join('\n')) };
         const { distinct, recovered } = recoveryFromGrams(tombstone, recoveryGrams.before, recoveryGrams.after);

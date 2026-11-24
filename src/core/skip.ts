@@ -24,7 +24,11 @@ export const DEFAULT_SKIP_PATTERNS: string[] = [
   // Build dirs
   'dist/', 'build/', 'out/', '__pycache__/', '.next/', '.nuxt/',
   // Changelogs and history files (auto-generated prose, not logic)
-  'CHANGELOG*', 'HISTORY*',
+  'CHANGELOG*', 'HISTORY*', 'CHANGES*',
+  // Legal and credits files (prose that gets copied between files, not logic)
+  'LICENSE*', 'LICENCE*', 'COPYING*', 'NOTICE*', 'AUTHORS*',
+  // Generated data refreshed by bots (sponsor and contributor lists)
+  'sponsors.json', 'contributors.json',
   // Snapshot files
   '*.snap',
   // Generated HTML docs (zero or more directories below docs/)

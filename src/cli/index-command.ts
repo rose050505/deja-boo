@@ -26,7 +26,7 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       'move-threshold': { type: 'string' },
       'grace-days': { type: 'string' },
       'alive-after-death': { type: 'string' },
-      'alive-before-revival': { type: 'string' },
+      'alive-margin': { type: 'string' },
       since: { type: 'string' },
       until: { type: 'string' },
       skip: { type: 'string', multiple: true },
@@ -71,10 +71,10 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
       values['alive-after-death'] !== undefined
         ? parseFloat(values['alive-after-death'] as string)
         : DEFAULT_MINER_CONFIG.aliveAfterDeath,
-    aliveBeforeRevival:
-      values['alive-before-revival'] !== undefined
-        ? parseFloat(values['alive-before-revival'] as string)
-        : DEFAULT_MINER_CONFIG.aliveBeforeRevival,
+    aliveMargin:
+      values['alive-margin'] !== undefined
+        ? parseFloat(values['alive-margin'] as string)
+        : DEFAULT_MINER_CONFIG.aliveMargin,
     skipPatterns: resolveSkipPatterns({
       extra: (values['skip'] as string[] | undefined) ?? [],
       defaults: values['no-default-skip'] !== true,

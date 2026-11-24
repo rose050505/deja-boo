@@ -70,9 +70,8 @@ Options for \`index\`:
   --alive-after-death <n>
                         A deleted block whose fingerprint is at least this share in the commit's added lines or touched
                         files afterwards was moved or reformatted, not killed (default: ${DEFAULT_MINER_CONFIG.aliveAfterDeath})
-  --alive-before-revival <n>
-                        Skip a revival when at least this share of the fingerprint is still in the parent tree
-                        (default: ${DEFAULT_MINER_CONFIG.aliveBeforeRevival})
+  --alive-margin <n>    Skip a revival when the parent tree (or the commit's own deletions) holds at least the revival's
+                        similarity minus this much of the fingerprint: the code never died (default: ${DEFAULT_MINER_CONFIG.aliveMargin})
   --since <date>        Only walk commits after this date
   --until <date>        Only walk commits before this date
   --skip <pattern>      Also skip files matching this glob (repeatable; adds to the defaults)

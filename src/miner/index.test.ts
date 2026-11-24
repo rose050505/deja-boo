@@ -216,6 +216,41 @@ describe('runIndex – post-review fixes 4', () => {
     expect(stats.revivalsNotDead).toBe(1);
   });
 
+  describe('the parent-tree check is relative to the revival\'s own similarity (post-review fixes 5)', () => {
+    const variant = BLOCK_B.replace('31', '37');
+    const far = BLOCK_B.split('\n').slice(0, 2).join('\n') + '\n  return 0;\n}';
+
+    it('code that stays in the tree at the same 0.9-0.96 share the revival has is not a revival', async () => {
+      timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add x', day(0));
+      timedCommit(repo, 'src/keep.ts', `${variant}\n`, 'variant elsewhere', day(1));
+      timedCommit(repo, 'src/x.ts', '// gone\n', 'remove from x', day(2));
+      timedCommit(repo, 'src/z.ts', `${variant}\n`, 'variant again', day(40));
+      const { graveyard, stats } = await runIndexWithStats(repo, { ...CFG, moveThreshold: 0.6 });
+      const sim = graveyard.tombstones.flatMap(t => t.revivals).map(r => r.similarity);
+      expect(sim).toEqual([]);
+      expect(stats.revivalsNotDead).toBe(1);
+    });
+
+    it('code that comes back in full while only a lesser share stayed in the tree is a revival', async () => {
+      timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add x', day(0));
+      timedCommit(repo, 'src/keep.ts', `${far}\n`, 'lesser copy elsewhere', day(1));
+      timedCommit(repo, 'src/x.ts', '// gone\n', 'remove from x', day(2));
+      timedCommit(repo, 'src/z.ts', `${BLOCK_B}\n`, 'full copy back', day(40));
+      const { graveyard, stats } = await runIndexWithStats(repo, { ...CFG, moveThreshold: 0.6 });
+      expect(graveyard.tombstones.flatMap(t => t.revivals.map(r => r.subject))).toEqual(['full copy back']);
+      expect(stats.revivalsNotDead).toBe(0);
+    });
+
+    it('a margin makes the rejection looser: the same lesser share is rejected when the margin covers the gap', async () => {
+      timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add x', day(0));
+      timedCommit(repo, 'src/keep.ts', `${far}\n`, 'lesser copy elsewhere', day(1));
+      timedCommit(repo, 'src/x.ts', '// gone\n', 'remove from x', day(2));
+      timedCommit(repo, 'src/z.ts', `${BLOCK_B}\n`, 'full copy back', day(40));
+      const { graveyard } = await runIndexWithStats(repo, { ...CFG, moveThreshold: 0.6, aliveMargin: 1 });
+      expect(graveyard.tombstones.flatMap(t => t.revivals)).toEqual([]);
+    });
+  });
+
   it('a re-add on a branch that does not contain the death commit is not a revival', async () => {
     timedCommit(repo, 'src/x.ts', `${BLOCK_B}\n`, 'add', day(0));
     const main = execSync('git rev-parse --abbrev-ref HEAD', { cwd: repo }).toString().trim();

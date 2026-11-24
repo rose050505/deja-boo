@@ -58,7 +58,10 @@ export function winnowHashes(hashes: ArrayLike<number>, from: number, to: number
     for (let j = i + 1; j < i + w; j++) if ((hashes[j] as number) < min) min = hashes[j] as number;
     picked[i - from] = min;
   }
-  return sortedDistinct(picked);
+  // Consecutive windows often pick the same hash: collapse those runs before sorting (the distinct set is unchanged).
+  let m = 1;
+  for (let i = 1; i < picked.length; i++) if (picked[i] !== picked[m - 1]) picked[m++] = picked[i] as number;
+  return sortedDistinct(picked.subarray(0, m));
 }
 
 /**

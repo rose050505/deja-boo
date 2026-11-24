@@ -98,29 +98,29 @@ Exempting Reverts costs nothing: only 84 of 7,052 stones are Reverts. Exempting 
 
 **Known limit:** the guard checks only the lines a write *adds*. Copying the surviving non-chunked call to a new place would still match the Revert stone at about 0.78.
 
-## 6. Re-run with the shipped miner (2026-11-24, after post-review fixes 4)
+## 6. Re-run with the shipped miner (2026-11-24, after post-review fixes 5)
 
-These numbers come from the miner as it ships now: punctuation tokens with k = 5, per-language comment syntax, the default skip list (with all lock files), prose docs excluded, merge artifacts excluded, comment-only blocks dropped, tombstones with fewer than 4 distinct hashes dropped (section 8), moves and reformats dropped by containment, revivals checked against ancestry and the parent tree and counted once per patch (section 9), and aliveAtHead. They match the stats strip on the web app, except that the web lists only watched tombstones (see below).
+These numbers come from the miner as it ships now: punctuation tokens with k = 5, per-language comment syntax, the default skip list (all lock files, legal and credits files, sponsor and contributor data), prose docs excluded, merge artifacts excluded, comment-only blocks dropped, tombstones with fewer than 4 distinct hashes dropped (section 8), moves and reformats dropped by containment, revivals checked against ancestry and counted once per patch (section 9), the parent-tree and same-commit checks relative to the revival's own similarity (section 11), and aliveAtHead. They match the stats strip on the web app, except that the web lists only watched tombstones (see below).
 
-Command, per clone (the clones are the reviewer's, at axios 9f0f4ddf, httpie/cli 5b604c3, express 43fca52d, flask 49943b5a, got c196ad0, requests 3c7baaa0):
+Command, per clone (the reviewer's clones in `probe/repos`, at axios 9f0f4ddf, httpie/cli 5b604c3, express 43fca52d, flask 49943b5a, got c196ad0, requests 3c7baaa0):
 
     npm run build && node dist/cli/main.js index probe/repos/<repo> --out /tmp/<repo>.json
 
-| Repo | Commits | Tombstones (old → new) | Alive at HEAD (old → new) | Revivals (old → new) | Via Revert (old → new) | Median gap, days (old → new) |
+| Repo | Commits | Tombstones (fixes 4 → 5) | Alive at HEAD (fixes 4 → 5) | Comebacks, events (fixes 4 → 5) | Via Revert (fixes 4 → 5) | Median gap, days (fixes 4 → 5) |
 |---|---|---|---|---|---|---|
-| axios | 2,082 | 768 → 559 | 227 → 98 | 11 → 5 | 2 → 2 | 73 → 14 |
-| httpie/cli | 1,690 | 649 → 555 | 64 → 34 | 3 → 0 | 0 → 0 | 798 → none |
-| express | 5,701 | 1,332 → 1,176 | 62 → 42 | 15 → 13 | 2 → 2 | 140 → 145 |
-| flask | 3,832 | 1,202 → 1,100 | 69 → 37 | 1 → 4 | 0 → 0 | 49 → 73 |
-| got | 1,719 | 1,313 → 1,190 | 192 → 137 | 5 → 5 | 0 → 0 | 84 → 254 |
-| requests | 4,884 | 706 → 589 | 28 → 16 | 9 → 5 | 2 → 2 | 231 → 205 |
-| **total** | **19,908** | **5,970 → 5,169** | **642 → 364** | **44 → 32** | **6 → 6** | |
+| axios | 2,082 | 559 → 548 | 98 → 88 | 5 → 4 | 2 → 2 | 14 → 13 |
+| httpie/cli | 1,690 | 555 → 555 | 34 → 34 | 0 → 0 | 0 → 0 | none |
+| express | 5,701 | 1,176 → 1,176 | 42 → 42 | 13 → 10 | 2 → 2 | 145 → 128 |
+| flask | 3,832 | 1,100 → 1,092 | 37 → 37 | 4 → 2 | 0 → 0 | 73 → 95 |
+| got | 1,719 | 1,190 → 1,190 | 137 → 137 | 5 → 5 | 0 → 0 | 254 → 254 |
+| requests | 4,884 | 589 → 585 | 16 → 16 | 5 → 5 | 3 → 3 | 205 → 205 |
+| **total** | **19,908** | **5,169 → 5,146** | **364 → 354** | **32 → 26** | **7 → 7** | |
 
-"Old" is the miner after post-review fixes 3 (commit 8348de1) run on the same clones. Old revivals are revival records; new revivals are events (one per patch, so a commit that brings back two tombstones counts once). The new miner writes 35 revival records for the 32 events, plus 2 merge-conflict records that are excluded as before. The axios clone has 2,082 non-merge commits (the 2,083 in the earlier version of this table came from a different clone). "Alive at HEAD" fell for two reasons: the move filter now removes most of the tombstones that were alive (they were moves and reformats), and HEAD is now compared by full k-gram sets in each file's language, so the 364 that remain are tombstones whose code really is at HEAD.
+A comeback is one commit (one patch), however many tombstones it brings back: the fixes-5 miner writes 29 revival records for the 26 comebacks, plus 2 merge-conflict records that are excluded as before. **Of the 26 comebacks, 20 are confirmed real by hand** (labels in `research/labels/`: the reviewer's 50 and 14 rows, and the 21 independently found re-additions), 2 are ambiguous, 4 are false, and none is unlabelled; **all 7 via Revert are real**. Before fixes 5 the same count was 32 comebacks, 20 real, 2 ambiguous, 10 false (`research/results/event-labels-fixes4.txt`, `event-labels-fixes5.txt`). The earlier version of this section and the README said 6 via Revert; the stats of the fixes-4 miner also count 7 (requests has 3, not 2), so the table is corrected here.
 
-The web app lists 4,808 of the 5,169 tombstones: the alive-at-HEAD ones are not watched and not shown, unless their cause of death is a Revert. Its stats strip counts the revivals of the listed tombstones (24 events, 5 via Revert) and says that counting all tombstones gives 32.
+The web app lists 4,795 of the 5,146 tombstones: the alive-at-HEAD ones are not watched and not shown, unless their cause of death is a Revert. Its stats strip counts the comebacks of the listed tombstones (20, 7 via Revert) and says that counting all tombstones gives 26. `npm run web:data` re-attached the obituaries already fetched (`<clone>/.deja-boo/obituaries.json`, no new requests); 4 tombstones that carried one are gone with the skip list (axios 1, flask 3: `LICENSE` and `sponsors.json` blocks).
 
-Before post-review fixes 3 the same clones gave 6,301 tombstones, 660 alive, 50 revivals (6 via Revert). The hand-labelled results for the old and the new miner are in section 9.
+Before post-review fixes 3 the same clones gave 6,301 tombstones, 660 alive, 50 revival records (6 via Revert by the old count). The hand-labelled results are in sections 9 and 11.
 
 ## 7. End-to-end on the real history (2026-11-24, Kiro CLI 3.5.0)
 
@@ -261,6 +261,55 @@ The shipped setting is the only one that adds no alarm to ordinary commits: its 
 The reviewer's own 10 rewrites are not in `research/labels/`, so their 2-of-10 result was not re-run. The "rename 2-4 identifiers" row is the closest equivalent: 76.0% to 91.4% at warn.
 
 **Cost.** The renamed windows are fingerprinted only where the raw windows already qualify, the hook skips the `before` scoring when the matched window is unchanged on disk, and window fingerprints now reuse per-position minimums. The 4,000-line / 1,500-tombstone hook benchmark (750 tombstones are renamed copies of the file) measures 360 to 450 ms against its 500 ms budget (about 300 ms before this change).
+
+## 11. Post-review fixes 5: comebacks that were not, and the margin (2026-11-24)
+
+The reviewer labelled the 14 revival records the fixes-4 miner reported that were in no label file (`research/labels/revivals-new-hand.jsonl`): 3 real, 1 ambiguous, 10 false. With the earlier files, the fixes-4 miner's 32 comebacks were 20 real, 2 ambiguous, 10 false. Causes of the 10 false, and what changed:
+
+| Cause | Fix | Result |
+|---|---|---|
+| The "code was still in the parent tree" check was absolute (0.97). The 5 express STATUS_CODES comebacks have 0.94 to 0.96 windowed similarity and 0.96 of the fingerprint in the parent tree. | Relative: reject when the parent tree (or the commit's own deleted lines) holds at least the revival's similarity minus `aliveMargin`. | The 3 express `spec/spec.core.js` rows with a reviewer label (reformat, 2 moves) go. |
+| `LICENSE` (flask, 2 comebacks) and `docs/data/sponsors.json` (axios, 1) were tombstones. | Skip list: `LICENSE*`, `LICENCE*`, `COPYING*`, `NOTICE*`, `AUTHORS*`, `CHANGES*`, `sponsors.json`, `contributors.json`. | 23 fewer tombstones, 4 false rows gone. |
+| A fake comeback hides a real one (express 1bf2dbb7). | Not fixed. | See below. |
+
+### The margin
+
+`research/scripts/revival-margin.mjs` lists, for every comeback record of a miner run with nothing rejected (`--alive-margin=-1`), the revival's similarity, the share of the fingerprint in the parent tree and in the commit's deleted lines, and the gap (similarity minus the larger share) with the reviewer's verdict (`research/results/revival-margin.txt`). A comeback is rejected when the gap is at most the margin.
+
+| Gap | Rows |
+|---|---|
+| below 0 | express e6f71f94 (reformat) -0.027, 8a326700 (move) -0.059 |
+| 0.000 | express ca3f525f (move), c18c2a8e (boilerplate), 8420ae93 (real, see below), and 8 unlabelled records whose code stayed whole in the tree |
+| **0.002** | **requests 24bcb9ea to 26bea1e4: real, the 2023 chunked-upload re-landing** |
+| 0.020 | axios 08119634 to c44d2f23 (a second tombstone of the same Revert event the reviewer labelled real through c71811b0) |
+| 0.059 and up | every other real row (2a71f49b 0.059, f07f368f 0.069, 8cc6e03d 0.111, 4c61fef1 0.167, abf95418 0.186, ...) |
+
+| On the labels (both revival files, 23 real, 37 false) | fixes 4 (absolute 0.97) | margin 0.02 | **margin 0 (shipped)** |
+|---|---|---|---|
+| Real rows kept | 19 | 18 | **19** |
+| False rows dropped | 26 | 33 | **33** |
+| True re-additions found (of 21) | 14 | 14 | **14** |
+| Comebacks (events) | 32 | 25 | **26** |
+| Hand-confirmed real events | 20 | 19 | **20** |
+
+The proposed 0.02 loses the requests re-landing, the example the README uses, because the surviving non-chunked call in the parent tree overlaps the tombstone at 0.952 against a similarity of 0.955. Every gap above 0.002 and below 0 separates the rows cleanly, so the shipped margin is 0: reject when the parent tree holds at least the revival's own similarity. The cost is one extra record of an event that is already counted (the 0.020 row), not a new event. `--alive-margin` changes it.
+
+### Why express 8420ae93 does not come back
+
+express 3d597a55 ("moved files from lib/express/* to lib/") is still recorded. Its parent 42af4e40 ("Updated connect submodule") deleted all of `lib/express/`, so the parent tree holds 0.000 of the fingerprint: the move is split over two commits and no check on the parent tree sees it. 8420ae93 is not blocked by 3d597a55 being recorded. Its own parent holds 1.000 of the fingerprint, because 3d597a55 put the code into `lib/view/view.js` whether the miner records that commit or not. By the tree criterion nothing was dead at 8420ae93, at any margin, and it stays a lost real row. Recovering it needs a different notion of death (the code left the path it was buried from) or a split-move detector across a commit pair; neither is in this change.
+
+### The rows that remain
+
+Real 19 of 23 (lost: axios 2a71f49b, the second block of an event whose first block is kept; express 8420ae93 above; express e66667e4 and flask 4f03a769 as in section 9). False: 4 of 37 kept: express 3d597a55 (split move), got 30023f73 and fb03d84e (retry defaults, boilerplate), express 64a9c720 (the single record of a duplicate patch). Of the 26 comebacks, 20 are real, 2 ambiguous and 4 false by hand. The count is still not a precision claim for repos nobody labelled.
+
+### Latency of `check` and the hook (large files)
+
+The renamed second pass of section 10 raised the 4,000-line, 1,500-tombstone hook benchmark from about 300 ms to 595 ms on the reviewer's machine. The pass ranked every window sharing 30% of the tombstone's k-grams, which was about 14,000 windows fingerprinted per call here, and each fingerprint is a sort. Now one candidate search serves both passes, windows are skipped when an exact bound on their Jaccard (`I / (|A| + |B| - I)`, with `|B|` counted without sorting) cannot reach warn, the renamed pass computes raw Jaccard lazily in bound order, picks are run-collapsed before sorting, and the prefilter k-gram set reuses the window streams. Same hits: `src/core/windows-bounds.test.ts` compares `scoreTombstone` with a from-scratch reference on random texts with comments and renamed copies.
+
+| `decideHook`, 4,000 lines, 1,500 tombstones, this laptop, alone | before | after |
+|---|---|---|
+| plain file | 215 ms | about 100 ms |
+| file with block comments | 200 ms | about 105 ms |
 
 ## Recommendations (sent to Kiro as review comments)
 

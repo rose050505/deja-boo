@@ -64,3 +64,12 @@ describe('lock files (post-review fixes 3)', () => {
     for (const f of ['src/lock.ts', 'src/unlock.lockfile.ts', 'locker.py']) expect(isSkippedPath(f, resolveSkipPatterns())).toBe(false);
   });
 });
+
+describe('legal files and generated data (post-review fixes 5)', () => {
+  it.each(['LICENSE', 'LICENSE.md', 'sub/LICENCE', 'COPYING', 'COPYING.LESSER', 'NOTICE', 'AUTHORS', 'CHANGES.rst', 'HISTORY.md', 'docs/data/sponsors.json', 'a/contributors.json'])('%s is skipped by default', f => {
+    expect(isSkippedPath(f, resolveSkipPatterns())).toBe(true);
+  });
+  it('source files with similar names are not skipped', () => {
+    for (const f of ['src/license.ts', 'src/notice-board.ts', 'src/authors.ts', 'src/sponsors.ts', 'data/sponsors.json.ts', 'src/changes.ts']) expect(isSkippedPath(f, resolveSkipPatterns())).toBe(false);
+  });
+});

@@ -544,6 +544,35 @@ Post-review fixes 4 results (6 research repos, same clones, old = fixes 3; `rese
 - Index time: express 1.7 s to 12 s (reading post-commit files and, for candidates, parent trees). Output stays byte-identical across runs.
 - `web/public/graveyards/*.json` and `stats.json` regenerated with `npm run web:data`.
 
+## Post-review fixes 5
+
+Source: reviewer's second hand-labelling pass on the revivals the fixes-4 miner reports (`research/labels/revivals-new-hand.jsonl`, plus `revivals-50-hand.jsonl` and `true-readds-21.jsonl`). The 32 events were 20 real, 2 ambiguous, 10 false. Three causes remained, plus wording and a latency regression.
+
+- [x] **1. Parent-tree check is relative.** A revival is rejected when the share of the tombstone's fingerprint in the revival commit's parent tree is at least the revival's own similarity minus `aliveMargin` (replaces `aliveBeforeRevival` 0.97; `--alive-margin`). The same rule replaces the absolute `aliveAfterDeath` test of the same-commit move check in `findRevivalCandidates`. Margin measured on the labels (`research/scripts/revival-margin.mjs`, `research/results/revival-margin.txt`): the real requests 24bcb9ea to 26bea1e4 re-landing (the README's example) has similarity 0.955 and 0.952 in the parent tree, a gap of 0.002, so the proposed 0.02 loses it (real kept 18 of 23 instead of 19). Every false express STATUS_CODES revival has a gap of 0.000 or less. Default 0, rejecting when the parent holds at least the revival's similarity. Tests: `index.test.ts` (same share rejected, lesser share kept, margin loosens).
+- [x] **2. A fake revival hides a real one: not fixed by (1), explained.** express 3d597a55 stays recorded: its parent 42af4e40 deleted all of `lib/express/` and 3d597a55 re-added it under `lib/`, so the parent tree holds 0.000 of the fingerprint and no parent-tree rule can see the move. 8420ae93 does not come back either, and removing 3d597a55 would not change that: the parent of 8420ae93 holds 1.000 of the fingerprint (the code was moved into `lib/view/view.js` by 3d597a55 whether or not that commit is recorded), so by the tree criterion nothing was dead at 8420ae93. Both rows stay as measured; the reviewer's label for 8420ae93 asks for a death notion (the code left the path it was buried from) that the miner does not have.
+- [x] **3. Skip list.** Added `LICENSE*`, `LICENCE*`, `COPYING*`, `NOTICE*`, `AUTHORS*`, `CHANGES*` (`CHANGELOG*`, `HISTORY*` were there), `sponsors.json`, `contributors.json` (basenames, any depth). Dropped 23 tombstones on the 6 research repos (axios 11, flask 8, requests 4) and with them 4 false revival rows: flask `LICENSE` (2 events), axios `docs/data/sponsors.json` (1 event, 2 rows). Test: `skip.test.ts`.
+- [x] **4. Wording.** README and research count events, not records, and say how many are hand-confirmed.
+- [x] **5. Latency regression (must).** The large-file benchmark (4,000 lines, 1,500 tombstones) was 595 ms alone for the reviewer; here 215 ms plain and 200 ms with block comments before, about 100 ms and 105 ms now, same results (an exhaustive-definition property test in `windows-bounds.test.ts` compares `scoreTombstone` with a from-scratch reference). Profile of `decideHook` (CPU profile, no obituary or graveyard loading in the call): the identifier-renamed pass ranked every window with at least 30% shared k-grams by raw Jaccard, so it fingerprinted about 14,000 windows per call, and each fingerprint sorted its window picks. Changes, none of which changes a hit:
+  - one `candidateBounds` search serves both passes (raw >= warn and raw >= rawFloor), with each window's shared count;
+  - an exact upper bound per window, `I / (|A| + |B| - I)` with `|B|` the window's distinct pick count (`fingerprintSize`, computed from run counts without sorting): windows that cannot reach warn are not fingerprinted in pass 1, and the renamed pass computes raw Jaccard lazily in bound order, stopping when the best computed window beats every bound left (same order as the full ranking, ties included);
+  - window picks are collapsed by runs before sorting (2.5 times fewer values);
+  - the k-gram prefilter set comes from the window streams instead of normalizing the whole text again; seam hashes are computed without allocating; the "window unchanged on disk" test uses a line index instead of a substring search over the whole file.
+  The test and its 500 ms budget are unchanged.
+
+Post-review fixes 5 results (reviewer's clones in `probe/repos`, same commits as section 6 of `research/matching-eval.md`; fixes-4 miner vs fixes-5 miner, `research/results/label-eval-*.txt`, `event-labels-*.txt`):
+
+| | fixes 4 | fixes 5 |
+|---|---|---|
+| Revival events (comebacks) | 32 | 26 |
+| Hand-confirmed real events | 20 | 20 |
+| Ambiguous / false events | 2 / 10 | 2 / 4 |
+| Via Revert (all real) | 7 | 7 |
+| Real rows kept, both revival files | 19 of 23 | 19 of 23 |
+| False rows dropped, both revival files | 26 of 37 | 33 of 37 |
+| True re-additions found | 14 of 21 | 14 of 21 |
+
+Per label file: `revivals-50-hand.jsonl` real 16/20 and false 26/27 (unchanged); `revivals-new-hand.jsonl` real 3/3, false 0/10 to 7/10, ambiguous 1/1. The four false rows left: express 3d597a55 (split move, item 2), got 30023f73 and fb03d84e (retry defaults, boilerplate) and express 64a9c720 (the single record of a duplicate patch). Revival records 35 to 29. The reviewer counted 6 events via Revert; the stats of both miners count 7 (axios d660e29c and c44d2f23, express 140efb57 and c3bd65ed, requests 780ce390, d7f56ba9 and 24bcb9ea), all labelled real.
+
 ---
 
 ## Dependency notes
