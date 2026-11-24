@@ -49,6 +49,10 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r7_web_square.log` | `r7_web_square_prompt.md` | Square corners by default (from the video review). **Reverted afterwards** on the owner's correction: rounded corners are only a problem when overused |
 | `r8_realuse_fixes.log` | `r8_realuse_fixes_prompt.md` | Seven defects from a review on click, black and koa: large-file latency (4.3 s → 45 ms), comment fragments, tiny fingerprints, HEAD-aware check, new-user path, lock files |
 | `r8b_miner_accuracy.log` | `r8b_miner_accuracy_prompt.md` | Accuracy fixes from hand labels (`research/labels/`): reformats/moves no longer become tombstones or revivals, ancestry check, one revival per patch, windowed revival matching, identifier-renamed score (warn only) |
+| `r9_obituary_spec.log` | `r9_obituary_spec_prompt.md` | New spec `obituary` (EARS requirements, design, 15 tasks) |
+| `r10_obituary_ABC.log` | `r10_obituary_ABC_prompt.md` | Obituary batches A–C: one Revert predicate, obituary core, link kinds and repo URL, `deja-boo obituary` command; real smoke run finds PR #5353 |
+| `r11_obituary_DE.log` | `r11_obituary_DE_prompt.md` | Obituary batches D–E: shown in hook, Stop, check, MCP and web; coverage run on the 6 research repos; real requests demo acceptance |
+| `r12_fixes5.log` | `r12_fixes5_prompt.md` | Relative parent-tree check, legal/generated files skipped, comeback counts as events, hook latency back to ~100 ms |
 
 ## Rehearsals: Kiro as the test subject
 
