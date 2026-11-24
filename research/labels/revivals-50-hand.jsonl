@@ -1,0 +1,50 @@
+{"repo": "axios", "death_commit": "5bb39f32", "revival_commit": "0438dd3b", "path": "test/specs/transform.spec.js", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "axios", "death_commit": "5bb39f32", "revival_commit": "0438dd3b", "path": "test/specs/options.spec.js", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "axios", "death_commit": "3d65057d", "revival_commit": "22c2baf2", "path": "lib/helpers/cookies.js", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "axios", "death_commit": "d9633689", "revival_commit": "76f09afc", "path": "lib/defaults.js", "verdict": "move_refactor", "note": "refactor/move; code never died"}
+{"repo": "axios", "death_commit": "73e3bdb8", "revival_commit": "d660e29c", "path": "lib/utils.js", "verdict": "real", "note": "Revert restores the deleted block"}
+{"repo": "axios", "death_commit": "7a2f901f", "revival_commit": "08119634", "path": "test/module/typings/cjs/index.ts", "verdict": "reformat", "note": "tab-to-space reindent repeated in a sibling test file"}
+{"repo": "axios", "death_commit": "08119634", "revival_commit": "2a71f49b", "path": "index.d.ts", "verdict": "real", "note": "commit reverses the earlier rename (message admits)"}
+{"repo": "axios", "death_commit": "08119634", "revival_commit": "2a71f49b", "path": "index.d.cts", "verdict": "duplicate_of_real", "note": "same rename-back event as index.d.ts (row 6), counted again for index.d.cts"}
+{"repo": "axios", "death_commit": "08119634", "revival_commit": "ef3711d1", "path": "index.d.cts", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "axios", "death_commit": "c71811b0", "revival_commit": "c44d2f23", "path": "index.d.ts", "verdict": "real", "note": "Revert restores the deleted block"}
+{"repo": "axios", "death_commit": "d676df77", "revival_commit": "ef3711d1", "path": "lib/adapters/http.js", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "express", "death_commit": "28525242", "revival_commit": "a872f92a", "path": "spec/spec.core.js", "verdict": "ambiguous", "note": "STATUS_CODES table copied from node http.js, not from the deleted test stub"}
+{"repo": "express", "death_commit": "28525242", "revival_commit": "64a9c720", "path": "spec/spec.core.js", "verdict": "duplicate_patch", "note": "same patch as row 11 under a different commit hash"}
+{"repo": "express", "death_commit": "28525242", "revival_commit": "d0d15f8a", "path": "spec/spec.core.js", "verdict": "ambiguous", "note": "STATUS_CODES table copied from node http.js, not from the deleted test stub"}
+{"repo": "express", "death_commit": "ad324410", "revival_commit": "dfdbbb51", "path": "test/view.test.js", "verdict": "real", "note": "commented-out tests re-enabled"}
+{"repo": "express", "death_commit": "ad324410", "revival_commit": "dfdbbb51", "path": "test/view.test.js", "verdict": "duplicate_of_real", "note": "same commit and event as row 14, second block"}
+{"repo": "express", "death_commit": "1bf2dbb7", "revival_commit": "8420ae93", "path": "lib/express/view/view.js", "verdict": "real", "note": "path utils swapped back to require(path)"}
+{"repo": "express", "death_commit": "a54e5966", "revival_commit": "4b4de297", "path": "lib/express/view/view.js", "verdict": "real", "note": "memoized exists check replaced by original simple version"}
+{"repo": "express", "death_commit": "59a74ecc", "revival_commit": "36e9c02f", "path": "test/response.test.js", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "express", "death_commit": "6c2194fd", "revival_commit": "c18c2a8e", "path": "examples/helloworld/app.js", "verdict": "boilerplate", "note": "common idiom re-added in a different file"}
+{"repo": "express", "death_commit": "6aaa7dc2", "revival_commit": "140efb57", "path": "test/app.router.js", "verdict": "real", "note": "Revert restores the deleted block"}
+{"repo": "express", "death_commit": "2bba69f6", "revival_commit": "c3bd65ed", "path": "lib/router/index.js", "verdict": "real", "note": "Revert restores the deleted block"}
+{"repo": "express", "death_commit": "9bd86cdd", "revival_commit": "54a192a5", "path": "test/res.send.js", "verdict": "real", "note": "etag tests re-added after the Revert"}
+{"repo": "express", "death_commit": "e4302b21", "revival_commit": "084f5d89", "path": "test/res.jsonp.js", "verdict": "non_ancestor", "note": "death commit is not an ancestor of the revival commit (parallel branch / cherry-pick)"}
+{"repo": "express", "death_commit": "e4302b21", "revival_commit": "084f5d89", "path": "test/res.json.js", "verdict": "non_ancestor", "note": "death commit is not an ancestor of the revival commit (parallel branch / cherry-pick)"}
+{"repo": "express", "death_commit": "e66667e4", "revival_commit": "bb53b20d", "path": "lib/utils.js", "verdict": "real", "note": "charsetRegExp re-added in response.js"}
+{"repo": "express", "death_commit": "de129c28", "revival_commit": "f07f368f", "path": "package.json", "verdict": "real", "note": "--no-exit flag removed, original script lines restored"}
+{"repo": "flask", "death_commit": "4f03a769", "revival_commit": "5544d094", "path": "src/flask/cli.py", "verdict": "real", "note": "message says re-add flag"}
+{"repo": "flask", "death_commit": "8285adf5", "revival_commit": "ff6fa22f", "path": ".github/workflows/tests.yaml", "verdict": "reformat", "note": "workflow file rewritten by a deps bump; 64-line block has only 4 hashes (glob in string treated as /* comment)"}
+{"repo": "got", "death_commit": "ce752ac2", "revival_commit": "2b145373", "path": "test/_server.js", "verdict": "move_refactor", "note": "refactor/move; code never died"}
+{"repo": "got", "death_commit": "2b145373", "revival_commit": "b504346f", "path": "test/redirects.js", "verdict": "boilerplate", "note": "common idiom re-added in a different file"}
+{"repo": "got", "death_commit": "058452b0", "revival_commit": "f0b190a3", "path": "index.js", "verdict": "move_refactor", "note": "refactor/move; code never died"}
+{"repo": "got", "death_commit": "11a2f0f2", "revival_commit": "ecf31809", "path": "source/index.js", "verdict": "real", "note": "uppercase retry methods restored"}
+{"repo": "got", "death_commit": "4f2c3e83", "revival_commit": "cf066a09", "path": "test/progress.ts", "verdict": "ambiguous", "note": "import style churn from the ESM move"}
+{"repo": "requests", "death_commit": "bdf9f90c", "revival_commit": "25299400", "path": "test_requests.py", "verdict": "boilerplate", "note": "common idiom re-added in a different file"}
+{"repo": "requests", "death_commit": "bdf9f90c", "revival_commit": "f8c98715", "path": "test_requests.py", "verdict": "boilerplate", "note": "common idiom re-added in a different file"}
+{"repo": "requests", "death_commit": "ef8563ab", "revival_commit": "2da7fe08", "path": "requests/adapters.py", "verdict": "move_refactor", "note": "refactor/move; code never died"}
+{"repo": "requests", "death_commit": "840540b6", "revival_commit": "780ce390", "path": "requests/utils.py", "verdict": "real", "note": "Revert restores the deleted block"}
+{"repo": "requests", "death_commit": "373166d8", "revival_commit": "6931bd67", "path": "requests/auth.py", "verdict": "non_ancestor", "note": "death commit is not an ancestor of the revival commit (parallel branch / cherry-pick)"}
+{"repo": "requests", "death_commit": "087a27ab", "revival_commit": "4c61fef1", "path": "test_requests.py", "verdict": "real", "note": "commented-out tests re-enabled"}
+{"repo": "requests", "death_commit": "74609c5c", "revival_commit": "2a6f290b", "path": "requests/models.py", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "requests", "death_commit": "92fe51c0", "revival_commit": "d7f56ba9", "path": "requests/utils.py", "verdict": "real", "note": "message: reverting 3362"}
+{"repo": "requests", "death_commit": "00c6ad58", "revival_commit": "9a40d127", "path": "requests/adapters.py", "verdict": "move_refactor", "note": "refactor/move; code never died"}
+{"repo": "requests", "death_commit": "2da7fe08", "revival_commit": "24bcb9ea", "path": "requests/adapters.py", "verdict": "real", "note": "Revert restores the deleted block"}
+{"repo": "requests", "death_commit": "24bcb9ea", "revival_commit": "26bea1e4", "path": "requests/adapters.py", "verdict": "real", "note": "reverted chunked change re-landed in 2023"}
+{"repo": "requests", "death_commit": "561e4b68", "revival_commit": "661970d1", "path": "src/requests/utils.py", "verdict": "reformat", "note": "only type-ignore comments changed; fingerprint has 1 hash"}
+{"repo": "cli", "death_commit": "c9eb2255", "revival_commit": "2d7f2c65", "path": "httpie/pretty.py", "verdict": "move_refactor", "note": "refactor/move; code never died"}
+{"repo": "cli", "death_commit": "05db75bd", "revival_commit": "aab5cd9d", "path": "httpie/input.py", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "cli", "death_commit": "05db75bd", "revival_commit": "7917f1b4", "path": "httpie/input.py", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
+{"repo": "cli", "death_commit": "aab5cd9d", "revival_commit": "7917f1b4", "path": "httpie/downloads.py", "verdict": "reformat", "note": "reindent/reformat; code still alive after death"}
