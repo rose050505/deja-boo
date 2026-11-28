@@ -3,11 +3,15 @@ import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
 import { BIG_GHOST_SCALE, ghostScale } from './moment.ts';
-import { REVERT_STONE_LABEL, centerScrollLeft, initialStoneId, labelPlacement, tipPosition, tooltipFor } from './first-screen.ts';
+import { REVERT_STONE_LABEL, centerInView, initialStoneId, labelPlacement, tipPosition, tooltipFor } from './first-screen.ts';
 import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs, titleText } from './obituary-text.ts';
 
 /** Empty sky above the first row (px, matches `.gy-inner` padding-top) so the large ghost is never cut off. */
 const SKY = 48;
+/** How far the big ghost rises above its stone's top edge (px): 3.5 x 21 + 8 of the glyph, rounded up. */
+const GHOST_RISE = 66;
+/** Width reserved for the big percentage text (22px bold, up to "100%"). */
+const PCT_W = 60;
 
 export const DEFAULT_CAPTION = 'Hover or focus a stone to read its epitaph.';
 
@@ -198,13 +202,37 @@ export function mountGraveyard(
     stoneLabel.setAttribute('x', String(p.x));
     stoneLabel.setAttribute('text-anchor', p.anchor);
   };
+  // The stone in focus (the first haunted one, else the opening one) with its big ghost and percentage, kept centred in the visible area.
+  type Box = { x: number; y: number; w: number; h: number };
+  let focus: { box: Box; ghost: boolean } | null = openBox ? { box: openBox, ghost: false } : null;
+  const reduced = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const centerFocus = (behavior: ScrollBehavior): void => {
+    if (!focus) return;
+    const { box, ghost } = focus;
+    const cx = box.x + box.w / 2;
+    // Ghost: from its left edge to the end of the percentage, from its top to the stone's foot (about 3.5 x the glyph, see ghostGlyph).
+    const ext = ghost
+      ? { left: cx - 9 * BIG_GHOST_SCALE, right: cx + 9 * BIG_GHOST_SCALE + 8 + PCT_W, top: SKY + box.y - GHOST_RISE, bottom: SKY + box.y + box.h }
+      : { left: cx - box.w / 2, right: cx + box.w / 2, top: SKY + box.y, bottom: SKY + box.y + box.h };
+    const to = centerInView(ext, scroll.clientWidth, scroll.clientHeight, labelW());
+    scroll.scrollTo({ ...to, behavior });
+  };
   if (openBox) {
-    const cx = openBox.x + openBox.w / 2;
-    scroll.scrollLeft = scroll.clientWidth < 600 ? centerScrollLeft(cx, scroll.clientWidth, labelW()) : Math.max(0, labelW() + cx - scroll.clientWidth / 2);
-    scroll.scrollTop = Math.max(0, SKY + openBox.y + openBox.h / 2 - scroll.clientHeight / 2);
+    centerFocus('auto');
     placeLabel();
     let raf = 0;
     scroll.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(placeLabel); }, { passive: true });
+  }
+
+  if (typeof ResizeObserver !== 'undefined') {
+    // The evidence card is laid out beside the graveyard after haunt(), which narrows this area: centre again for the new width.
+    let lastW = scroll.clientWidth;
+    new ResizeObserver(() => {
+      if (scroll.clientWidth === lastW) return;
+      lastW = scroll.clientWidth;
+      centerFocus('auto');
+      placeLabel();
+    }).observe(scroll);
   }
 
   // F5: epitaph tooltip next to the stone, on hover and keyboard focus; Esc hides it.
@@ -271,14 +299,10 @@ export function mountGraveyard(
       labelHidden = firstId !== undefined && firstId === openId;
       placeLabel();
       const fb = firstId === undefined ? undefined : boxes.get(firstId);
+      focus = fb ? { box: fb, ghost: true } : openBox ? { box: openBox, ghost: false } : null;
       if (fb) {
-        // Centre the haunted stone and its big ghost in the area right of the sticky labels (the ghost rises above the stone).
-        const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
-        scroll.scrollTo({
-          left: centerScrollLeft(fb.x + fb.w / 2, scroll.clientWidth, labelW()),
-          top: Math.max(0, SKY + fb.y - fb.h / 2 - scroll.clientHeight / 2 + 40),
-          behavior,
-        });
+        centerFocus(reduced() ? 'auto' : 'smooth');
+        const behavior = reduced() ? 'auto' : 'smooth';
         wrap.scrollIntoView({ block: 'nearest', behavior });
       }
     },

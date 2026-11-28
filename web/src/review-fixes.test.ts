@@ -105,7 +105,8 @@ describe('Task 21: text equivalents and motion for F, G, H', () => {
     expect(v).toMatch(/'aria-label': `\$\{r\.name\}, \$\{r\.count\} tombstones`/);
   });
   it('the stone label and scrolling add no motion: scrollTo honours reduced motion', () => {
-    expect(read('./graveyard-view.ts')).toMatch(/prefers-reduced-motion: reduce\)'\)\.matches \? 'auto' : 'smooth'/);
+    expect(read('./graveyard-view.ts')).toMatch(/prefers-reduced-motion: reduce\)'\)\.matches/);
+    expect(read('./graveyard-view.ts')).toMatch(/reduced\(\) \? 'auto' : 'smooth'/);
     expect(css).toMatch(/scroll-behavior: auto !important/);
   });
   it('the lead reason uses palette colours already checked (bone on panel/navy, moss edge)', () => {

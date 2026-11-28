@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import fc from 'fast-check';
-import { CONFIRMED_REAL, headlineNumbers, initialStoneId, tipPosition, tooltipFor } from './first-screen.ts';
+import { CONFIRMED_REAL, centerInView, headlineNumbers, initialStoneId, tipPosition, tooltipFor } from './first-screen.ts';
 import { DEMO_STONE_ID } from './demo-snippet.ts';
 import { epitaph } from './layout.ts';
 import type { SiteStats, WebTombstone } from './data.ts';
@@ -72,5 +72,30 @@ describe('tooltip', () => {
   it('tipPosition flips left of a stone near the right edge', () => {
     const p = tipPosition({ left: 880, top: 100, width: 20, height: 40 }, { left: 0, top: 0, width: 900, height: 500 }, { width: 200, height: 30 });
     expect(p.left).toBeLessThan(880);
+  });
+});
+
+describe('centerInView', () => {
+  const dim = fc.integer({ min: 300, max: 2000 });
+  it('a box that fits ends up fully inside the visible part (right of the labels) after scrolling', () => {
+    fc.assert(fc.property(dim, fc.integer({ min: 300, max: 1000 }), fc.integer({ min: 40, max: 160 }), fc.integer({ min: 0, max: 3000 }), fc.integer({ min: 0, max: 3000 }), fc.integer({ min: 20, max: 200 }), fc.integer({ min: 20, max: 200 }), (cw, ch, lw, x, y, w, hgt) => {
+      const view = cw - lw;
+      fc.pre(w <= view && hgt <= ch);
+      const { left, top } = centerInView({ left: x, right: x + w, top: y, bottom: y + hgt }, cw, ch, lw);
+      if (x + w / 2 - view / 2 >= 0) { expect(x - left).toBeGreaterThanOrEqual(-1e-9); expect(x + w - left).toBeLessThanOrEqual(view + 1e-9); }
+      if (y + hgt / 2 - ch / 2 >= 0) { expect(y - top).toBeGreaterThanOrEqual(-1e-9); expect(y + hgt - top).toBeLessThanOrEqual(ch + 1e-9); }
+      expect(left).toBeGreaterThanOrEqual(0);
+      expect(top).toBeGreaterThanOrEqual(0);
+    }));
+  });
+  it('centres: 1280 px wide area with 150 px labels, box 400..500 -> centre of the visible part', () => {
+    expect(centerInView({ left: 1000, right: 1100, top: 100, bottom: 200 }, 880, 400, 150)).toEqual({ left: 1050 - 365, top: 0 });
+  });
+  it('a box wider than the view shows its left edge', () => {
+    expect(centerInView({ left: 500, right: 2000, top: 0, bottom: 10 }, 600, 400, 100).left).toBe(500);
+  });
+  it('narrowing the area moves the target: the old width gives a different scrollLeft', () => {
+    const box = { left: 900, right: 1000, top: 0, bottom: 100 };
+    expect(centerInView(box, 1000, 500, 150).left).not.toBe(centerInView(box, 700, 500, 150).left);
   });
 });

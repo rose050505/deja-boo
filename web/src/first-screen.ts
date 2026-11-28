@@ -76,3 +76,18 @@ export function labelPlacement(stone: { x: number; w: number }, textW: number, v
 
 /** scrollLeft that centres svg x `cx` in the part of the area right of the sticky labels. Invariant: never negative. */
 export const centerScrollLeft = (cx: number, clientWidth: number, labelW: number): number => Math.max(0, cx - (clientWidth - labelW) / 2);
+
+/** A box in scroll-content coordinates (x right of the row labels, y from the top of the scroll content). */
+export interface Extent { left: number; right: number; top: number; bottom: number }
+
+/**
+ * scrollLeft/scrollTop that centre `box` in the visible part of the area (right of the sticky labels).
+ * Invariant: never negative; when the box fits, it lies fully inside the visible part after scrolling; when it is wider or taller, its left or top edge is shown.
+ */
+export function centerInView(box: Extent, clientWidth: number, clientHeight: number, labelW: number): { left: number; top: number } {
+  const axis = (lo: number, hi: number, view: number): number => (hi - lo > view ? lo : (lo + hi) / 2 - view / 2);
+  return {
+    left: Math.max(0, axis(box.left, box.right, Math.max(0, clientWidth - labelW))),
+    top: Math.max(0, axis(box.top, box.bottom, clientHeight)),
+  };
+}
