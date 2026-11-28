@@ -3,7 +3,7 @@ import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
 import { BIG_GHOST_SCALE, ghostScale } from './moment.ts';
-import { REVERT_STONE_LABEL, initialStoneId, tipPosition, tooltipFor } from './first-screen.ts';
+import { REVERT_STONE_LABEL, centerScrollLeft, initialStoneId, labelPlacement, tipPosition, tooltipFor } from './first-screen.ts';
 import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs, titleText } from './obituary-text.ts';
 
 /** Empty sky above the first row (px, matches `.gy-inner` padding-top) so the large ghost is never cut off. */
@@ -121,11 +121,12 @@ export function mountGraveyard(
 ): GraveyardView {
   const byId = new Map(tombstones.map(t => [t.id, t] as const));
   const layout: Layout = layoutStones(tombstones);
-  const labelW = 150;
   clear(scroll);
 
-  const labels = h('div', { class: 'row-labels', style: `height:${layout.height}px;width:${labelW}px` },
-    ...layout.rows.map(r => h('div', { class: 'row-label', style: `top:${r.y}px;height:${r.h}px` }, h('span', {}, r.name), h('small', {}, ` ${r.count}`))));
+  const labels = h('div', { class: 'row-labels', style: `height:${layout.height}px` },
+    ...layout.rows.map(r => h('div', { class: 'row-label', title: `${r.name} (${r.count})`, 'aria-label': `${r.name}, ${r.count} tombstones`, style: `top:${r.y}px;height:${r.h}px` }, h('span', { class: 'rl-name' }, r.name), h('small', {}, ` ${r.count}`))));
+  /** Width of the sticky label column now (150 px, 68 px below 600 px; set in CSS). */
+  const labelW = (): number => labels.offsetWidth || 150;
 
   const svg = s('svg', {
     class: 'stones', width: layout.width, height: layout.height, viewBox: `0 0 ${layout.width} ${layout.height}`,
@@ -176,17 +177,34 @@ export function mountGraveyard(
   // Label next to the opening stone. pointer-events: none (CSS) so it never blocks a click on another stone.
   const openId = initialStoneId(repo.name, tombstones);
   const openBox = layout.stones.find(b => b.id === openId);
+  let stoneLabel: SVGTextElement | null = null;
   if (openBox) {
-    svg.append(s('text', { class: 'stone-label', x: openBox.x + openBox.w + 6, y: openBox.y + 16 }, REVERT_STONE_LABEL));
+    stoneLabel = s('text', { class: 'stone-label', x: openBox.x + openBox.w + 6, y: openBox.y + 16 }, REVERT_STONE_LABEL);
+    svg.append(stoneLabel);
     nodes.get(openBox.id)?.setAttribute('aria-label', `Tombstone in ${byId.get(openBox.id)!.path}: ${tooltipFor(byId.get(openBox.id)!)}. ${REVERT_STONE_LABEL}. Press Enter to open.`);
   }
 
-  scroll.append(h('div', { class: 'gy-inner', style: `width:${labelW + layout.width}px` }, labels, svg));
+  scroll.append(h('div', { class: 'gy-inner', style: `width:calc(var(--label-w) + ${layout.width}px)` }, labels, svg));
   const boxes = new Map(layout.stones.map(b => [b.id, b] as const));
+  /** Put the stone label on the side of the stone that is visible; hidden while the big ghost stands on that stone. */
+  let labelHidden = false;
+  const placeLabel = (): void => {
+    if (!stoneLabel || !openBox) return;
+    stoneLabel.style.display = labelHidden ? 'none' : '';
+    if (labelHidden) return;
+    const textW = stoneLabel.getComputedTextLength?.() || REVERT_STONE_LABEL.length * 7.5;
+    const lw = labelW();
+    const p = labelPlacement(openBox, textW, scroll.scrollLeft + 4, scroll.scrollLeft + scroll.clientWidth - lw - 4);
+    stoneLabel.setAttribute('x', String(p.x));
+    stoneLabel.setAttribute('text-anchor', p.anchor);
+  };
   if (openBox) {
-    // Narrow screens: put the stone just right of the sticky row labels so the label beside it stays readable.
-    scroll.scrollLeft = Math.max(0, scroll.clientWidth < 700 ? openBox.x - 12 : labelW + openBox.x + openBox.w / 2 - scroll.clientWidth / 2);
+    const cx = openBox.x + openBox.w / 2;
+    scroll.scrollLeft = scroll.clientWidth < 600 ? centerScrollLeft(cx, scroll.clientWidth, labelW()) : Math.max(0, labelW() + cx - scroll.clientWidth / 2);
     scroll.scrollTop = Math.max(0, SKY + openBox.y + openBox.h / 2 - scroll.clientHeight / 2);
+    placeLabel();
+    let raf = 0;
+    scroll.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(placeLabel); }, { passive: true });
   }
 
   // F5: epitaph tooltip next to the stone, on hover and keyboard focus; Esc hides it.
@@ -238,7 +256,6 @@ export function mountGraveyard(
       for (const g of nodes.values()) g.classList.remove('haunted');
       svg.querySelector('.ghost-layer')?.remove();
       const layer = s('g', { class: 'ghost-layer', 'pointer-events': 'none' });
-      let first: SVGGElement | undefined;
       let index = 0;
       for (const { id, similarity } of hits) {
         const g = nodes.get(id);
@@ -246,13 +263,24 @@ export function mountGraveyard(
         if (!g || !box) continue;
         g.classList.add('haunted');
         layer.append(ghostGlyph(similarity, box, ghostScale(index++)));
-        first ??= g;
       }
       // The ghost layer is last in the svg, so ghosts draw over neighbouring stones.
       if (layer.childNodes.length) svg.append(layer);
       const firstId = hits.find(x => nodes.has(x.id))?.id;
       if (firstId !== undefined) show(firstId);
-      first?.scrollIntoView({ block: 'center', inline: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      labelHidden = firstId !== undefined && firstId === openId;
+      placeLabel();
+      const fb = firstId === undefined ? undefined : boxes.get(firstId);
+      if (fb) {
+        // Centre the haunted stone and its big ghost in the area right of the sticky labels (the ghost rises above the stone).
+        const behavior = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+        scroll.scrollTo({
+          left: centerScrollLeft(fb.x + fb.w / 2, scroll.clientWidth, labelW()),
+          top: Math.max(0, SKY + fb.y - fb.h / 2 - scroll.clientHeight / 2 + 40),
+          behavior,
+        });
+        wrap.scrollIntoView({ block: 'nearest', behavior });
+      }
     },
   };
 }

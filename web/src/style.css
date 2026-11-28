@@ -12,8 +12,10 @@
   --stonelo: #1c2a1f;
   --ground: #0c150e;
   --grass: #2f4a31;
+  --label-w: 150px;
   color-scheme: dark;
 }
+@media (max-width: 599px) { :root { --label-w: 68px; } }
 @font-face {
   font-family: "Cinzel";
   src: url("/fonts/Cinzel-Variable.ttf") format("truetype");
@@ -95,9 +97,12 @@ section { background: var(--panel); border: 1px solid var(--moss); border-radius
 }
 .gy-scroll { overflow: auto; max-height: 62vh; }
 .gy-inner { position: relative; display: flex; padding-top: 48px; }
-.row-labels { position: sticky; left: 0; z-index: 2; flex: none; background: var(--navy); border-right: 1px solid var(--mist); }
+.row-labels { width: var(--label-w); position: sticky; left: 0; z-index: 2; flex: none; background: var(--navy); border-right: 1px solid var(--mist); }
 .row-label { position: absolute; left: 0; right: 0; padding: 4px 8px; font-size: 0.8125rem; overflow: hidden; border-top: 1px solid var(--moss); }
-.row-label small { color: var(--mist); }
+.row-label { white-space: nowrap; display: flex; align-items: flex-start; gap: 0.2rem; }
+.rl-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.row-label small { color: var(--mist); flex: none; }
+@media (max-width: 599px) { .row-label { padding: 4px 4px; font-size: 0.75rem; } }
 .stones { flex: none; display: block; }
 .band.b0 { fill: #0b1020; fill-opacity: 0.35; } .band.b1 { fill: #111a33; fill-opacity: 0.35; }
 .soil { fill: var(--ground); } .blade { fill: var(--grass); }
@@ -123,7 +128,7 @@ section { background: var(--panel); border: 1px solid var(--moss); border-radius
 .stone-label { fill: var(--bone); font-size: 12px; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: var(--navy); stroke-width: 3px; }
 .tip { position: absolute; z-index: 5; max-width: min(20rem, 80%); background: var(--navy); color: var(--bone); border: 1px solid var(--bone); border-radius: 6px; padding: 0.3rem 0.6rem; font: italic 0.875rem Georgia, serif; pointer-events: none; }
 .tip[hidden] { display: none; }
-.stamp-host { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: flex; align-items: flex-start; justify-content: flex-start; padding: 0.8rem 1rem; }
+.stamp-host { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: flex; align-items: flex-start; justify-content: center; padding: 0.8rem 0.5rem 0 calc(var(--label-w) + 0.5rem); }
 .stamp { background: rgba(11, 16, 32, 0.9); color: var(--bone); border: 4px solid var(--bone); border-radius: 6px; padding: 0.3rem 1rem 0.5rem; text-align: center; rotate: -4deg; max-width: min(24rem, 90%); }
 .stamp p { margin: 0; }
 .stamp .word { font: 900 clamp(1.8rem, 5vw, 3.2rem)/1.1 "Cinzel", Georgia, serif; letter-spacing: 0.12em; }
@@ -202,3 +207,6 @@ dialog::backdrop { background: rgba(5, 8, 16, 0.8); }
 .gy-evidence .obituary-line { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .gy-evidence .rest { display: none; }
 .gy-evidence .ghost-card p { margin: 0.2rem 0; }
+.gy-evidence .why { margin: 0.3rem 0 0.6rem; }
+.gy-evidence .why-label { margin: 0; font-weight: 700; }
+.gy-evidence .why-quote { margin: 0.2rem 0; border-left: 3px solid var(--moss); padding: 0.3rem 0.8rem; font: italic 1rem Georgia, serif; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 8; line-clamp: 8; overflow: hidden; }

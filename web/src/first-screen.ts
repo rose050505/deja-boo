@@ -35,7 +35,7 @@ export function headlineNumbers(stats: SiteStats): Headline {
 }
 
 /** Label shown beside the 2020 Revert stone when requests is open. */
-export const REVERT_STONE_LABEL = '2020 Revert \u00B7 Kiro rewrote this in our test';
+export const REVERT_STONE_LABEL = '2020 Revert \u00B7 Kiro rewrote this';
 
 /** The stone the graveyard opens on, or null. Invariant: only the demo repo has one, and only when its tombstone is listed. */
 export function initialStoneId(repoName: string, tombstones: readonly Pick<WebTombstone, 'id'>[]): string | null {
@@ -61,3 +61,18 @@ export function tipPosition(stone: Box, wrap: Box, tip: { width: number; height:
   const clamp = (v: number, max: number): number => Math.max(0, Math.min(v, max));
   return { left: clamp(left, wrap.width - tip.width), top: clamp(top, wrap.height - tip.height) };
 }
+
+/**
+ * Where the stone label goes, in svg x. Invariant: the label lies inside [viewLeft, viewRight] whenever it fits;
+ * it is right of the stone when that side has room, else left, else centred in the view (the stone then shows through it, never off screen).
+ */
+export function labelPlacement(stone: { x: number; w: number }, textW: number, viewLeft: number, viewRight: number): { x: number; anchor: 'start' | 'end' } {
+  const gap = 6;
+  const fit = (left: number): number => Math.max(viewLeft, Math.min(viewRight - textW, left));
+  if (stone.x + stone.w + gap + textW <= viewRight && stone.x + stone.w + gap >= viewLeft) return { x: stone.x + stone.w + gap, anchor: 'start' };
+  if (stone.x - gap - textW >= viewLeft && stone.x - gap <= viewRight) return { x: stone.x - gap, anchor: 'end' };
+  return { x: fit(stone.x + stone.w / 2 - textW / 2), anchor: 'start' };
+}
+
+/** scrollLeft that centres svg x `cx` in the part of the area right of the sticky labels. Invariant: never negative. */
+export const centerScrollLeft = (cx: number, clientWidth: number, labelW: number): number => Math.max(0, cx - (clientWidth - labelW) / 2);

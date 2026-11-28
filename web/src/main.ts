@@ -6,7 +6,7 @@ import { DEMO_REPO, DEMO_SNIPPET } from './demo-snippet.ts';
 import { fogDensity, restLine, summon, type SummonResult } from './summon.ts';
 import { EVIDENCE, headlineNumbers } from './first-screen.ts';
 import { epitaph } from './layout.ts';
-import { cardLine } from './obituary-text.ts';
+import { cardLine, leadWhy } from './obituary-text.ts';
 import { isRevertSubject } from '../../src/core/revert.ts';
 import { momentClasses, stampFor, type MomentLevel } from './moment.ts';
 import { MAX_FILE_BYTES, parseDropped, parseGithubSlug, toWebGraveyard } from './your-graveyard.ts';
@@ -63,8 +63,19 @@ function renderStats(el: HTMLElement, more: HTMLElement, st: SiteStats): void {
   );
 }
 
+/** Lead-card reason: short label with the PR link, then the quoted text (set as text, never HTML), then a small note. null without obituary text. */
+function leadWhyNode(t: WebTombstone): HTMLElement | null {
+  const w = leadWhy(t.obituary);
+  if (w === null) return null;
+  return h('div', { class: 'why' },
+    h('p', { class: 'why-label' }, w.href ? h('a', { href: w.href, target: '_blank', rel: 'noopener noreferrer' }, w.label) : w.label),
+    h('blockquote', { class: 'why-quote' }, `\u201C${w.quote}\u201D`),
+    h('p', { class: 'muted small' }, w.note),
+  );
+}
+
 /** One evidence card: level, %, epitaph, commit, verbatim cause, obituary line. Used in the list and as the lead card beside the graveyard. */
-function ghostCard(repo: RepoEntry, hit: SummonResult['hits'][number], i: number): HTMLElement {
+function ghostCard(repo: RepoEntry, hit: SummonResult['hits'][number], i: number, lead = false): HTMLElement {
   const t = hit.tombstone as unknown as WebTombstone;
   const pct = Math.round(hit.similarity * 100);
   const url = commitUrl(repo.github, t.commit);
@@ -80,7 +91,7 @@ function ghostCard(repo: RepoEntry, hit: SummonResult['hits'][number], i: number
     h('p', {}, 'Commit ', url ? h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, h('code', {}, t.commit)) : h('code', {}, t.commit),
       ' · id ', h('code', {}, t.id)),
     h('pre', { class: 'cause' }, t.causeOfDeath.trim() === '' ? 'cause of death unknown' : t.causeOfDeath),
-    cardLine(t.obituary) === '' ? null : h('p', { class: 'obituary-line' }, cardLine(t.obituary)),
+    lead ? leadWhyNode(t) : cardLine(t.obituary) === '' ? null : h('p', { class: 'obituary-line' }, cardLine(t.obituary)),
     h('p', { class: 'rest' }, restLine(t.id)),
     h('button', { type: 'button', class: 'btn', 'data-open': t.id, 'data-sim': String(hit.similarity) }, 'Open the tombstone'),
   );
@@ -193,7 +204,7 @@ async function main(): Promise<void> {
     clear(ev);
     ev.append(
       h('h3', { class: 'ev-title' }, 'Evidence'),
-      ghostCard(repoEntry, res.hits[0]!, 0),
+      ghostCard(repoEntry, res.hits[0]!, 0, true),
       res.hits.length > 1 ? h('p', { class: 'muted small' }, `${res.hits.length} ghosts in all. `, h('a', { href: '#sm-out' }, 'All of them and your marked code are below.')) : h('p', { class: 'muted small' }, h('a', { href: '#sm-out' }, 'Your code with the haunted lines marked is below.')),
     );
     ev.querySelectorAll<HTMLButtonElement>('[data-open]').forEach(b => b.addEventListener('click', () => view?.open(b.dataset['open']!, Number(b.dataset['sim']))));
