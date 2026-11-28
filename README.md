@@ -2,6 +2,10 @@
 
 **Your codebase remembers what it buried.**
 
+![On the live page, "Paste what Kiro wrote" raises a ghost from the real 2020 requests Revert: BLOCKED, with the commit and the reason quoted from PR #5353](docs/media/demo.gif)
+
+**For judges, in 3 minutes:** ① the 2:54 demo video below ② on the live page, press **Paste what Kiro wrote** ③ on any repository with some history: `npx -y github:rose050505/deja-boo index`, then `npx -y github:rose050505/deja-boo check <file>` (Node 24+, about 15 s for 3,400 commits). You can also open the `.deja-boo/graveyard.json` it writes on the live page.
+
 AI coding agents don't read git history. Ask one to "add caching" and it may happily re-create the exact code your team deleted months ago because it leaked memory. Déjà Boo mines your git history for deleted code (*tombstones*), and when an agent or a human is about to write that code again (*a revenant*), it raises a ghost with the evidence: when it died, why, and in which commit.
 
 > 🎃 Built for **Kiroween 2026** (Costume Contest) with [Kiro](https://kiro.dev): specs, steering, hooks, MCP, property-based tests, and a Kiro Power.
