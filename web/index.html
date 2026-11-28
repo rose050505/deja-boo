@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Déjà Boo: your codebase remembers what it buried. Browse deleted code, then paste yours and see what rises." />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Déjà Boo: the haunted graveyard" />
+    <meta property="og:description" content="Your codebase remembers what it buried. Déjà Boo stops AI agents from resurrecting deleted code and shows when and why it died." />
+    <meta property="og:image" content="https://rose050505.github.io/deja-boo/og.jpg" />
+    <meta property="og:url" content="https://rose050505.github.io/deja-boo/" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Déjà Boo: the haunted graveyard" />
+    <meta name="twitter:description" content="Your codebase remembers what it buried. Déjà Boo stops AI agents from resurrecting deleted code and shows when and why it died." />
+    <meta name="twitter:image" content="https://rose050505.github.io/deja-boo/og.jpg" />
     <title>Déjà Boo: the haunted graveyard</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%91%BB%3C/text%3E%3C/svg%3E" />
   </head>
@@ -12,6 +21,11 @@
     <header class="top">
       <h1>Déjà Boo</h1>
       <p class="tag">Your codebase remembers what it buried.</p>
+      <nav class="links" aria-label="Project links">
+        <a href="https://youtu.be/E0bHgE6uA8I" target="_blank" rel="noopener noreferrer">Demo video</a>
+        <a href="https://github.com/rose050505/deja-boo" target="_blank" rel="noopener noreferrer">Repository</a>
+        <a href="https://devpost.com/software/deja-boo" target="_blank" rel="noopener noreferrer">Devpost</a>
+      </nav>
     </header>
     <section id="stats" class="stats" aria-label="Graveyard statistics"></section>
     <main>
@@ -35,7 +49,7 @@
         <textarea id="sm-input" rows="14" spellcheck="false" placeholder="Paste code here"></textarea>
         <div class="row">
           <button id="sm-go" type="button" class="btn primary">Summon</button>
-          <button id="sm-demo" type="button" class="btn">Try the haunted chunked upload</button>
+          <button id="sm-demo" type="button" class="btn">Paste what Kiro wrote (real requests history)</button>
         </div>
         <p id="fog-text" class="muted" role="status"></p>
         <div id="sm-out" class="sm-out" aria-live="polite"></div>

@@ -15,3 +15,20 @@ Each batch ends with `npm test`, `npx tsc --noEmit` and `npm run web:check` gree
 ## Batch D: polish and deploy
 ### [x] Task 8: CSS, reduced motion, contrast test
 ### [x] Task 9: `pages.yml`; production build; `vite preview` smoke check
+
+## Batch E: judge path
+### [x] Task 10: E1 real requests demo (`demo-snippet.ts`, `DEMO_REPO = 'requests'`, button text, `summon.test.ts` asserts a36a5b61502a at block; the haunted-http fixture still raises its stone; fixture chip labelled and last)
+### [x] Task 11: E2 header links, Open Graph / Twitter card meta, `web/public/og.jpg`
+## Batch F: first screen
+### [ ] Task 12: F1 hero (sentence, subline, demo button, video link) above the fold at 1440x900 and 375 px
+### [ ] Task 13: F2 three headline numbers from `stats.json` and README-quoted numbers with evidence links; "How we counted" collapsed block
+### [ ] Task 14: F3 requests opens scrolled to the 2020 Revert stone with a visible label
+### [ ] Task 15: F4 "For judges" three-step strip
+### [ ] Task 16: F5 epitaph next to the hovered or focused stone
+## Batch G: the moment it blocks
+### [ ] Task 17: G1 scroll, shake, large ghost, red edge tint, BLOCKED / WARN stamp, evidence card beside the graveyard
+### [ ] Task 18: G2 CSS/SVG atmosphere, always-on fog, committed OFL display font
+### [ ] Task 19: G3 opt-in synthesized sound (default off)
+## Batch H: your own graveyard
+### [ ] Task 20: H1 drop / pick `.deja-boo/graveyard.json`, validate, draw, summon target; express-size file without freezing; malformed file changes nothing
+### [ ] Task 21: reduced motion, text equivalents and contrast test for all new states and colours (applies to F, G, H)

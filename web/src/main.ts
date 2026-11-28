@@ -130,8 +130,9 @@ async function main(): Promise<void> {
     renderHits($('sm-out'), repo, res, text, view!);
   }
 
-  for (const r of index) {
-    picker.append(h('button', { type: 'button', class: 'chip', 'data-repo': r.name, 'aria-pressed': 'false' }, r.name));
+  const FIXTURE = 'haunted-http';
+  for (const r of [...index].sort((a, b) => Number(a.name === FIXTURE) - Number(b.name === FIXTURE))) {
+    picker.append(h('button', { type: 'button', class: 'chip', 'data-repo': r.name, 'aria-pressed': 'false' }, r.name === FIXTURE ? `${r.name} (fixture)` : r.name));
   }
   picker.addEventListener('click', e => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-repo]');

@@ -575,6 +575,12 @@ Per label file: `revivals-50-hand.jsonl` real 16/20 and false 26/27 (unchanged);
 
 ---
 
+## Index summary (judge review)
+
+- [ ] **Comebacks and next step.** After the counters, `index` prints up to 5 comebacks (path, death date, first cause line, reviving commit and date), newest first, or "No comebacks found in history."; then the `Next:` line (REQ-15). Add the "view it" part in the same batch as haunted-graveyard H1.
+
+---
+
 ## Dependency notes
 
 No new npm dependencies are introduced by this spec beyond what is already in the project. The implementation uses only:

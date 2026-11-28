@@ -21,6 +21,7 @@ h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 0.4
 
 .top { padding: 1.5rem 1.5rem 0.5rem; }
 .top h1 { font-size: 2.4rem; letter-spacing: 0.02em; }
+.links { display: flex; gap: 1.2rem; flex-wrap: wrap; margin-top: 0.6rem; }
 .tag { margin: 0; color: var(--mist); font-style: italic; }
 
 .stats { padding: 0.5rem 1.5rem 1rem; }

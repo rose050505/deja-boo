@@ -1,15 +1,46 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { readFileSync } from 'node:fs';
-import { DEMO_SNIPPET } from './demo-snippet.ts';
+import { DEMO_REPO, DEMO_SNIPPET, DEMO_STONE_ID } from './demo-snippet.ts';
 import { fogDensity, ghostOpacity, restLine, summon } from './summon.ts';
 import type { WebTombstone } from './data.ts';
 
 const demo = JSON.parse(readFileSync(new URL('../public/graveyards/haunted-http.json', import.meta.url), 'utf8')) as WebTombstone[];
 
+const requests = JSON.parse(readFileSync(new URL('../public/graveyards/requests.json', import.meta.url), 'utf8')) as WebTombstone[];
+// The fixture's own snippet: the Revert-buried call with `raw` renamed to `response`.
+const FIXTURE_SNIPPET = `class HTTPAdapter:
+    def send(self, request, timeout=None):
+        conn = self.pool.connection_for(request.url)
+        chunked = not (request.body is None or "Content-Length" in request.headers)
+
+        response = conn.urlopen(
+            method=request.method,
+            url=request.path,
+            body=request.body,
+            headers=request.headers,
+            redirect=False,
+            retries=self.max_retries,
+            timeout=timeout,
+            chunked=chunked,
+        )
+
+        return Response.from_raw(response, request)
+`;
+
 describe('summon', () => {
-  it('the haunted chunked upload hits the Revert stone and blocks', () => {
-    const r = summon(demo, DEMO_SNIPPET);
+  it('the real requests demo raises the 2020 Revert stone at block, with its obituary line', () => {
+    expect(DEMO_REPO).toBe('requests');
+    const r = summon(requests, DEMO_SNIPPET);
+    const h = r.hits.find(x => x.tombstone.id === DEMO_STONE_ID);
+    expect(h).toBeDefined();
+    expect(h!.level).toBe('block');
+    expect(h!.tombstone.causeOfDeath).toMatch(/^Revert/);
+    expect(h!.similarity).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it('the haunted-http fixture still raises its stone', () => {
+    const r = summon(demo, FIXTURE_SNIPPET);
     expect(r.hits).toHaveLength(1);
     const h = r.hits[0]!;
     expect(h.level).toBe('block');
@@ -19,9 +50,10 @@ describe('summon', () => {
   });
 
   it('property: acknowledging every hit makes them rest, and nothing else changes', () => {
-    const r = summon(demo, DEMO_SNIPPET);
-    const acked = summon(demo, `${DEMO_SNIPPET}\n# ${r.hits.map(h => `deja-boo: checked ${h.tombstone.id}`).join('\n# ')}`);
+    const r = summon(requests, DEMO_SNIPPET);
+    const acked = summon(requests, `${DEMO_SNIPPET}\n# ${r.hits.map(h => `deja-boo: checked ${h.tombstone.id}`).join('\n# ')}`);
     expect(acked.hits).toHaveLength(0);
+    expect(r.hits.length).toBeGreaterThan(0);
     expect(acked.rested.map(h => h.tombstone.id)).toEqual(r.hits.map(h => h.tombstone.id));
   });
 
@@ -33,7 +65,7 @@ describe('summon', () => {
   it('property: hits are sorted by similarity and levels respect thresholds', () => {
     fc.assert(
       fc.property(fc.array(fc.string({ maxLength: 40 }), { maxLength: 30 }), lines => {
-        const r = summon(demo, [...lines, ...DEMO_SNIPPET.split('\n')].join('\n'));
+        const r = summon(requests, [...lines, ...DEMO_SNIPPET.split('\n')].join('\n'));
         for (const h of r.hits) expect(h.similarity).toBeGreaterThanOrEqual(0.5);
         for (let i = 1; i < r.hits.length; i++) expect(r.hits[i - 1]!.similarity).toBeGreaterThanOrEqual(r.hits[i]!.similarity);
       }),

@@ -59,6 +59,7 @@ For each revenant the output contains:
 **Exit codes:** 0 when there is no revenant, 1 when the highest level is `warn`, 2 when it is `block`.
 
 - **EARS:** If the graveyard file is missing or unreadable, `check` shall print how to create it (`deja-boo index . --out .deja-boo/graveyard.json`) on stderr and exit 3. Exit 3 is distinct from the three result codes, so a broken setup is never read as "clean".
+- **Check feedback.** When `check` finds nothing, it shall print one line to stderr saying what was checked, for example `✓ clean: src/click/core.py checked against 745 tombstones`; with `--no-head` or `-` it says so (whole text, no HEAD comparison; input from stdin), and for a skipped path it says the path is on the skip list. Stdout and exit codes do not change. The hook and Stop commands do not print it. (Reviewer: `check src/click/core.py` printed nothing and exited 0, so a clean result looked like a broken install.)
 - Containment is shown as evidence only. It never decides a level.
 - `check` honors the skip list: input whose path is skipped yields no revenants (the `-` form has no path and is never skipped).
 

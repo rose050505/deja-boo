@@ -45,6 +45,18 @@ describe('runCheck on haunted-http', () => {
     expect(runCheck(candidate, 'dist/adapter.py', repo).exitCode).toBe(0);
   });
 
+  it('a clean result says what was checked on stderr only; findings print no such line', () => {
+    const n = graveyard.tombstones.length;
+    const headText = execFileSync('git', ['show', 'HEAD:haunted_http/adapter.py'], { cwd: repo }).toString();
+    const a = runCheck(headText, 'haunted_http/adapter.py', repo);
+    expect(a).toMatchObject({ exitCode: 0, stdout: '' });
+    expect(a.stderr).toBe(`\u2713 clean: haunted_http/adapter.py checked against ${n} tombstones (compared with HEAD)\n`);
+    expect(runCheck('const a = 1;\n', undefined, repo).stderr).toBe(`\u2713 clean: input from stdin checked against ${n} tombstones\n`);
+    expect(runCheck('const a = 1;\n', 'x.ts', repo, { head: false }).stderr).toContain('whole text, no HEAD comparison');
+    expect(runCheck(candidate, 'dist/adapter.py', repo).stderr).toContain('skip list');
+    expect(runCheck(candidate, 'haunted_http/adapter.py', repo).stderr).not.toContain('clean');
+  });
+
   it('code already at HEAD does not alarm; --no-head (head: false) keeps the old behaviour', () => {
     const headText = execFileSync('git', ['show', 'HEAD:haunted_http/adapter.py'], { cwd: repo }).toString();
     const withHead = runCheck(headText, 'haunted_http/adapter.py', repo);

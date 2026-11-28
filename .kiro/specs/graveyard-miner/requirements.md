@@ -293,3 +293,8 @@ export interface Tombstone {
 - All `fingerprint` arrays within death records are sorted ascending.
 - The `stats` block uses alphabetically sorted keys, consistent with REQ-10.
 
+### REQ-15: Index summary (judge review, open)
+**EARS:** When `deja-boo index` finishes, the system shall print, after the counters, up to 5 comebacks found in this repository's history (path, death date, first line of the cause, the commit that brought it back and its date), newest first, or "No comebacks found in history." Then a next-step line: `Next: deja-boo check <file> · hooks: see README "Use it on your repo" · view it: drop .deja-boo/graveyard.json on https://rose050505.github.io/deja-boo/`. The "view it" part is only true once web batch H exists, so it is added in the same batch as H.
+
+(Reviewer: on click, 3,416 commits, 13 s, `index` ended with counters only; the comebacks, which are the point, were not shown, and there was no next step.)
+

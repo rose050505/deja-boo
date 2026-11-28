@@ -136,6 +136,10 @@ Post-review fixes 4 results (`research/matching-eval.md` section 10; 1,745 watch
 - False alarms: unrelated tombstone pairs 0.0% before and after (0 of 1,745). Ordinary commits replayed hook-style: 5 of 504 writes with an alarm (8 alarms) before and after; the renamed score adds none. Those 8 raw alarms already existed (similar test cases) and are not fixed here.
 - Not re-run: the reviewer's own 10 rewrites (not in `research/labels/`).
 
+## Check feedback (judge review)
+
+- [x] **`check` clean line.** `runCheck` appends one stderr line when there is no revenant (`✓ clean: <path> checked against N tombstones`, with variants for stdin, `--no-head`, skipped path); stdout and exit codes unchanged; hook and Stop do not use it. Test in `check-command.test.ts`.
+
 ## Reviewer decisions
 
 1. A missing graveyard or bad event makes the hook exit 1 (fail open). Agreed.
