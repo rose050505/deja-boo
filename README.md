@@ -6,7 +6,7 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 
 > 🎃 Built for **Kiroween 2026** (Costume Contest) with [Kiro](https://kiro.dev): specs, steering, hooks, MCP, property-based tests, and a Kiro Power.
 
-**🪦 Live demo: https://rose050505.github.io/deja-boo/** (paste any snippet and see whether it has died before)
+**🪦 Live demo: https://rose050505.github.io/deja-boo/** (paste a snippet and see whether it died in one of the sample repositories; for your own repository, use the CLI below)
 
 **🎥 Demo video (2:54): https://youtu.be/E0bHgE6uA8I** (Kiro CLI with and without the guard on real psf/requests history)
 

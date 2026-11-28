@@ -38,7 +38,7 @@ Déjà Boo turns git history into a **graveyard** and guards it.
    - Then it either takes another path, or, if the reason no longer applies, writes `deja-boo: checked <id>` next to the code and explains why. The decision leaves a trail in the code.
 4. **See.** The **haunted graveyard** web app draws 6 repositories' graveyards over time. Revert deaths get cracked stones.
    - Click a stone to read the deleted lines and the commit.
-   - Paste any snippet and the same matcher runs in your browser. If the code has died before, its stone shakes and a ghost rises with the evidence.
+   - Paste a snippet and the same matcher checks it against these graveyards in your browser. If the code has died there before, its stone shakes and a ghost rises with the evidence. For your own repository, use the CLI.
 
 Déjà Boo ships as a **Kiro Power**: an MCP server, the skill *check-before-resurrecting*, and copy-ready guard hooks. It also includes a `graveyard-keeper` custom agent that reviews a branch before merge.
 
