@@ -1,0 +1,7 @@
+Reviewer: one bug left, found while recording a README GIF of the live page with Playwright at 1280x720 (a common laptop size).
+
+After pressing the hero demo button, the haunted 2020 Revert stone and its big ghost end up at the far right edge of the graveyard scroll area, and the "95%" beside the ghost is cut off by the edge. At 1440x900 the stone is right of centre but still visible; at 375 px it is centred (your r18 fix). Likely cause: the stone is scrolled to the centre of the grid before the evidence card is placed beside the graveyard (from 1100 px wide), which narrows the scroll area afterwards, so the centring was computed for the old width.
+
+Fix: centre the first haunted stone (with its big ghost and percentage) horizontally, and keep it vertically in view, within the visible part of the scroll area right of the row labels, after the lead evidence card has been laid out; re-centre if the layout width changes while the result is shown (ResizeObserver on the scroll area). The ghost's percentage must be fully inside the visible area. Honour reduced motion for the scroll (auto instead of smooth). Same rule for the opening stone.
+
+Check at 1280x720, 1440x900, 1100x800 and 375x812 in headless Chrome: report the ghost box and the visible area for each. Done means: fixed with a unit test for the pure centring calculation, `npm test`, `npx tsc --noEmit`, `npm run build`, `npm run web:build` pass. Commit with a message ending in "(Kiro CLI)". Don't push. Report.

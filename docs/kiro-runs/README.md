@@ -60,6 +60,7 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r16_haunting_resume.log` | (`--resume`) | Same conversation, resumed and committed |
 | `r17_your_graveyard.log` | `r17_your_graveyard_prompt.md` | Open your own `.deja-boo/graveyard.json` on the page (read in the browser, never uploaded); `index` lists the comebacks it found and the next step |
 | `r18_polish.log` | `r18_polish_prompt.md` | Fixes from a browser review: the lead card shows the reason first, stone label and stamp kept in view, narrow row labels and a centred ghost on phones; accessibility audit of the new batches |
+| `r19_center.log` | `r19_center_prompt.md` | The haunted stone, its big ghost and percentage centred in the visible graveyard, again after the evidence card narrows it (found while recording the README GIF at 1280x720) |
 
 ## Rehearsals: Kiro as the test subject
 

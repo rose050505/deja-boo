@@ -1,0 +1,84 @@
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The pkill probably killed the shell before the commit ran.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+The haunted stone and its big ghost now land in the middle of the visible scroll area at all four sizes, and the "95%" is fully inside. The fix is committed as 6612cdf. I didn't push.
+
+**Cause:** your diagnosis was right. `haunt()` centred the stone for the full-width area, then the evidence card narrowed the area and nothing re-centred.
+
+**Changes (all in `web/src`):**
+- **New function:** `centerInView(box, clientWidth, clientHeight, labelW)` in `first-screen.ts`. It returns the `scrollLeft` and `scrollTop` that centre a box in the part of the area right of the row labels. A box that is too big for the view shows its top-left instead.
+- **Ghost box:** `graveyard-view.ts` now centres the whole big ghost, from its left edge through the percentage text, down to the stone's foot.
+- **Opening stone:** it uses the same function.
+- **Re-centring:** a `ResizeObserver` on the scroll area re-centres whenever its width changes while a result is shown.
+- **Reduced motion:** `haunt()` scrolls with `auto` instead of `smooth` when reduced motion is on. The re-centring after a resize always uses `auto`.
+- **Old test:** I changed one regex in `review-fixes.test.ts` that matched the old inline `matchMedia` string, so it matches the new `reduced()` form.
+
+**Tests:** `npm test` passes (694 tests). That includes new tests for the centring: a property test, a worked example, the wide-box case, and one showing that a narrower area gives a different `scrollLeft`. `npx tsc --noEmit`, `npm run build` and `npm run web:build` also pass.
+
+**Headless Chrome, after pressing the hero demo button.** Boxes are `left,top,right,bottom` in page pixels. "Visible area" is the scroll area right of the row labels. Playwright isn't installed here, so I drove Chrome through the DevTools protocol instead.
+
+| Size | Row labels | Visible area | Ghost body | "95%" text | Inside |
+|---|---|---|---|---|---|
+| 1280x720 | 150 | 192,173 → 775,547 | 411,300 → 474,374 | 482,314 → 529,346 | yes |
+| 1440x900 | 150 | 192,216 → 935,684 | 491,356 → 554,430 | 562,370 → 609,402 | yes |
+| 1100x800 | 150 | 192,192 → 595,608 | 321,333 → 384,406 | 392,346 → 439,378 | yes |
+| 375x812 | 68 | 110,195 → 333,617 | 156,336 → 219,409 | 227,349 → 274,381 | yes |
+
+At 1280x720 the visible area's horizontal centre is 483 and the ghost with its percentage spans 411 to 529 (centre 470). The ghost is about 13 px left of centre. That is because the code reserves 60 px for the percentage text, a bit more than the real width.
+
+I checked the haunted state only. I did not measure the opening stone before the demo button is pressed.
+
+The two untracked `docs/kiro-runs/r19_*` files were already there and are not in the commit. I removed my temporary script, Chrome profile and log from `/tmp`.
+EXIT 0

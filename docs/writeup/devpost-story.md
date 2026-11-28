@@ -44,11 +44,11 @@ Déjà Boo ships as a **Kiro Power**: an MCP server, the skill *check-before-res
 
 ## How we built it
 
-Everything was built with Kiro, spec by spec: 4 specs, 6 steering docs, 4 hooks, an MCP server, a Power and a custom agent. Details are in "How we used Kiro" below, and the logs of all 35 headless Kiro runs are in [`docs/kiro-runs/`](https://github.com/rose050505/deja-boo/tree/main/docs/kiro-runs).
+Everything was built with Kiro, spec by spec: 4 specs, 6 steering docs, 4 hooks, an MCP server, a Power and a custom agent. Details are in "How we used Kiro" below, and the logs of all 36 headless Kiro runs are in [`docs/kiro-runs/`](https://github.com/rose050505/deja-boo/tree/main/docs/kiro-runs).
 
 - **Stack.** TypeScript (strict, ESM). There is no git library: we stream `git log -p --reverse --topo-order` from the git binary.
 - **One matcher everywhere.** `src/core` (normalize, tokenize, winnow, windowed Jaccard) is browser-safe. The CLI, both hooks, the MCP server and the web app share the same matcher.
-- **690 tests** with Vitest and fast-check, many of them properties.
+- **694 tests** with Vitest and fast-check, many of them properties.
 - **Measured thresholds.** Our steering forbids guessing thresholds. We evaluated on 6 real graveyards ([`research/matching-eval.md`](https://github.com/rose050505/deja-boo/blob/main/research/matching-eval.md)):
 
 | Case (synthetic mutations of real tombstones; see `research/matching-eval.md` for each sample) | First version | Shipped |
@@ -94,7 +94,7 @@ Spec-driven development paid off most where we had *evidence*. Every review roun
 kiro-cli chat --v3 --no-interactive --trust-workspace --trust-all-tools "<prompt>"
 ```
 
-- In total there were 35 headless runs (3 of them `--resume` continuations): the 4 specs (graveyard-miner, revenant-watch, haunted-graveyard, obituary), the Power, the custom agent, two web fixes found while recording the video, a design change from the video review that was later reverted, four rounds of fixes from independent functional reviews (real use on click/black/koa, hand-labelled accuracy), and a final round after comparing our page with other entries and a tester's feedback (the real requests case as the demo, a first screen for judges, the moment it blocks, opening your own graveyard on the page, `index` listing your comebacks). Plus 4 rehearsal runs and 7 recorded takes for the demo video. Each batch had to end with `npm test` and `tsc --noEmit` green before the next one started. Test counts went 45 → 130 → 175 → 177 → 220 → 224 → 256 → 284 → 297 → 331 → 339 → 341 → 343 → 346 → 410 → 438 → 536 → 563 → 583 → 617 → 619 → 630 → 655 → 674 → 690.
+- In total there were 36 headless runs (3 of them `--resume` continuations): the 4 specs (graveyard-miner, revenant-watch, haunted-graveyard, obituary), the Power, the custom agent, two web fixes found while recording the video, a design change from the video review that was later reverted, four rounds of fixes from independent functional reviews (real use on click/black/koa, hand-labelled accuracy), and a final round after comparing our page with other entries and a tester's feedback (the real requests case as the demo, a first screen for judges, the moment it blocks, opening your own graveyard on the page, `index` listing your comebacks). Plus 4 rehearsal runs and 7 recorded takes for the demo video. Each batch had to end with `npm test` and `tsc --noEmit` green before the next one started. Test counts went 45 → 130 → 175 → 177 → 220 → 224 → 256 → 284 → 297 → 331 → 339 → 341 → 343 → 346 → 410 → 438 → 536 → 563 → 583 → 617 → 619 → 630 → 655 → 674 → 690 → 694.
 - One run was killed mid-task. `kiro-cli chat --resume` continued the same conversation and finished it cleanly.
 - The logs of every run, with the reviewer prompts where a run was started from one, are in [`docs/kiro-runs/`](https://github.com/rose050505/deja-boo/tree/main/docs/kiro-runs).
 
