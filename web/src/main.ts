@@ -4,6 +4,7 @@ import { loadGraveyard, loadIndex, loadStats, commitUrl, type RepoEntry, type Si
 import { mountGraveyard, type GraveyardView } from './graveyard-view.ts';
 import { DEMO_REPO, DEMO_SNIPPET } from './demo-snippet.ts';
 import { fogDensity, restLine, summon, type SummonResult } from './summon.ts';
+import { EVIDENCE, headlineNumbers } from './first-screen.ts';
 import { epitaph } from './layout.ts';
 import { cardLine } from './obituary-text.ts';
 import { isRevertSubject } from '../../src/core/revert.ts';
@@ -12,7 +13,27 @@ const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) 
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
 
-function renderStats(el: HTMLElement, st: SiteStats): void {
+function statCard(value: string, ...label: (Node | string)[]): HTMLElement {
+  return h('div', { class: 'stat' }, h('dd', {}, value), h('dt', {}, ...label));
+}
+
+function ext(href: string, text: string): HTMLElement {
+  return h('a', { href, target: '_blank', rel: 'noopener noreferrer' }, text);
+}
+
+/** The three headline numbers (from stats.json, except the reviewer-confirmed count) and the collapsed "How we counted" block. */
+function renderStats(el: HTMLElement, more: HTMLElement, st: SiteStats): void {
+  const n = headlineNumbers(st);
+  clear(el);
+  el.append(
+    h('dl', { class: 'stat-list' },
+      statCard(fmt(n.commits), 'commits walked, in ', String(st.repos), ' public repos'),
+      n.comebacks === null
+        ? statCard(fmt(st.revivals), 'comebacks found in history')
+        : statCard(fmt(n.comebacks), 'comebacks found; ', fmt(n.confirmedReal), ' confirmed real by a reviewer (', ext(EVIDENCE.labels, 'labels'), ')'),
+      statCard(fmt(n.viaRevert), 'comebacks via Revert, all real (', ext(EVIDENCE.readme, 'README'), ')'),
+    ),
+  );
   const items: [string, string][] = [
     ['repos', fmt(st.repos)],
     ['commits walked', fmt(st.commits)],
@@ -22,13 +43,14 @@ function renderStats(el: HTMLElement, st: SiteStats): void {
     ['comebacks via Revert', fmt(st.revivalsViaRevert)],
     ['median gap', st.medianRevivalGapDays === null ? 'n/a' : `${st.medianRevivalGapDays} days`],
   ];
-  clear(el);
-  el.append(
-    h('dl', { class: 'stat-list' }, ...items.map(([k, v]) => h('div', { class: 'stat' }, h('dd', {}, v), h('dt', {}, k)))),
+  clear(more);
+  more.append(
+    h('dl', { class: 'stat-list' }, ...items.map(([k, v]) => statCard(v, k))),
     h('p', { class: 'muted small' }, `Measured by the deja-boo CLI on ${st.repos} public repos (requests, express, axios, flask, got, httpie/cli) when this page was built. Gap = days from burial to revival. A revival is one commit (one patch), however many tombstones it brings back.${
       st.revivalsAllTombstones !== undefined && st.revivalsAllTombstones !== st.revivals
         ? ` The list leaves out tombstones whose code is still alive at HEAD; counting their revivals too gives ${fmt(st.revivalsAllTombstones)}.`
         : ''}`),
+    h('p', { class: 'muted small' }, `${fmt(n.confirmedReal)} confirmed real is the reviewer's count, not in stats.json: see `, ext(EVIDENCE.labels, 'research/labels/'), ' and the ', ext(EVIDENCE.readme, 'README'), '.'),
   );
 }
 
@@ -85,7 +107,7 @@ function renderHits(out: HTMLElement, repo: RepoEntry, res: SummonResult, text: 
 
 async function main(): Promise<void> {
   const [index, stats] = await Promise.all([loadIndex(), loadStats()]);
-  renderStats($('stats'), stats);
+  renderStats($('stats'), $('stats-more'), stats);
 
   const dialog = $<HTMLDialogElement>('tomb');
   dialog.addEventListener('click', e => {
@@ -114,6 +136,7 @@ async function main(): Promise<void> {
     view = mountGraveyard($('gy-scroll'), $('gy-caption'), dialog, repo, tombs);
     setFog(0);
     clear($('sm-out'));
+    clear($('gy-verdict'));
   }
 
   function setFog(n: number): void {
@@ -128,6 +151,12 @@ async function main(): Promise<void> {
     setFog(res.hits.length);
     view?.haunt(res.hits.map(x => ({ id: x.tombstone.id, similarity: x.similarity })));
     renderHits($('sm-out'), repo, res, text, view!);
+    const top = res.hits[0];
+    clear($('gy-verdict'));
+    if (top) {
+      const t = top.tombstone as unknown as WebTombstone;
+      $('gy-verdict').append(`${top.level === 'block' ? 'BLOCK' : 'WARN'}: ${Math.round(top.similarity * 100)}% similar to ${t.path}, ${epitaph(t)}. `, h('a', { href: '#sm-out' }, 'Read the full result'));
+    }
   }
 
   const FIXTURE = 'haunted-http';
@@ -139,12 +168,23 @@ async function main(): Promise<void> {
     if (b) void select(b.dataset['repo']!);
   });
   $('sm-go').addEventListener('click', run);
-  $('sm-demo').addEventListener('click', async () => {
+  async function demo(): Promise<void> {
     ($('sm-input') as HTMLTextAreaElement).value = DEMO_SNIPPET;
     await select(DEMO_REPO);
     run();
+  }
+  $('sm-demo').addEventListener('click', async () => {
+    await demo();
     $('sm-out').scrollIntoView({ block: 'nearest' });
   });
+  // Hero button: same demo, then the haunted stone (scrolled to by haunt) and the verdict line stay in view.
+  const heroDemo = async (e: Event): Promise<void> => {
+    e.preventDefault();
+    await demo();
+    $('gy-wrap').scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
+  $('hero-demo').addEventListener('click', heroDemo);
+  document.querySelector('[data-demo]')?.addEventListener('click', heroDemo);
 
   await select(repo.name);
 }

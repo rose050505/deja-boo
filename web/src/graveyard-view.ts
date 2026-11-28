@@ -2,6 +2,7 @@ import { clear, h, s } from './dom.ts';
 import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
+import { REVERT_STONE_LABEL, initialStoneId, tipPosition, tooltipFor } from './first-screen.ts';
 import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs, titleText } from './obituary-text.ts';
 
 export const DEFAULT_CAPTION = 'Hover or focus a stone to read its epitaph.';
@@ -95,6 +96,9 @@ export function captionFor(t: WebTombstone): string {
   return `${epitaph(t)}${isCracked(t) ? ' (Revert)' : ''} · ${t.path}`;
 }
 
+let escHide: () => void = () => undefined;
+if (typeof document !== 'undefined') document.addEventListener('keydown', e => { if (e.key === 'Escape') escHide(); });
+
 export function mountGraveyard(
   scroll: HTMLElement,
   caption: HTMLElement,
@@ -138,7 +142,6 @@ export function mountGraveyard(
     });
     const r = b.w / 2;
     g.append(
-      s('title', {}, text),
       s('path', { class: 'body', d: `M0 ${b.h} V${r} A${r} ${r} 0 0 1 ${b.w} ${r} V${b.h} Z` }),
     );
     if (cracked) g.append(s('path', { class: 'crack', d: `M${b.w * 0.55} ${b.h * 0.1} l${-b.w * 0.18} ${b.h * 0.28} l${b.w * 0.2} ${b.h * 0.1} l${-b.w * 0.15} ${b.h * 0.3}` }));
@@ -146,7 +149,38 @@ export function mountGraveyard(
     svg.append(g);
   }
 
+  // Label next to the opening stone. pointer-events: none (CSS) so it never blocks a click on another stone.
+  const openId = initialStoneId(repo.name, tombstones);
+  const openBox = layout.stones.find(b => b.id === openId);
+  if (openBox) {
+    svg.append(s('text', { class: 'stone-label', x: openBox.x + openBox.w + 6, y: openBox.y + 16 }, REVERT_STONE_LABEL));
+    nodes.get(openBox.id)?.setAttribute('aria-label', `Tombstone in ${byId.get(openBox.id)!.path}: ${tooltipFor(byId.get(openBox.id)!)}. ${REVERT_STONE_LABEL}. Press Enter to open.`);
+  }
+
   scroll.append(h('div', { class: 'gy-inner', style: `width:${labelW + layout.width}px` }, labels, svg));
+  if (openBox) {
+    // Narrow screens: put the stone just right of the sticky row labels so the label beside it stays readable.
+    scroll.scrollLeft = Math.max(0, scroll.clientWidth < 700 ? openBox.x - 12 : labelW + openBox.x + openBox.w / 2 - scroll.clientWidth / 2);
+    scroll.scrollTop = Math.max(0, openBox.y + openBox.h / 2 - scroll.clientHeight / 2);
+  }
+
+  // F5: epitaph tooltip next to the stone, on hover and keyboard focus; Esc hides it.
+  const wrap = scroll.parentElement!;
+  wrap.querySelector('.tip')?.remove();
+  const tip = h('div', { class: 'tip', role: 'tooltip', id: 'gy-tip', hidden: '' });
+  wrap.append(tip);
+  const hideTip = (): void => { tip.hidden = true; };
+  const showTip = (g: SVGGElement): void => {
+    const t = byId.get(g.dataset['id']!);
+    if (!t) return;
+    tip.textContent = tooltipFor(t);
+    tip.hidden = false;
+    const r = g.getBoundingClientRect();
+    const w = wrap.getBoundingClientRect();
+    const p = tipPosition(r, w, { width: tip.offsetWidth, height: tip.offsetHeight });
+    tip.style.left = `${p.left}px`;
+    tip.style.top = `${p.top}px`;
+  };
 
   const show = (id: string): void => {
     const t = byId.get(id);
@@ -160,8 +194,13 @@ export function mountGraveyard(
     if (!dialog.open) dialog.showModal();
   };
 
-  svg.addEventListener('mouseover', e => { const g = (e.target as Element).closest<SVGGElement>('.stone'); if (g) show(g.dataset['id']!); });
-  svg.addEventListener('focusin', e => { const g = (e.target as Element).closest<SVGGElement>('.stone'); if (g) show(g.dataset['id']!); });
+  svg.addEventListener('mouseover', e => { const g = (e.target as Element).closest<SVGGElement>('.stone'); if (g) { show(g.dataset['id']!); showTip(g); } });
+  svg.addEventListener('focusin', e => { const g = (e.target as Element).closest<SVGGElement>('.stone'); if (g) { show(g.dataset['id']!); showTip(g); } });
+  svg.addEventListener('mouseout', hideTip);
+  svg.addEventListener('focusout', hideTip);
+  scroll.addEventListener('scroll', hideTip, { passive: true });
+  escHide = hideTip;
+  svg.addEventListener('click', hideTip);
   svg.addEventListener('click', e => { const g = (e.target as Element).closest<SVGGElement>('.stone'); if (g) open(g.dataset['id']!); });
   svg.addEventListener('keydown', e => {
     const g = (e.target as Element).closest<SVGGElement>('.stone');

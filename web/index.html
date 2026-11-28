@@ -19,15 +19,36 @@
   <body>
     <a class="skip" href="#summon">Skip to the summon panel</a>
     <header class="top">
-      <h1>Déjà Boo</h1>
-      <p class="tag">Your codebase remembers what it buried.</p>
+      <p class="brand">Déjà Boo</p>
       <nav class="links" aria-label="Project links">
         <a href="https://youtu.be/E0bHgE6uA8I" target="_blank" rel="noopener noreferrer">Demo video</a>
         <a href="https://github.com/rose050505/deja-boo" target="_blank" rel="noopener noreferrer">Repository</a>
         <a href="https://devpost.com/software/deja-boo" target="_blank" rel="noopener noreferrer">Devpost</a>
       </nav>
     </header>
-    <section id="stats" class="stats" aria-label="Graveyard statistics"></section>
+    <div class="intro">
+      <div class="hero">
+        <h1>Kiro rewrote code that requests reverted in 2020.</h1>
+        <p class="sub">Déjà Boo stopped it and showed the commit and why the code died. Your codebase remembers what it buried.</p>
+        <div class="row">
+          <button id="hero-demo" type="button" class="btn primary">Paste what Kiro wrote (real requests history)</button>
+          <a class="btn-link" href="https://youtu.be/E0bHgE6uA8I" target="_blank" rel="noopener noreferrer">Watch the video</a>
+        </div>
+      </div>
+      <section id="stats" class="stats" aria-label="Headline numbers"></section>
+      <details id="how-counted" class="how">
+        <summary>How we counted</summary>
+        <div id="stats-more"></div>
+      </details>
+      <section class="judges" aria-labelledby="jd-h">
+        <h2 id="jd-h">For judges</h2>
+        <ol>
+          <li><a href="https://youtu.be/E0bHgE6uA8I" target="_blank" rel="noopener noreferrer">Watch the video.</a></li>
+          <li>Press <a href="#hero-demo" data-demo>the demo button</a>: the stone it raises is the 2020 Revert.</li>
+          <li>On your repo (Node 24+, about 15 s on a 3,400-commit repo): <code>npx -y github:rose050505/deja-boo index</code>, then <code>check &lt;file&gt;</code>. <a href="https://github.com/rose050505/deja-boo#use-it-on-your-repo" target="_blank" rel="noopener noreferrer">Setup in the README</a>.</li>
+        </ol>
+      </section>
+    </div>
     <main>
       <section class="graveyard" aria-labelledby="gy-h">
         <div class="gy-head">
@@ -40,6 +61,7 @@
           <div id="fog" class="fog" aria-hidden="true"></div>
         </div>
         <p id="gy-caption" class="caption" aria-live="polite">Hover or focus a stone to read its epitaph.</p>
+        <p id="gy-verdict" class="verdict" role="status"></p>
       </section>
       <section id="summon" class="summon" aria-labelledby="sm-h">
         <h2 id="sm-h">Summon</h2>
