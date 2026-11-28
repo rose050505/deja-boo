@@ -17,12 +17,21 @@ describe('palette contrast (WCAG AA)', () => {
   it('uses the steering palette', () => {
     expect(vars).toMatchObject({ navy: '#0b1020', moss: '#3d5a40', bone: '#e8e2d0', ecto: '#7cffb2', blood: '#c0392b' });
   });
-  const text: [string, string][] = [['bone', 'navy'], ['bone', 'panel'], ['mist', 'navy'], ['mist', 'panel'], ['ecto', 'navy'], ['ecto', 'panel'], ['bone', 'moss'], ['navy', 'ecto'], ['navy', 'bone']];
+  const text: [string, string][] = [['bone', 'navy'], ['bone', 'panel'], ['mist', 'navy'], ['mist', 'panel'], ['ecto', 'navy'], ['ecto', 'panel'], ['bone', 'moss'], ['navy', 'ecto'], ['navy', 'bone'],
+    // Batch G: text over the night sky (header, graveyard backdrop, stamp lines).
+    ['bone', 'sky'], ['mist', 'sky'], ['ecto', 'sky'], ['bone', 'skytop'], ['mist', 'skytop'], ['ecto', 'skytop']];
   for (const [fg, bg] of text) {
     it(`text ${fg} on ${bg} >= 4.5:1`, () => expect(ratio(vars[fg]!, vars[bg]!)).toBeGreaterThanOrEqual(4.5));
   }
   // Blood is used for borders and cracks only (graphical objects need 3:1); its words are always bone on navy.
   for (const bg of ['navy', 'panel']) it(`blood edge on ${bg} >= 3:1`, () => expect(ratio(vars['blood']!, vars[bg]!)).toBeGreaterThanOrEqual(3));
+  // Batch G: stone shading, ground and the stamp border sit on the sky gradient.
+  for (const bg of ['sky', 'skytop']) it(`blood stamp border on ${bg} >= 3:1`, () => expect(ratio(vars['blood']!, vars[bg]!)).toBeGreaterThanOrEqual(3));
+  for (const fg of ['bone', 'ecto']) it(`stone edge ${fg} on the lightest stone shade >= 3:1`, () => expect(ratio(vars[fg]!, vars['stonehi']!)).toBeGreaterThanOrEqual(3));
+  it('ground and stone base stay darker than the stone top, so the base reads as shade', () => {
+    expect(lum(vars['ground']!)).toBeLessThan(lum(vars['stonehi']!));
+    expect(lum(vars['stonelo']!)).toBeLessThan(lum(vars['moss']!));
+  });
   it('stone edge (bone) on moss >= 3:1', () => expect(ratio(vars['bone']!, vars['moss']!)).toBeGreaterThanOrEqual(3));
   it('every animation sits under no-preference, and reduce turns animations off', () => {
     const outside = css.replace(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/, '');

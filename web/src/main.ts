@@ -8,8 +8,15 @@ import { EVIDENCE, headlineNumbers } from './first-screen.ts';
 import { epitaph } from './layout.ts';
 import { cardLine } from './obituary-text.ts';
 import { isRevertSubject } from '../../src/core/revert.ts';
+import { momentClasses, stampFor, type MomentLevel } from './moment.ts';
+import { browserAudio, createSound, soundLabel } from './sound.ts';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
+
+/** localStorage, or null where the browser blocks it. */
+function safeStorage(): Storage | null {
+  try { return localStorage; } catch { return null; }
+}
 
 const fmt = (n: number): string => n.toLocaleString('en-US');
 
@@ -54,6 +61,29 @@ function renderStats(el: HTMLElement, more: HTMLElement, st: SiteStats): void {
   );
 }
 
+/** One evidence card: level, %, epitaph, commit, verbatim cause, obituary line. Used in the list and as the lead card beside the graveyard. */
+function ghostCard(repo: RepoEntry, hit: SummonResult['hits'][number], i: number): HTMLElement {
+  const t = hit.tombstone as unknown as WebTombstone;
+  const pct = Math.round(hit.similarity * 100);
+  const url = commitUrl(repo.github, t.commit);
+  const label = hit.level === 'block' ? 'BLOCK' : 'WARN';
+  return h('article', { class: `ghost-card ${hit.level}` },
+    h('h3', {},
+      h('span', { class: 'badge' }, label), ` Ghost #${i + 1}: ${pct}% similar`),
+    h('p', { class: 'meta' }, hit.level === 'block'
+      ? 'The Kiro hook would block this write.'
+      : 'The Kiro hook would warn about this write.'),
+    h('p', {}, `Lines ${hit.matchedLines[0]}-${hit.matchedLines[1]} of your code match ${t.path}, buried ${t.buriedAt.slice(0, 10)}.`),
+    h('p', { class: 'epitaph' }, epitaph(t)),
+    h('p', {}, 'Commit ', url ? h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, h('code', {}, t.commit)) : h('code', {}, t.commit),
+      ' · id ', h('code', {}, t.id)),
+    h('pre', { class: 'cause' }, t.causeOfDeath.trim() === '' ? 'cause of death unknown' : t.causeOfDeath),
+    cardLine(t.obituary) === '' ? null : h('p', { class: 'obituary-line' }, cardLine(t.obituary)),
+    h('p', { class: 'rest' }, restLine(t.id)),
+    h('button', { type: 'button', class: 'btn', 'data-open': t.id, 'data-sim': String(hit.similarity) }, 'Open the tombstone'),
+  );
+}
+
 function renderHits(out: HTMLElement, repo: RepoEntry, res: SummonResult, text: string, view: GraveyardView): void {
   clear(out);
   if (res.hits.length === 0 && res.rested.length === 0) {
@@ -76,27 +106,7 @@ function renderHits(out: HTMLElement, repo: RepoEntry, res: SummonResult, text: 
       })));
   }
 
-  res.hits.forEach((hit, i) => {
-    const t = hit.tombstone as unknown as WebTombstone;
-    const pct = Math.round(hit.similarity * 100);
-    const url = commitUrl(repo.github, t.commit);
-    const label = hit.level === 'block' ? 'BLOCK' : 'WARN';
-    out.append(h('article', { class: `ghost-card ${hit.level}` },
-      h('h3', {},
-        h('span', { class: 'badge' }, label), ` Ghost #${i + 1}: ${pct}% similar`),
-      h('p', { class: 'meta' }, hit.level === 'block'
-        ? 'The Kiro hook would block this write.'
-        : 'The Kiro hook would warn about this write.'),
-      h('p', {}, `Lines ${hit.matchedLines[0]}-${hit.matchedLines[1]} of your code match ${t.path}, buried ${t.buriedAt.slice(0, 10)}.`),
-      h('p', { class: 'epitaph' }, epitaph(t)),
-      h('p', {}, 'Commit ', url ? h('a', { href: url, target: '_blank', rel: 'noopener noreferrer' }, h('code', {}, t.commit)) : h('code', {}, t.commit),
-        ' · id ', h('code', {}, t.id)),
-      h('pre', { class: 'cause' }, t.causeOfDeath.trim() === '' ? 'cause of death unknown' : t.causeOfDeath),
-      cardLine(t.obituary) === '' ? null : h('p', { class: 'obituary-line' }, cardLine(t.obituary)),
-      h('p', { class: 'rest' }, restLine(t.id)),
-      h('button', { type: 'button', class: 'btn', 'data-open': t.id, 'data-sim': String(hit.similarity) }, 'Open the tombstone'),
-    ));
-  });
+  res.hits.forEach((hit, i) => out.append(ghostCard(repo, hit, i)));
 
   if (res.rested.length) {
     out.append(h('p', { class: 'muted' }, `Resting (acknowledged in your code): ${res.rested.map(r => `${r.tombstone.id.slice(0, 10)} at ${Math.round(r.similarity * 100)}%`).join(', ')}`));
@@ -135,6 +145,7 @@ async function main(): Promise<void> {
     $('sm-repo').textContent = repo.name;
     view = mountGraveyard($('gy-scroll'), $('gy-caption'), dialog, repo, tombs);
     setFog(0);
+    clearMoment();
     clear($('sm-out'));
     clear($('gy-verdict'));
   }
@@ -145,15 +156,60 @@ async function main(): Promise<void> {
     $('fog-text').textContent = n === 0 ? 'Fog: clear. No revenants are active.' : `Fog: thick. ${n} revenant${n === 1 ? '' : 's'} active.`;
   }
 
+  const reducedQuery = matchMedia('(prefers-reduced-motion: reduce)');
+  const sound = createSound(safeStorage(), browserAudio);
+  const soundBtn = $<HTMLButtonElement>('sound');
+  soundBtn.textContent = soundLabel(sound.enabled());
+  soundBtn.addEventListener('click', () => { soundBtn.textContent = soundLabel(sound.toggle()); });
+
+  const MOMENT_WRAP = ['hit', 'hit-block', 'hit-warn', 'calm'];
+  /** Remove the stamp, the red edge, the lead evidence card and the "hit" state. A new summon or a new repo starts from here. */
+  function clearMoment(): void {
+    clear($('gy-stamp'));
+    clear($('gy-evidence'));
+    $('gy-evidence').hidden = true;
+    $('gy-stage').classList.remove('has-evidence');
+    $('gy-wrap').classList.remove(...MOMENT_WRAP);
+    $('edge').className = 'edge';
+  }
+
+  /** Stamp, edge tint, lead evidence card and sound for a summon that has hits. */
+  function showMoment(repoEntry: RepoEntry, res: SummonResult, level: MomentLevel): void {
+    const reduced = reducedQuery.matches;
+    const cls = momentClasses(level, reduced);
+    $('gy-wrap').classList.add(...cls.wrap);
+    const edge = $('edge');
+    edge.className = 'edge';
+    void edge.offsetWidth; // restart the one-second flash
+    edge.classList.add(...cls.edge);
+
+    const st = stampFor(level)!;
+    $('gy-stamp').append(h('div', { class: `stamp ${level}` }, h('p', { class: 'word' }, st.word), h('p', { class: 'line' }, st.line)));
+
+    const ev = $('gy-evidence');
+    clear(ev);
+    ev.append(
+      h('h3', { class: 'ev-title' }, 'Evidence'),
+      ghostCard(repoEntry, res.hits[0]!, 0),
+      res.hits.length > 1 ? h('p', { class: 'muted small' }, `${res.hits.length} ghosts in all. `, h('a', { href: '#sm-out' }, 'All of them and your marked code are below.')) : h('p', { class: 'muted small' }, h('a', { href: '#sm-out' }, 'Your code with the haunted lines marked is below.')),
+    );
+    ev.querySelectorAll<HTMLButtonElement>('[data-open]').forEach(b => b.addEventListener('click', () => view?.open(b.dataset['open']!, Number(b.dataset['sim']))));
+    ev.hidden = false;
+    $('gy-stage').classList.add('has-evidence');
+    sound.play(level);
+  }
+
   function run(): void {
     const text = ($('sm-input') as HTMLTextAreaElement).value;
     const res = summon(tombs, text);
+    clearMoment();
     setFog(res.hits.length);
     view?.haunt(res.hits.map(x => ({ id: x.tombstone.id, similarity: x.similarity })));
     renderHits($('sm-out'), repo, res, text, view!);
     const top = res.hits[0];
     clear($('gy-verdict'));
     if (top) {
+      showMoment(repo, res, top.level);
       const t = top.tombstone as unknown as WebTombstone;
       $('gy-verdict').append(`${top.level === 'block' ? 'BLOCK' : 'WARN'}: ${Math.round(top.similarity * 100)}% similar to ${t.path}, ${epitaph(t)}. `, h('a', { href: '#sm-out' }, 'Read the full result'));
     }

@@ -6,24 +6,44 @@
   --mist: #aeb6cc;
   --ecto: #7cffb2;
   --blood: #c0392b;
+  --skytop: #050814;
+  --sky: #111a33;
+  --stonehi: #56665a;
+  --stonelo: #1c2a1f;
+  --ground: #0c150e;
+  --grass: #2f4a31;
   color-scheme: dark;
 }
+@font-face {
+  font-family: "Cinzel";
+  src: url("/fonts/Cinzel-Variable.ttf") format("truetype");
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+}
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--navy); color: var(--bone); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; position: relative; background: var(--navy); color: var(--bone); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 a { color: var(--ecto); }
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.875rem; }
 h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 0.4rem; }
+h1, h2, .brand { font-family: "Cinzel", Georgia, "Times New Roman", serif; letter-spacing: 0.03em; }
 .muted { color: var(--mist); }
 .small { font-size: 0.8125rem; }
 :focus-visible { outline: 3px solid var(--ecto); outline-offset: 2px; }
 .skip { position: absolute; left: -999px; top: 0; background: var(--bone); color: var(--navy); padding: 0.5rem 1rem; z-index: 10; }
 .skip:focus { left: 0; }
 
+.sky { position: absolute; top: 0; left: 0; right: 0; height: 640px; z-index: 0; pointer-events: none; overflow: hidden; background: linear-gradient(var(--skytop), var(--sky) 55%, var(--navy)); }
+.sky svg { display: block; }
+.sky .stars circle { fill: var(--bone); opacity: 0.7; }
+.sky .stars.b circle { opacity: 0.5; }
+@media (max-width: 799px) { .sky .moon { display: none; } }
+.top, .intro { position: relative; z-index: 1; }
 .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.4rem 1.2rem; padding: 1rem 1.5rem 0; }
-.brand { margin: 0; font: 700 1.2rem Georgia, serif; letter-spacing: 0.02em; }
-.links { display: flex; gap: 1.2rem; flex-wrap: wrap; margin: 0; }
+.brand { margin: 0; font-weight: 700; font-size: 1.4rem; }
+.links { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; margin: 0; }
 .intro { padding: 0.5rem 1.5rem 1.5rem; display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
-.hero h1 { font-size: clamp(1.7rem, 4.2vw, 3rem); line-height: 1.15; margin: 0.5rem 0 0.6rem; max-width: 24ch; overflow-wrap: break-word; }
+.hero h1 { font-size: clamp(1.5rem, 3.6vw, 2.5rem); line-height: 1.2; margin: 0.5rem 0 0.6rem; max-width: 26ch; overflow-wrap: break-word; font-weight: 700; }
 .sub { margin: 0 0 0.4rem; color: var(--mist); font-size: 1.1rem; max-width: 52ch; }
 .hero .row { align-items: center; margin-bottom: 0; }
 .btn-link { padding: 0.35rem 0.4rem; }
@@ -40,7 +60,7 @@ h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; margin: 0 0 0.4
 .judges ol { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.25rem; }
 .judges code { overflow-wrap: anywhere; }
 
-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 0 1.5rem 2rem; }
+main { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; padding: 0 1.5rem 2rem; }
 section { background: var(--panel); border: 1px solid var(--moss); border-radius: 8px; padding: 1rem; }
 .gy-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; justify-content: space-between; }
 .repo-pick { display: flex; flex-wrap: wrap; gap: 0.4rem; }
@@ -51,30 +71,62 @@ section { background: var(--panel); border: 1px solid var(--moss); border-radius
 .btn.primary { background: var(--ecto); color: var(--navy); border-color: var(--ecto); font-weight: 700; }
 .btn:hover, .chip:hover { border-color: var(--ecto); }
 
-.gy-wrap { position: relative; border: 1px solid var(--mist); border-radius: 6px; background: linear-gradient(#0b1020, #101a2c); }
+.gy-wrap { position: relative; overflow: hidden; border: 1px solid var(--mist); border-radius: 6px; background:
+  radial-gradient(circle at 12% 18%, rgba(232,226,208,0.7) 0 1px, transparent 1.5px),
+  radial-gradient(circle at 46% 9%, rgba(232,226,208,0.6) 0 1px, transparent 1.5px),
+  radial-gradient(circle at 81% 22%, rgba(232,226,208,0.7) 0 1px, transparent 1.5px),
+  linear-gradient(var(--skytop), var(--sky)); }
+.gy-stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; align-items: start; }
+.gy-main { min-width: 0; }
+.gy-evidence { min-width: 0; }
+.gy-evidence[hidden] { display: none; }
+.ev-title { font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mist); }
+.gy-evidence .ghost-card { margin: 0 0 0.5rem; }
+.gy-evidence .cause { max-height: 7.5rem; }
+.gy-stage.has-evidence .gy-scroll { max-height: 52vh; }
+@media (min-width: 1100px) {
+  .gy-stage.has-evidence { grid-template-columns: minmax(0, 1fr) minmax(21rem, 27rem); }
+}
 .gy-scroll { overflow: auto; max-height: 62vh; }
-.gy-inner { position: relative; display: flex; }
+.gy-inner { position: relative; display: flex; padding-top: 48px; }
 .row-labels { position: sticky; left: 0; z-index: 2; flex: none; background: var(--navy); border-right: 1px solid var(--mist); }
 .row-label { position: absolute; left: 0; right: 0; padding: 4px 8px; font-size: 0.8125rem; overflow: hidden; border-top: 1px solid var(--moss); }
 .row-label small { color: var(--mist); }
 .stones { flex: none; display: block; }
-.band.b0 { fill: #0e1428; } .band.b1 { fill: #121a33; }
+.band.b0 { fill: #0b1020; fill-opacity: 0.35; } .band.b1 { fill: #111a33; fill-opacity: 0.35; }
+.soil { fill: var(--ground); } .blade { fill: var(--grass); }
+.st-hi { stop-color: var(--stonehi); } .st-mid { stop-color: var(--moss); } .st-lo { stop-color: var(--stonelo); }
 .tick { stroke: var(--moss); stroke-width: 1; stroke-dasharray: 2 4; }
 .tick-label { fill: var(--mist); font-size: 11px; }
 .stone { cursor: pointer; }
-.stone .body { fill: var(--moss); stroke: var(--bone); stroke-width: 1.5; }
+.stone .body { stroke: var(--bone); stroke-width: 1.5; }
 .stone:hover .body, .stone:focus-visible .body { fill: #4d7352; stroke: var(--ecto); stroke-width: 2.5; }
 .stone:focus-visible { outline: none; }
 .stone.cracked .body { stroke: var(--blood); stroke-width: 2.5; }
 .stone .crack { fill: none; stroke: var(--bone); stroke-width: 2; stroke-linecap: round; }
 .stone.haunted .body { stroke: var(--ecto); stroke-width: 3; }
 .ghost path, .ghost-body path { fill: var(--ecto); }
+.ghost.big .ghost-body { filter: drop-shadow(0 0 6px rgba(124, 255, 178, 0.5)); }
 .ghost .eye { fill: var(--navy); }
+.ghost-pct.big { font-size: 22px; stroke-width: 4px; }
 .ghost-pct { fill: var(--ecto); font-size: 12px; font-weight: 700; paint-order: stroke; stroke: var(--navy); stroke-width: 3px; }
+.fog-base { position: absolute; left: 0; bottom: 0; width: 200%; height: 55%; pointer-events: none; opacity: 0.5;
+  background: radial-gradient(ellipse at 25% 100%, rgba(232,226,208,0.22), transparent 65%) 0 0 / 25% 100% repeat-x,
+              radial-gradient(ellipse at 75% 100%, rgba(232,226,208,0.16), transparent 60%) 12.5% 0 / 25% 100% repeat-x; }
 .fog { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 100%, rgba(232,226,208,0.55), rgba(232,226,208,0.1) 70%); opacity: 0; transition: opacity 0.6s; }
 .stone-label { fill: var(--bone); font-size: 12px; font-weight: 700; pointer-events: none; paint-order: stroke; stroke: var(--navy); stroke-width: 3px; }
 .tip { position: absolute; z-index: 5; max-width: min(20rem, 80%); background: var(--navy); color: var(--bone); border: 1px solid var(--bone); border-radius: 6px; padding: 0.3rem 0.6rem; font: italic 0.875rem Georgia, serif; pointer-events: none; }
 .tip[hidden] { display: none; }
+.stamp-host { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: flex; align-items: flex-start; justify-content: flex-start; padding: 0.8rem 1rem; }
+.stamp { background: rgba(11, 16, 32, 0.9); color: var(--bone); border: 4px solid var(--bone); border-radius: 6px; padding: 0.3rem 1rem 0.5rem; text-align: center; rotate: -4deg; max-width: min(24rem, 90%); }
+.stamp p { margin: 0; }
+.stamp .word { font: 900 clamp(1.8rem, 5vw, 3.2rem)/1.1 "Cinzel", Georgia, serif; letter-spacing: 0.12em; }
+.stamp .line { font-size: 0.9375rem; }
+.stamp.block { border-color: var(--blood); }
+.stamp.warn { border-color: var(--ecto); }
+.stamp.warn .word { color: var(--ecto); }
+.edge { position: fixed; inset: 0; z-index: 30; pointer-events: none; opacity: 0; }
+.edge-block { opacity: 0.28; background: radial-gradient(ellipse at center, transparent 55%, rgba(192, 57, 43, 0.9) 100%); }
 .verdict { margin: 0.25rem 0 0; min-height: 1.5rem; font-weight: 700; }
 .caption { min-height: 1.5rem; margin: 0.5rem 0 0; color: var(--bone); }
 
@@ -111,16 +163,36 @@ dialog::backdrop { background: rgba(5, 8, 16, 0.8); }
 .revivals { padding-left: 1.2rem; }
 .foot { padding: 0 1.5rem 2rem; color: var(--mist); font-size: 0.875rem; }
 
-/* Motion only when the visitor has not asked for less. */
+/* Motion only when the visitor has not asked for less. Everything here is a one-shot except the fog and the stars. */
 @media (prefers-reduced-motion: no-preference) {
-  .stone.haunted { animation: shake 0.5s 3; }
-  .stone.haunted .ghost { animation: rise 2.4s ease-in-out infinite alternate; }
+  .stone.haunted { animation: shake 0.4s 2; }
+  .stone.haunted.cracked .crack { animation: crack-flash 0.9s ease-out 2; }
+  .ghost { animation: ghost-rise 1.1s cubic-bezier(0.2, 0.8, 0.25, 1) both; }
+  .edge-block { animation: edge-flash 1s ease-out both; }
+  .stamp { animation: stamp-in 0.35s cubic-bezier(0.2, 1.5, 0.4, 1) both, stamp-out 0.8s ease 3.4s forwards; }
+  .fog-base { animation: fog-slide 90s linear infinite; }
   .gy-wrap.foggy .fog { animation: drift 9s ease-in-out infinite alternate; }
+  .sky .stars { animation: twinkle 5s ease-in-out infinite alternate; }
+  .sky .stars.b { animation-duration: 7s; animation-delay: -2s; }
   @keyframes shake { 0%, 100% { translate: 0 0; } 25% { translate: -3px 0; } 75% { translate: 3px 0; } }
-  @keyframes rise { from { transform: translateY(0); } to { transform: translateY(-8px); } }
-  @keyframes drift { from { background-position: 0 0; transform: translateX(0); } to { transform: translateX(-2%); } }
+  @keyframes crack-flash { 0%, 100% { stroke: var(--bone); stroke-width: 2; } 40% { stroke: var(--blood); stroke-width: 5; } }
+  @keyframes ghost-rise { from { translate: 0 40px; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+  @keyframes edge-flash { 0% { opacity: 0; } 18% { opacity: 1; } 100% { opacity: 0.28; } }
+  @keyframes stamp-in { from { transform: scale(2.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes stamp-out { to { opacity: 0; } }
+  @keyframes fog-slide { to { transform: translateX(-50%); } }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-2%); } }
+  @keyframes twinkle { from { opacity: 0.45; } to { opacity: 1; } }
 }
+/* Reduced motion: final states, no movement. The stamp stays visible, the edge stays a steady faint red, the ghost stands in place. */
 @media (prefers-reduced-motion: reduce) {
   .fog { transition: none; }
+  .edge-block { opacity: 0.28; }
+  .stamp { opacity: 1; rotate: 0deg; }
   * { animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* The lead card beside the graveyard is a short version; the full card follows in the list below. */
+.gy-evidence .obituary-line { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.gy-evidence .rest { display: none; }
+.gy-evidence .ghost-card p { margin: 0.2rem 0; }

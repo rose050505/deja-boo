@@ -2,8 +2,12 @@ import { clear, h, s } from './dom.ts';
 import { commitUrl, type RepoEntry, type WebTombstone } from './data.ts';
 import { epitaph, isCracked, layoutStones, type Layout } from './layout.ts';
 import { ghostOpacity } from './summon.ts';
+import { BIG_GHOST_SCALE, ghostScale } from './moment.ts';
 import { REVERT_STONE_LABEL, initialStoneId, tipPosition, tooltipFor } from './first-screen.ts';
 import { OBITUARY_NOTE, excerptText, obituaryHeading, obituaryRefs, titleText } from './obituary-text.ts';
+
+/** Empty sky above the first row (px, matches `.gy-inner` padding-top) so the large ghost is never cut off. */
+const SKY = 48;
 
 export const DEFAULT_CAPTION = 'Hover or focus a stone to read its epitaph.';
 
@@ -79,15 +83,24 @@ export function renderTombstone(dialog: HTMLDialogElement, repo: RepoEntry, t: W
   );
 }
 
-/** A small ghost above a stone. Opacity = similarity; the percentage is also written next to it. */
-function ghostGlyph(similarity: number): SVGGElement {
-  return s('g', { class: 'ghost' },
-    s('g', { class: 'ghost-body', opacity: ghostOpacity(similarity) },
-      s('path', { d: 'M-9 0 V-12 A9 9 0 0 1 9 -12 V0 L6 -3 L3 0 L0 -3 L-3 0 L-6 -3 Z', transform: 'translate(0 -26)' }),
+const GHOST_PATH = 'M-9 0 V-12 A9 9 0 0 1 9 -12 V0 L6 -3 L3 0 L0 -3 L-3 0 L-6 -3 Z';
+
+/**
+ * A ghost standing on a stone's top edge. Opacity = similarity; the percentage is written next to it.
+ * The large one (the first hit) is the same glyph scaled up, so it rises out of the stone it haunts.
+ */
+function ghostGlyph(similarity: number, box: { x: number; y: number; w: number }, scale: number): SVGGElement {
+  const big = scale > 1;
+  const pct = `${Math.round(similarity * 100)}%`;
+  return s('g', { class: big ? 'ghost big' : 'ghost', transform: `translate(${box.x + box.w / 2} ${box.y})` },
+    s('g', { class: 'ghost-body', opacity: ghostOpacity(similarity), transform: big ? `translate(0 8) scale(${scale}) translate(0 26)` : 'translate(0 18)' },
+      s('path', { d: GHOST_PATH, transform: 'translate(0 -26)' }),
       s('circle', { cx: -3, cy: -40, r: 1.6, class: 'eye' }),
       s('circle', { cx: 3, cy: -40, r: 1.6, class: 'eye' }),
     ),
-    s('text', { x: 12, y: -34, class: 'ghost-pct' }, `${Math.round(similarity * 100)}%`),
+    big
+      ? s('text', { x: 9 * BIG_GHOST_SCALE + 8, y: -26, class: 'ghost-pct big' }, pct)
+      : s('text', { x: 12, y: -14, class: 'ghost-pct' }, pct),
   );
 }
 
@@ -118,8 +131,19 @@ export function mountGraveyard(
     class: 'stones', width: layout.width, height: layout.height, viewBox: `0 0 ${layout.width} ${layout.height}`,
     role: 'group', 'aria-label': `${tombstones.length} tombstones of ${repo.name}, by date and directory`,
   });
-  // Row bands and year ticks.
-  layout.rows.forEach((r, i) => svg.append(s('rect', { x: 0, y: r.y, width: layout.width, height: r.h, class: i % 2 ? 'band b1' : 'band b0' })));
+  // Shared paints: stone shading (grey top-left to moss, dark base) and the grass strip.
+  svg.append(s('defs', {},
+    s('linearGradient', { id: 'stone-grad', x1: 0, y1: 0, x2: 0.7, y2: 1 },
+      s('stop', { offset: '0', class: 'st-hi' }), s('stop', { offset: '0.55', class: 'st-mid' }), s('stop', { offset: '1', class: 'st-lo' })),
+    s('pattern', { id: 'grass-pat', width: 14, height: 9, patternUnits: 'userSpaceOnUse' },
+      s('rect', { width: 14, height: 9, class: 'soil' }),
+      s('path', { class: 'blade', d: 'M1 9 L2 3 L3.5 9 Z M6 9 L7.5 2 L9 9 Z M10.5 9 L11.5 4 L13 9 Z' })),
+  ));
+  // Row bands, a grassy ground strip under each row, and year ticks.
+  layout.rows.forEach((r, i) => svg.append(
+    s('rect', { x: 0, y: r.y, width: layout.width, height: r.h, class: i % 2 ? 'band b1' : 'band b0' }),
+    s('g', { transform: `translate(0 ${r.y + r.h - 9})` }, s('rect', { width: layout.width, height: 9, fill: 'url(#grass-pat)' })),
+  ));
   if (tombstones.length) {
     const y0 = new Date(layout.t0).getUTCFullYear();
     const y1 = new Date(layout.t1).getUTCFullYear();
@@ -142,7 +166,7 @@ export function mountGraveyard(
     });
     const r = b.w / 2;
     g.append(
-      s('path', { class: 'body', d: `M0 ${b.h} V${r} A${r} ${r} 0 0 1 ${b.w} ${r} V${b.h} Z` }),
+      s('path', { class: 'body', fill: 'url(#stone-grad)', d: `M0 ${b.h} V${r} A${r} ${r} 0 0 1 ${b.w} ${r} V${b.h} Z` }),
     );
     if (cracked) g.append(s('path', { class: 'crack', d: `M${b.w * 0.55} ${b.h * 0.1} l${-b.w * 0.18} ${b.h * 0.28} l${b.w * 0.2} ${b.h * 0.1} l${-b.w * 0.15} ${b.h * 0.3}` }));
     nodes.set(t.id, g);
@@ -158,10 +182,11 @@ export function mountGraveyard(
   }
 
   scroll.append(h('div', { class: 'gy-inner', style: `width:${labelW + layout.width}px` }, labels, svg));
+  const boxes = new Map(layout.stones.map(b => [b.id, b] as const));
   if (openBox) {
     // Narrow screens: put the stone just right of the sticky row labels so the label beside it stays readable.
     scroll.scrollLeft = Math.max(0, scroll.clientWidth < 700 ? openBox.x - 12 : labelW + openBox.x + openBox.w / 2 - scroll.clientWidth / 2);
-    scroll.scrollTop = Math.max(0, openBox.y + openBox.h / 2 - scroll.clientHeight / 2);
+    scroll.scrollTop = Math.max(0, SKY + openBox.y + openBox.h / 2 - scroll.clientHeight / 2);
   }
 
   // F5: epitaph tooltip next to the stone, on hover and keyboard focus; Esc hides it.
@@ -210,18 +235,21 @@ export function mountGraveyard(
   return {
     open,
     haunt(hits) {
-      for (const g of nodes.values()) {
-        g.classList.remove('haunted');
-        g.querySelector('.ghost')?.remove();
-      }
+      for (const g of nodes.values()) g.classList.remove('haunted');
+      svg.querySelector('.ghost-layer')?.remove();
+      const layer = s('g', { class: 'ghost-layer', 'pointer-events': 'none' });
       let first: SVGGElement | undefined;
+      let index = 0;
       for (const { id, similarity } of hits) {
         const g = nodes.get(id);
-        if (!g) continue;
+        const box = boxes.get(id);
+        if (!g || !box) continue;
         g.classList.add('haunted');
-        g.append(ghostGlyph(similarity));
+        layer.append(ghostGlyph(similarity, box, ghostScale(index++)));
         first ??= g;
       }
+      // The ghost layer is last in the svg, so ghosts draw over neighbouring stones.
+      if (layer.childNodes.length) svg.append(layer);
       const firstId = hits.find(x => nodes.has(x.id))?.id;
       if (firstId !== undefined) show(firstId);
       first?.scrollIntoView({ block: 'center', inline: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });

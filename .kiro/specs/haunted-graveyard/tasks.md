@@ -31,9 +31,12 @@ Each batch ends with `npm test`, `npx tsc --noEmit` and `npm run web:check` gree
 ### [x] Task 16: F5 epitaph next to the hovered or focused stone
   Note: `.tip` tooltip on hover and focus, Esc and scroll hide it, native `<title>` removed to avoid a double tooltip; `tooltipFor` and `tipPosition` tested.
 ## Batch G: the moment it blocks
-### [ ] Task 17: G1 scroll, shake, large ghost, red edge tint, BLOCKED / WARN stamp, evidence card beside the graveyard
-### [ ] Task 18: G2 CSS/SVG atmosphere, always-on fog, committed OFL display font
-### [ ] Task 19: G3 opt-in synthesized sound (default off)
+### [x] Task 17: G1 scroll, shake, large ghost, red edge tint, BLOCKED / WARN stamp, evidence card beside the graveyard
+  Note: first ghost 3.5x (`moment.ts`), 1 s edge flash then steady 0.28 red for blocks only, stamp text is real DOM text, lead card in `#gy-evidence` beside the graveyard (under it below 1100px); at 1440x900 stone and card end at y=766.
+### [x] Task 18: G2 CSS/SVG atmosphere, always-on fog, committed OFL display font
+  Note: sky gradient, moon, 2 twinkling star groups, shaded stones, grass strip per row, always-on drifting `.fog-base`; Cinzel (OFL 1.1) in `web/public/fonts/` with licence.
+### [x] Task 19: G3 opt-in synthesized sound (default off)
+  Note: `sound.ts`, header toggle "Sound: off", saved in localStorage, Web Audio swell + chime created only after opt-in; tested with a stub.
 ## Batch H: your own graveyard
 ### [ ] Task 20: H1 drop / pick `.deja-boo/graveyard.json`, validate, draw, summon target; express-size file without freezing; malformed file changes nothing
 ### [ ] Task 21: reduced motion, text equivalents and contrast test for all new states and colours (applies to F, G, H)

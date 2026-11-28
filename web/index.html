@@ -17,6 +17,27 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%91%BB%3C/text%3E%3C/svg%3E" />
   </head>
   <body>
+    <div class="sky" aria-hidden="true">
+      <svg width="100%" height="100%" preserveAspectRatio="xMidYMin slice">
+        <defs>
+          <radialGradient id="moon-glow"><stop offset="0" stop-color="#e8e2d0" stop-opacity="0.35" /><stop offset="1" stop-color="#e8e2d0" stop-opacity="0" /></radialGradient>
+        </defs>
+        <g class="stars">
+          <circle cx="6%" cy="70" r="1.2" /><circle cx="14%" cy="150" r="1" /><circle cx="23%" cy="40" r="1.4" /><circle cx="33%" cy="110" r="1" />
+          <circle cx="47%" cy="30" r="1.2" /><circle cx="58%" cy="95" r="1" />
+        </g>
+        <g class="stars b">
+          <circle cx="10%" cy="105" r="1" /><circle cx="28%" cy="190" r="1.2" /><circle cx="52%" cy="160" r="1.4" /><circle cx="66%" cy="50" r="1" />
+          <circle cx="76%" cy="130" r="1.2" /><circle cx="94%" cy="190" r="1" />
+        </g>
+        <svg class="moon" x="88%" y="150" overflow="visible">
+          <circle r="90" fill="url(#moon-glow)" />
+          <circle r="28" fill="#e8e2d0" opacity="0.9" />
+          <circle cx="-8" cy="-7" r="5" fill="#b9b4a2" opacity="0.5" /><circle cx="9" cy="8" r="7" fill="#b9b4a2" opacity="0.4" />
+        </svg>
+      </svg>
+    </div>
+    <div id="edge" class="edge" aria-hidden="true"></div>
     <a class="skip" href="#summon">Skip to the summon panel</a>
     <header class="top">
       <p class="brand">Déjà Boo</p>
@@ -24,6 +45,7 @@
         <a href="https://youtu.be/E0bHgE6uA8I" target="_blank" rel="noopener noreferrer">Demo video</a>
         <a href="https://github.com/rose050505/deja-boo" target="_blank" rel="noopener noreferrer">Repository</a>
         <a href="https://devpost.com/software/deja-boo" target="_blank" rel="noopener noreferrer">Devpost</a>
+        <button id="sound" type="button" class="chip">Sound: off</button>
       </nav>
     </header>
     <div class="intro">
@@ -56,12 +78,19 @@
           <div class="repo-pick" role="group" aria-label="Choose a repository"></div>
         </div>
         <p id="gy-summary" class="muted" role="status"></p>
-        <div id="gy-wrap" class="gy-wrap">
-          <div id="gy-scroll" class="gy-scroll" tabindex="-1"></div>
-          <div id="fog" class="fog" aria-hidden="true"></div>
+        <div id="gy-stage" class="gy-stage">
+          <div class="gy-main">
+            <div id="gy-wrap" class="gy-wrap">
+              <div id="gy-scroll" class="gy-scroll" tabindex="-1"></div>
+              <div class="fog-base" aria-hidden="true"></div>
+              <div id="fog" class="fog" aria-hidden="true"></div>
+              <div id="gy-stamp" class="stamp-host"></div>
+            </div>
+            <p id="gy-caption" class="caption" aria-live="polite">Hover or focus a stone to read its epitaph.</p>
+            <p id="gy-verdict" class="verdict" role="status"></p>
+          </div>
+          <aside id="gy-evidence" class="gy-evidence" aria-label="Evidence for the strongest ghost" hidden></aside>
         </div>
-        <p id="gy-caption" class="caption" aria-live="polite">Hover or focus a stone to read its epitaph.</p>
-        <p id="gy-verdict" class="verdict" role="status"></p>
       </section>
       <section id="summon" class="summon" aria-labelledby="sm-h">
         <h2 id="sm-h">Summon</h2>
