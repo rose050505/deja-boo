@@ -6,6 +6,7 @@ import { DEFAULT_MINER_CONFIG } from '../core/types.js';
 import { resolveSkipPatterns } from '../core/skip.js';
 import { runIndexWithStats } from '../miner/index.js';
 import { toGraveyardJson } from '../miner/serialize.js';
+import { summaryLines } from './comebacks.js';
 import { MinerError } from '../miner/git-log.js';
 
 /**
@@ -106,6 +107,7 @@ export async function runIndexCommand(argv: string[]): Promise<void> {
     console.log(`Merge artifacts  : ${stats.mergeArtifacts} (excluded from revivals)`);
     console.log(`Alive at HEAD    : ${stats.aliveAtHead} (${graveyard.stats.aliveAtHeadReverts} Reverts stay watched)`);
     console.log(`Output           : ${out}`);
+    for (const line of summaryLines(graveyard.tombstones)) console.log(line);
   } catch (err) {
     if (err instanceof MinerError) {
       process.stderr.write(`deja-boo error: ${err.message}\n`);

@@ -38,5 +38,6 @@ Each batch ends with `npm test`, `npx tsc --noEmit` and `npm run web:check` gree
 ### [x] Task 19: G3 opt-in synthesized sound (default off)
   Note: `sound.ts`, header toggle "Sound: off", saved in localStorage, Web Audio swell + chime created only after opt-in; tested with a stub.
 ## Batch H: your own graveyard
-### [ ] Task 20: H1 drop / pick `.deja-boo/graveyard.json`, validate, draw, summon target; express-size file without freezing; malformed file changes nothing
+### [x] Task 20: H1 drop / pick `.deja-boo/graveyard.json`, validate, draw, summon target; express-size file without freezing; malformed file changes nothing
+  Note: `your-graveyard.ts` validates, then converts with `stripGraveyard` (equals the committed haunted-http.json in a test); drop zone, picker, folder drop, optional obituaries.json, optional validated owner/name in `main.ts`; a 5 MB file converts and lays out in under 1 s in a test, "Reading…" shows first; not checked in a browser (this machine's Chrome policy blocks localhost).
 ### [ ] Task 21: reduced motion, text equivalents and contrast test for all new states and colours (applies to F, G, H)

@@ -33,7 +33,8 @@ describe('headline numbers', () => {
     const html = read('../index.html');
     expect(html).toContain('Paste what Kiro wrote (real requests history)');
     expect(html).toMatch(/<details[^>]*id="how-counted"(?![^>]*\sopen)/);
-    expect(html).toContain('This page only checks against the sample graveyards');
+    expect(html).toContain('Pick a sample graveyard, or open your own above');
+    expect(html).toContain('never uploaded');
   });
 });
 

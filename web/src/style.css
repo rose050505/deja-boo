@@ -66,6 +66,12 @@ section { background: var(--panel); border: 1px solid var(--moss); border-radius
 .repo-pick { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .chip, .btn { background: var(--navy); color: var(--bone); border: 1px solid var(--bone); border-radius: 999px; padding: 0.35rem 0.9rem; font: inherit; cursor: pointer; }
 .btn { border-radius: 6px; }
+.drop { margin-top: 0.75rem; padding: 0.6rem 0.9rem; border: 2px dashed var(--mist); border-radius: 8px; }
+.drop.over { border-color: var(--ecto); background: var(--navy); }
+.drop p { margin: 0.25rem 0; }
+.drop .slug { background: var(--navy); color: var(--bone); border: 1px solid var(--bone); border-radius: 6px; padding: 0.2rem 0.5rem; font: inherit; width: 14rem; max-width: 100%; }
+.drop-msg:empty { display: none; }
+.drop-msg.error { color: var(--bone); border-left: 4px solid var(--bone); padding-left: 0.5rem; }
 .chip[aria-pressed="true"] { background: var(--moss); border-width: 2px; font-weight: 700; }
 .btn-link, a.btn-link { color: var(--ecto); }
 .btn.primary { background: var(--ecto); color: var(--navy); border-color: var(--ecto); font-weight: 700; }

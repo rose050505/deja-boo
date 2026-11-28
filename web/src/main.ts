@@ -9,6 +9,8 @@ import { epitaph } from './layout.ts';
 import { cardLine } from './obituary-text.ts';
 import { isRevertSubject } from '../../src/core/revert.ts';
 import { momentClasses, stampFor, type MomentLevel } from './moment.ts';
+import { MAX_FILE_BYTES, parseDropped, parseGithubSlug, toWebGraveyard } from './your-graveyard.ts';
+import type { Obituary, Tombstone } from '../../src/core/types.ts';
 import { browserAudio, createSound, soundLabel } from './sound.ts';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
@@ -141,7 +143,8 @@ async function main(): Promise<void> {
     }
     tombs = data;
     const cracked = tombs.filter(t => isRevertSubject(t.causeOfDeath)).length;
-    $('gy-summary').textContent = `${repo.name}: ${tombs.length} tombstones watched (${cracked} cracked by a Revert), from ${repo.mined} mined. Stones still alive at HEAD are not shown, except Reverts.`;
+    $('gy-summary').textContent = `${repo.name}: ${tombs.length} tombstones watched (${cracked} cracked by a Revert), from ${repo.mined} mined. Stones still alive at HEAD are not shown, except Reverts.${
+      tombs.length > 0 ? '' : repo.mined === 0 ? ' This graveyard is empty: the file has no tombstones, so there is nothing to draw.' : ' Nothing to draw: every mined tombstone is still alive at HEAD.'}`;
     $('sm-repo').textContent = repo.name;
     view = mountGraveyard($('gy-scroll'), $('gy-caption'), dialog, repo, tombs);
     setFog(0);
@@ -242,7 +245,113 @@ async function main(): Promise<void> {
   $('hero-demo').addEventListener('click', heroDemo);
   document.querySelector('[data-demo]')?.addEventListener('click', heroDemo);
 
+  setupYours();
   await select(repo.name);
+
+  /** "Your graveyard": read in the browser with the File API, never stored or sent. */
+  function setupYours(): void {
+    const zone = $('yours-drop');
+    const msg = $('yours-msg');
+    const slugInput = $<HTMLInputElement>('yours-slug');
+    const fileInput = $<HTMLInputElement>('yours-file');
+    let raw: Tombstone[] | null = null;
+    let obits: Record<string, Obituary> | null = null;
+    let entry: RepoEntry | null = null;
+
+    const say = (text: string, error = false): void => { msg.textContent = text; msg.classList.toggle('error', error); };
+    const fail = (reason: string): void => say(`This is not a deja-boo graveyard: ${reason}`, true);
+    const nextFrame = (): Promise<void> => new Promise(r => requestAnimationFrame(() => r()));
+
+    /** The slug field's value: a valid `owner/name`, null when empty or invalid (with a note). */
+    function slug(): string | null {
+      const v = slugInput.value.trim();
+      if (v === '') return null;
+      const ok = parseGithubSlug(v);
+      if (ok === null) say('That is not an owner/name (for example pallets/click). Commit links stay off.', true);
+      return ok;
+    }
+
+    async function show(label: string): Promise<void> {
+      const data = toWebGraveyard(raw!, obits);
+      if (entry) {
+        cache.delete(entry.name);
+        index.splice(index.indexOf(entry), 1);
+        picker.querySelector(`[data-repo="${CSS.escape(entry.name)}"]`)?.remove();
+      }
+      entry = { name: `yours: ${label}`, github: slug(), tombstones: data.length, mined: raw!.length };
+      index.unshift(entry);
+      cache.set(entry.name, data);
+      picker.prepend(h('button', { type: 'button', class: 'chip', 'data-repo': entry.name, 'aria-pressed': 'false' }, entry.name));
+      await select(entry.name);
+      say(`Read ${raw!.length} tombstones in your browser; nothing was uploaded.${obits ? ' Obituaries merged.' : ''}${
+        slugInput.value.trim() !== '' && entry.github === null ? ' The owner/name is not valid (for example pallets/click), so commit links are off.' : ''}`);
+    }
+
+    async function open(files: File[], folder: string | null): Promise<void> {
+      say('Reading…');
+      await nextFrame();
+      let graveyard: Tombstone[] | null = null;
+      let obit: Record<string, Obituary> | null = null;
+      let label: string | null = null;
+      for (const f of files) {
+        if (f.size > MAX_FILE_BYTES) return fail(`${f.name} is larger than ${MAX_FILE_BYTES / 1024 / 1024} MB`);
+        let text: string;
+        try { text = await f.text(); } catch { return fail(`${f.name} could not be read`); }
+        const p = parseDropped(f.name, text);
+        if (p.kind === 'error') return fail(p.reason);
+        if (p.kind === 'graveyard') { graveyard = p.tombstones; label = folder ?? f.name; } else obit = p.obituaries;
+      }
+      if (graveyard === null && raw === null) return fail('drop graveyard.json together with obituaries.json (or first)');
+      if (graveyard === null && obit === null) return fail('no graveyard.json found');
+      const prev = { raw, obits };
+      if (graveyard !== null) { raw = graveyard; obits = obit; } else obits = obit;
+      await nextFrame();
+      try { await show(label ?? entry?.name.slice('yours: '.length) ?? 'graveyard.json'); } catch (e) { raw = prev.raw; obits = prev.obits; fail(String(e)); }
+    }
+
+    $('yours-pick').addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => { const fs = [...(fileInput.files ?? [])]; fileInput.value = ''; if (fs.length) void open(fs, null); });
+    slugInput.addEventListener('change', () => {
+      say('');
+      const github = slug();
+      if (entry) { entry.github = github; if (repo === entry) void select(entry.name); }
+    });
+
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => e.preventDefault());
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('over');
+      const dt = e.dataTransfer;
+      if (!dt) return;
+      // The DataTransfer is only valid during this event: take files and folder entries now, read them after.
+      const plain = [...dt.files];
+      const dirs = [...dt.items].map(i => i.webkitGetAsEntry?.() ?? null).filter((x): x is FileSystemEntry => x !== null && x.isDirectory);
+      if (dirs.length === 0) { if (plain.length) void open(plain, null); return; }
+      void (async () => {
+        const found: File[] = [];
+        for (const d of dirs) await collect(d, 0, found);
+        void open(found.length ? found : plain, dirs[0]!.name);
+      })().catch(() => fail('the folder could not be read'));
+    });
+  }
+}
+
+/** Find graveyard.json and obituaries.json inside a dropped folder (at most 3 levels deep, no .git or node_modules). */
+async function collect(entry: FileSystemEntry, depth: number, out: File[]): Promise<void> {
+  if (entry.isFile) {
+    if (/^(graveyard|obituaries)\.json$/i.test(entry.name)) out.push(await new Promise<File>((res, rej) => (entry as FileSystemFileEntry).file(res, rej)));
+    return;
+  }
+  if (depth >= 3 || entry.name === '.git' || entry.name === 'node_modules') return;
+  const reader = (entry as FileSystemDirectoryEntry).createReader();
+  for (;;) {
+    const batch = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej));
+    if (batch.length === 0) break;
+    for (const child of batch) await collect(child, depth + 1, out);
+  }
 }
 
 main().catch((err: unknown) => {

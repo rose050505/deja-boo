@@ -577,7 +577,8 @@ Per label file: `revivals-50-hand.jsonl` real 16/20 and false 26/27 (unchanged);
 
 ## Index summary (judge review)
 
-- [ ] **Comebacks and next step.** After the counters, `index` prints up to 5 comebacks (path, death date, first cause line, reviving commit and date), newest first, or "No comebacks found in history."; then the `Next:` line (REQ-15). Add the "view it" part in the same batch as haunted-graveyard H1.
+- [x] **Comebacks and next step.** After the counters, `index` prints up to 5 comebacks (path, death date, first cause line, reviving commit and date), newest first, or "No comebacks found in history."; then the `Next:` line (REQ-15). Add the "view it" part in the same batch as haunted-graveyard H1.
+  Note: `src/cli/comebacks.ts` (one comeback per patch, merge artifacts left out, newest first, "via Revert"), printed after the unchanged counters; tests in `comebacks.test.ts`; "view it" is true now that H1 exists.
 
 ---
 

@@ -32,6 +32,9 @@ describe('palette contrast (WCAG AA)', () => {
     expect(lum(vars['ground']!)).toBeLessThan(lum(vars['stonehi']!));
     expect(lum(vars['stonelo']!)).toBeLessThan(lum(vars['moss']!));
   });
+  // Batch H: the drop zone dashed border (mist) and error edge (bone) sit on the panel; the slug field is bone on navy with a bone border.
+  it('drop zone border mist on panel >= 3:1', () => expect(ratio(vars['mist']!, vars['panel']!)).toBeGreaterThanOrEqual(3));
+  it('slug field text bone on navy >= 4.5:1', () => expect(ratio(vars['bone']!, vars['navy']!)).toBeGreaterThanOrEqual(4.5));
   it('stone edge (bone) on moss >= 3:1', () => expect(ratio(vars['bone']!, vars['moss']!)).toBeGreaterThanOrEqual(3));
   it('every animation sits under no-preference, and reduce turns animations off', () => {
     const outside = css.replace(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/, '');

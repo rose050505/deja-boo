@@ -45,7 +45,7 @@ How well the matcher catches rewritten dead code, and how often it is wrong, is 
 ## Use it on your repo
 
 1. **Install.** `npm install -g github:rose050505/deja-boo` (Node 24 or newer; the install builds `dist/`). Or run everything through `npx -y github:rose050505/deja-boo <command>`.
-2. **Index.** In the repository root run `deja-boo index`. It mines the full git history and writes `.deja-boo/graveyard.json` (creating `.deja-boo/`). Add `.deja-boo/graveyard.json`, `.deja-boo/obituaries.json` and `.deja-boo/stop-state.json` to your `.gitignore`, and run `deja-boo index` again whenever history changes. Try `deja-boo check src/some-file.ts`.
+2. **Index.** In the repository root run `deja-boo index`. It mines the full git history and writes `.deja-boo/graveyard.json` (creating `.deja-boo/`). Add `.deja-boo/graveyard.json`, `.deja-boo/obituaries.json` and `.deja-boo/stop-state.json` to your `.gitignore`, and run `deja-boo index` again whenever history changes. Try `deja-boo check src/some-file.ts`. To see the graveyard, open [the page](https://rose050505.github.io/deja-boo/) and drop `.deja-boo/graveyard.json` on it; the file is read in your browser and never uploaded.
    Optional, uses the network: `deja-boo obituary --limit 50` asks GitHub which pull request merged each death commit and stores the start of its text, so warnings say why the code died even when the commit message is just `Revert "x"` (see item 8 below).
 3. **Add the hooks.** Install the Kiro Power in [`power/`](power/README.md) (MCP tools and skill), then copy the guard (from a clone of this repository, or download `power/hooks/deja-boo-guard.json`): `mkdir -p .kiro/hooks && cp power/hooks/deja-boo-guard.json .kiro/hooks/`. It runs `npx -y github:rose050505/deja-boo hook` before every write and when the agent stops, so it works in any repository. (This repository's own `.kiro/hooks/` use `node dist/cli/main.js` and only work here.)
 
@@ -80,7 +80,7 @@ Déjà Boo finds code that comes back as a block of 4 or more lines, close to ho
 
 ## Haunted graveyard (web)
 
-A static page that draws the graveyard and runs the detector in the browser.
+A static page that draws the graveyard and runs the detector in the browser. Drop your own `.deja-boo/graveyard.json` (optionally with `obituaries.json`) on it to draw and summon against your repository; the file never leaves your browser.
 
     npm run web                                # dev server
     npm run web:build && npm run web:preview   # production build, served locally
