@@ -1,0 +1,189 @@
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now the CLI tests.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Batch H task 20 and the REQ-15 index summary are done and committed as `905bd52` (not pushed). `npm test` (674 tests), `npx tsc --noEmit`, `npm run web:check`, `npm run build` and `npm run web:build` all pass.
+
+I never ran the new page UI in a browser. This machine's Chrome admin policy blocks `localhost`, and I did not try to get around it. The page code is covered by type checks, the build and unit tests only. Please do one manual drop-and-summon pass before you rely on it.
+
+**Index summary (REQ-15)**
+- `src/cli/comebacks.ts` is new. After the unchanged counters, `index` prints up to 5 comebacks, newest first.
+  - Each shows the path, the death date with the first cause line, and the reviving commit (8 characters) with its date. It adds "via Revert" when the revival was a Revert.
+  - There is one entry per patch, and merge artifacts are left out, matching the counter.
+  - With none it prints "No comebacks found in history."
+  - The `Next:` line follows, with the exact wording from the spec.
+- Tests are in `src/cli/comebacks.test.ts`: newest-first ordering, the 5 limit, one entry per patch, the "No comebacks" line, and counters printed first.
+
+**Click run** (`node dist/cli/main.js index` from the clone; 2,190 commits and 5 s on this clone, not the reviewer's 3,416 and 13 s). Counters are unchanged above this:
+```
+Comebacks found in history (newest first, up to 5):
+  tests/test_options.py
+    died 2026-09-11: Revert "Deprecate a parameter name that is not a Python identifier"
+    back 2026-09-22 in b90faad1
+  .github/workflows/tests.yaml
+    died 2023-06-28: switch to flit build backend
+    back 2023-12-28 in f78ee55f
+  .github/workflows/tests.yaml
+    died 2020-10-10: Revert "Add python 3.9 to CI."
+    back 2020-11-05 in f0cc87d4
+
+Next: deja-boo check <file> · hooks: see README "Use it on your repo" · view it: drop .deja-boo/graveyard.json on https://rose050505.github.io/deja-boo/
+```
+The 2020-10-10 Revert is the death of that block. The commit that brought it back (f0cc87d4) is not itself a Revert, so there is no "via Revert" tag. In this run all three comebacks are untagged.
+
+**Your graveyard on the page (H1)**
+- `web/src/your-graveyard.ts` validates the file shape, converts it with the same `stripGraveyard` the build script uses, merges obituaries by death commit, and checks the `owner/name` pattern.
+- `web/index.html` and `web/src/main.ts` add the drop zone, the file picker ("Open your .deja-boo/graveyard.json"), a one-line privacy note and the optional `owner/name` field.
+  - A dropped folder is searched for `graveyard.json` and `obituaries.json`. The obituaries file can come with the graveyard or after it.
+  - The result appears as a "yours: <name>" chip, which becomes the selected graveyard and the summon target.
+  - An error reads "This is not a deja-boo graveyard: <reason>" and changes nothing.
+  - An empty graveyard draws an empty graveyard with a sentence saying so.
+  - Nothing is stored or sent, and "Reading…" shows before the work starts.
+- Tests (`web/src/your-graveyard.test.ts`):
+  - Validation accepts a graveyard written by the indexer on the haunted-http fixture repo.
+  - It rejects 14 kinds of malformed input, and a property test confirms it never throws.
+  - The conversion deep-equals the committed `haunted-http.json` that the build script produced.
+  - A synthetic 5 MB file validates, converts and lays out in under 1 s. The page does not parse off the main thread.
+  - An empty graveyard lays out and summons cleanly.
+- I also reworded the summon-section line "only checks against the sample graveyards" and updated the test that pinned it.
+
+**README and specs**
+- README: one sentence in step 2 of "Use it on your repo" and one in the web section. Line 9 and "Live demo" are untouched.
+- Spec `tasks.md` entries: haunted-graveyard Task 20 and the graveyard-miner index-summary item are ticked with notes.
+
+**Left out**
+- Haunted-graveyard Task 21 (reduced motion, text equivalents and contrast for all of F, G and H) stays unticked. I added contrast tests for the H colors only. The new UI adds no animation and no new colors.
+- The error edge uses bone, not blood, because an existing test reserves blood for block states.
+- GitHub links come only from the typed `owner/name`, not from the file's `repoUrl`, as the spec says.
+EXIT 0

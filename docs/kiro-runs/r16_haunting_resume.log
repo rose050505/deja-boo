@@ -1,0 +1,43 @@
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Tasks are ticked and temp files and processes are gone. Now the final checks and the commit.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+Batch G is committed as `cece5bd`, not pushed. `npm test` (655 tests), `npx tsc --noEmit`, `npm run web:check`, `npm run build` and `npm run web:build` all pass. Tasks 17 to 19 are ticked in `tasks.md` with one-line notes.
+
+I checked it in headless Chrome at 1440x900. I could not check a narrow viewport: the 390px run came back as Chrome's "Page blocked by your organization" screen, and I did not try to get around it. Mobile layout (evidence stacked under the graveyard) is untested visually. The page scroll width was 1425 px at 1440, so nothing overflows sideways.
+
+**What changed**
+- **G1, the moment it blocks:**
+  - The first haunted stone scrolls into view and shakes briefly, and a Revert stone's crack flashes.
+  - The first ghost is 3.5x the old glyph and rises out of the stone. Opacity still comes from `ghostOpacity`, and a 22px percentage sits beside it. Other hits keep the normal-size ghost.
+  - A block flashes the viewport edges blood red for about 1 s, then leaves a faint steady edge. It also stamps "BLOCKED" with "The Kiro hook would stop this write." for about 4 s. A warn stamps "WARN" in ecto/bone with no red.
+  - The evidence card sits beside the graveyard from 1100px wide, and under it below that. At 1440x900 the stone, the stamp and the card (level, %, epitaph, cause, obituary) share one screen. The card ends at y=766, so it needs no scrolling.
+  - The lead card is shortened (obituary clamped to 3 lines, the "let it rest" line hidden). The full cards and the marked pasted code follow below. A new summon, a repo switch or no hits removes the stamp, tint, ghosts and card.
+- **G2, atmosphere:** All of it is CSS/SVG, with no photos or icons.
+  - Night-sky gradient with a moon and two groups of twinkling stars.
+  - Stones shaded from grey to moss with a dark base, and a grass strip under each row.
+  - A faint fog layer that drifts all the time, on top of the existing fog that thickens with hits (`fogDensity` and the fog text unchanged).
+  - 48px of sky above the first row so the large ghost is never clipped.
+  - Reading surfaces (dialog, code blocks, cards, textarea) are unchanged.
+- **G3, sound:** The header toggle reads "Sound: off" by default and is saved in `localStorage`. The Web Audio context is created only after opt-in. A block plays a low swell plus a chime. A warn plays the same, softer and higher.
+- **Reduced motion:** Shake, rise, drift, tint animation and stamp motion are off. The ghost stands in place, the stamp stays visible without motion, and the red edge is steady. Only the fog and stars loop, as asked.
+- **New files:** `moment.ts` (stamp text, ghost scale, class logic) and `sound.ts`.
+- **New tests:** `moment.test.ts` covers the stamp text for block and warn, the sound default, persistence and no audio before opt-in with Web Audio stubbed, the reduced-motion class switch, the stylesheet's reduce rules, and blood red only on blocks. The contrast test now covers the new sky, stone and ground colours and the stamp border. That check made me darken `--sky` to `#111a33`, because the first value gave the blood border 2.89:1.
+
+**Font:** Cinzel, a variable TTF of about 125 KB, licensed under the SIL Open Font License 1.1. It is at `web/public/fonts/Cinzel-Variable.ttf` with `OFL-Cinzel.txt`, loaded with `@font-face` and `font-display: swap`, and no CDN. It is used for the brand, the h1 and the h2 headings. Body text stays system sans.
+
+**Left out**
+- I did not convert the font to woff2 or subset it, because no tool for it was installed.
+- I did not time the 1,134-stone express graveyard. I added no per-stone animation and no per-stone filters, but I did not measure it.
+- The ghost's rise-in plays once, not as a loop. Other ghosts do not bob, since continuous motion was limited to the fog and stars.
+- I did not click the sound toggle in a real browser. It is covered only by the stubbed tests.
+- Contrast tests cover the new colour variables, not the stamp's semi-transparent background.
+EXIT 0

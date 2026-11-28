@@ -11,7 +11,7 @@ AI coding agents don't read git history. Ask one to "add caching" and it may hap
 **🎥 Demo video (2:54): https://youtu.be/E0bHgE6uA8I** (Kiro CLI with and without the guard on real psf/requests history)
 
 ## Status
-All four specs are implemented, with 617 unit and property tests.
+All four specs are implemented, with 690 unit and property tests.
 - ✅ **Graveyard miner** (`deja-boo index`): spec [`graveyard-miner`](.kiro/specs/graveyard-miner/). Indexes express (5,701 commits) in 12 s.
 - ✅ **Revenant watch**: `deja-boo check`, the Kiro guard hooks (`PreToolUse` write + `Stop` diff) and the MCP server. Spec [`revenant-watch`](.kiro/specs/revenant-watch/).
 - ✅ **Haunted graveyard** web app, deployed to GitHub Pages. Spec [`haunted-graveyard`](.kiro/specs/haunted-graveyard/).

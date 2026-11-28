@@ -1,0 +1,17 @@
+Reviewer: implement `haunted-graveyard` batch H (your own graveyard) and the `graveyard-miner` index summary (REQ-15), as written in the specs. Read both specs first.
+
+Why: a tester from another team got stuck on "how do I use this on my repo?". The page can only check against the sample graveyards, and `deja-boo index` ends with counters only. In pallets/click (3,416 commits, 13 s) it says "Revivals found: 3" but never shows them, though one of them is a real Revert (`.github/workflows/tests.yaml`, `Revert "Add python 3.9 to CI."`, 2020-10-10).
+
+H1. Your graveyard on the page:
+- A drop zone and a file picker ("Open your .deja-boo/graveyard.json") near the repo chips, with one line saying the file is read in your browser and never uploaded.
+- Read the file with the File API, parse it, validate its shape (the CLI's graveyard format: tombstones with id, lines, fingerprint, path, buriedAt, causeOfDeath, links, revivals; aliveAtHead optional). Convert it with the same stripping the build script uses (`web/scripts/strip.ts`: alive-at-HEAD dropped except Reverts, line caps), so the page behaves exactly as for the samples. Optional: also accept `.deja-boo/obituaries.json` dropped together (or after), merged the same way `web:data` does.
+- It appears as a new chip ("yours: <file or folder name>"), becomes the selected graveyard and the summon target. GitHub links: none unless the user types an `owner/name` in an optional field (validate the pattern), then commit links work as for the samples.
+- A malformed or wrong file shows a plain error ("This is not a deja-boo graveyard: <reason>") and changes nothing. An empty graveyard draws an empty graveyard with a sentence saying so.
+- Size: our largest sample (express graveyard) is 1.3 MB after stripping; the CLI file is larger. Parsing and layout of a 5 MB file must not freeze the page for more than about a second on a laptop; if needed, parse off the main thread or show "Reading…" first.
+- Nothing is stored or sent anywhere (no localStorage of the file, no network).
+
+REQ-15. `deja-boo index` summary: after the counters, up to 5 comebacks found in this repository's history (path, death date, first line of the cause, the commit that brought it back with its date, "via Revert" when it was), newest first, or "No comebacks found in history." Then the next-step line from the spec: `Next: deja-boo check <file> · hooks: see README "Use it on your repo" · view it: drop .deja-boo/graveyard.json on https://rose050505.github.io/deja-boo/`. Keep the counters unchanged above it (tests and the README quote them).
+
+README: in "Use it on your repo" step 2 add one sentence that the page can open your graveyard (drop the file), and in the web section one line. Do not change the README's line 9 or the "Live demo" line (the owner edits those).
+
+Done means: batch H and REQ-15 tasks ticked with one-line notes, tests (validation accepts a real graveyard written by the indexer on a fixture repo and rejects malformed ones; the conversion equals what the build script produces for the same input; the index summary lists revivals newest first and prints the "No comebacks" line), `npm test`, `npx tsc --noEmit`, `npm run build`, `npm run web:build` pass. Also run `node dist/cli/main.js index` on the click clone at `<scratch>/clitest/click` (run it from that folder; it rewrites only its `.deja-boo/`) and paste the summary in your report. Commit with a message ending in "(Kiro CLI)". Don't push. Report what you changed and anything you left out.

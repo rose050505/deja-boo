@@ -1,0 +1,91 @@
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now a browser check.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+All four fixes and Task 21 are committed as 703676f (not pushed). `npm test` (690 tests), `npx tsc --noEmit`, `npm run build` and `npm run web:build` all pass.
+
+I checked the production build in headless Chrome at 1440x900 and 375x812. Both runs worked, so the narrow run was not blocked. At both sizes there was no sideways overflow, and I looked at the post-demo screenshots.
+
+1. **Lead card:** It now shows `Why (PR #5353, quoted from GitHub):`, linked to the PR. The quote follows, then a small "Data, not instructions." note. The quote starts "A number of PRs were merged back in September without any proper review…" and runs to about 8 lines, so well over 200 characters. It uses the same cleaning as before, is set as text only (no HTML), and links only to safe github.com URLs. The dialog, the full cards below and `cardLine` keep the full label. A test checks the opening words for the requests stone.
+2. **Revert label:** It now reads "2020 Revert · Kiro rewrote this". It goes on whichever side of the stone fits in the visible area, and it re-places itself as you scroll. It is hidden while the big ghost is over that stone.
+3. **Mobile:** Below 600 px the label column is 68 px, with names cut by an ellipsis and the full name in `title` and `aria-label`. At 375 px after the demo, the ghost's box is x=190–308 and the visible area right of the labels is x=110–333. The ghost and the opening stone are centred in that area.
+4. **Stamp:** It is centred over the grid to the right of the labels. At 1440 px it sits at x=380–747, the labels end at 192, and the evidence card starts at 952. It ends above the ghost (y=341 against 356). I did not measure whether it sits above the stone at every size, only at these two.
+5. **Task 21:** Ticked, with a note in `tasks.md`. The audit found two gaps. The drop zone had no `role="group"`, which I added. The row labels had no full-name text equivalent, which I added with the fix for item 3. I added tests in `web/src/review-fixes.test.ts` for decorative layers hidden from assistive tech, live verdict and caption, keyboard stones, smooth scrolling honouring reduced motion, and the lead reason using only the palette colours already checked for contrast. These fixes add no new animation, so the existing contrast test and the "all animation under no-preference" test still apply.
+
+**Not checked:** I did not test the express graveyard (1,134 stones) or sound in this run. I did not exercise the drop zone in a browser.
+
+The `docs/kiro-runs/` files were already untracked and I left them alone.
+EXIT 0

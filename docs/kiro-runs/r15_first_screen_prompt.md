@@ -1,0 +1,14 @@
+Reviewer: batch E is in. Now implement `haunted-graveyard` batch F (first screen), as written in the spec in the last run. Read `.kiro/specs/haunted-graveyard/` and `.kiro/steering/ghost-voice.md` first.
+
+What a judge should get at 1440x900 without scrolling, and at 375 px within the first screen and a half:
+1. One large sentence and one subline (the spec's proposed copy, or better if you keep it factual: the 2020 revert and Kiro's rewrite are real, see README "We also tried it on real history").
+2. One primary button: the batch E demo ("Paste what Kiro wrote (real requests history)"). Pressing it fills the summon box, selects requests, summons, and brings the haunted stone and the result into view. A secondary link to the video.
+3. Three headline numbers (F2). The remaining stats and today's definitions go into a collapsed `<details>` "How we counted", wording kept. The 26 / 20 numbers come from the README "Why it matters" (26 comebacks of all mined tombstones = `stats.json` `revivalsAllTombstones`; 20 confirmed real by a reviewer = `research/labels/`); link the evidence. Do not hard-code a number that `stats.json` provides; compute it from `stats.json` and add a test that the headline numbers match `stats.json`. The "confirmed real" count is not in `stats.json`: keep it in one constant with a comment pointing at `research/labels/` and the README line.
+4. The "For judges" strip (F4): three short steps with links (video; the demo button; `npx -y github:rose050505/deja-boo index` then `check <file>`, Node 24+, "about 15 s on a 3,400-commit repo"; README setup link).
+5. The graveyard (F3): when requests is shown, the scroll opens with the 2020 Revert stone (a36a5b61502a63ed9b4b2b875e7420e118a72156) in view and a small visible label next to it, e.g. "2020 Revert · Kiro rewrote this in our test". Other repos open as today. The label must not cover other stones' hit areas in a way that blocks clicking them.
+6. F5: hovering or focusing a stone shows its epitaph in a small tooltip next to the stone (keyboard focus too, Esc hides it), and the caption under the grid keeps working.
+7. Small screens: at 375 px nothing overflows sideways (`document.documentElement.scrollWidth` = viewport width) and the stats/hero blocks line up with the graveyard section.
+
+Keep: the summon panel and its "This page only checks against the sample graveyards…" line (the owner just edited that wording; do not change it), the dialog, reduced motion, contrast test (add any new colour), all existing tests. Keep the page static, no new runtime dependencies.
+
+Done means: batch F tasks ticked in `tasks.md` with a one-line note each, tests for what is testable (headline numbers vs stats.json, initial scroll target, tooltip text), `npm test`, `npx tsc --noEmit`, `npm run build`, `npm run web:build` pass. Commit with a message ending in "(Kiro CLI)". Don't push. Report what you changed and anything you left out.

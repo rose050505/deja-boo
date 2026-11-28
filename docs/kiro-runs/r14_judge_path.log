@@ -1,0 +1,81 @@
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] Tool Load
+[tool] status: Completed
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now the test.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Links colour already global; drop my redundant rule. Now the check feedback.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Batch E and the `check` feedback are done and committed as f720d54, not pushed. `npm test` (619 tests), `npx tsc --noEmit`, `npm run build` and `npm run web:build` all pass. I did not look at the page in a browser or run `check` on click.
+
+**Demo similarity:** the real requests snippet raises `a36a5b61502a63ed9b4b2b875e7420e118a72156` at block with 95.5% similarity. The matcher reached block without any threshold change.
+
+**Specs**
+- **`haunted-graveyard`:** requirements and tasks for batches E to H are added in the existing style. REQ-3's demo-button line and REQ-4's stat strip are edited to say what replaces them. Tasks 10 and 11 (E1, E2) are ticked. F, G, H and a closing reduced-motion/contrast task are left open.
+- **`revenant-watch`:** the check-feedback requirement is added to REQ-3 and its task is ticked.
+- **`graveyard-miner`:** new REQ-15 (index summary) and its task are left open. The "view it" part of the `Next:` line is tied to batch H.
+
+**Batch E**
+- **Demo snippet:** `web/src/demo-snippet.ts` now holds the real requests code, with `DEMO_REPO = 'requests'`. I also exported `DEMO_STONE_ID`.
+- **Button:** it reads "Paste what Kiro wrote (real requests history)".
+- **Chips:** the haunted-http chip is now last and reads "haunted-http (fixture)". The data file name is unchanged.
+- **`summon.test.ts`:** it now loads `requests.json` and asserts the hit at block with a Revert cause. A separate test keeps the fixture raising its stone. The acknowledge and sorting property tests now run against requests, so they are no longer trivially empty.
+- **Header links:** Demo video, Repository and Devpost open in a new tab with `rel="noopener noreferrer"`.
+- **Social meta:** the page has `og:*` and `twitter:*` tags, and `web/public/og.jpg` is copied from the Devpost thumbnail.
+
+**`check` feedback**
+- A clean result prints one stderr line, for example `✓ clean: src/click/core.py checked against 745 tombstones (compared with HEAD)`.
+- There are variants for stdin and for `--no-head` or an untracked path ("whole text, no HEAD comparison").
+- I also added a line for a skip-listed path, which you didn't ask for, because that case would otherwise still print nothing.
+- Stdout and exit codes are unchanged, the hook and Stop commands don't use this path, and a test covers it.
+
+**Not done:** batches F, G and H, and the `index` summary, are left for later runs as you planned. The untracked `docs/kiro-runs/r14_*` and `r15_first_screen_prompt.md` files were already in the workspace and are not in the commit.
+EXIT 0

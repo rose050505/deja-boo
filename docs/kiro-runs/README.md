@@ -54,6 +54,12 @@ This folder keeps the console output of those runs, together with the reviewer p
 | `r11_obituary_DE.log` | `r11_obituary_DE_prompt.md` | Obituary batches D–E: shown in hook, Stop, check, MCP and web; coverage run on the 6 research repos; real requests demo acceptance |
 | `r12_fixes5.log` | `r12_fixes5_prompt.md` | Relative parent-tree check, legal/generated files skipped, comeback counts as events, hook latency back to ~100 ms |
 | `r13_obituary_hardening.log` | `r13_obituary_hardening_prompt.md` | Obituary hardening from a review on httpx and starlette: quote-safe, control-free rendering (prompt-injection test), failures stop with a cause, PR kept when an issue lookup fails, template cleaning, progress |
+| `r14_judge_path.log` | `r14_judge_path_prompt.md` | Post-submission plan recorded in three specs (batches E-H, check feedback, index summary); the demo button now pastes the code Kiro wrote on real requests history (block, 95%); header links and social preview; `check` says when a file is clean |
+| `r15_first_screen.log` | `r15_first_screen_prompt.md` | First screen: one sentence, one button, three headline numbers checked against `stats.json`, a "For judges" strip, the requests graveyard opening on the 2020 Revert stone, epitaph tooltips |
+| `r16_haunting.log` | `r16_haunting_prompt.md` | The moment it blocks (big ghost, BLOCKED stamp, red edge, evidence beside the stone), night atmosphere, OFL display font, opt-in Web Audio sound (the run was killed mid-task) |
+| `r16_haunting_resume.log` | (`--resume`) | Same conversation, resumed and committed |
+| `r17_your_graveyard.log` | `r17_your_graveyard_prompt.md` | Open your own `.deja-boo/graveyard.json` on the page (read in the browser, never uploaded); `index` lists the comebacks it found and the next step |
+| `r18_polish.log` | `r18_polish_prompt.md` | Fixes from a browser review: the lead card shows the reason first, stone label and stamp kept in view, narrow row labels and a centred ghost on phones; accessibility audit of the new batches |
 
 ## Rehearsals: Kiro as the test subject
 

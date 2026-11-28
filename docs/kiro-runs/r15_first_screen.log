@@ -1,0 +1,134 @@
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[sandbox] Sandbox is off; network policy is not enforced by the local sandbox.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Piece by piece.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Failed: Run Command
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now the pure module and tests.
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Write File
+[tool] status: Pending
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now HTML.
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Now check in a real browser via CDP (temp script in /tmp).
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Port was 5200 (5199 was something else).
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Read File
+[tool] Read File
+[tool] status: InProgress
+[tool] status: Completed
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+[tool] Run Command
+[tool] status: InProgress
+[tool] status: InProgress
+[tool] status: Completed
+Batch F is committed locally as a524560 and not pushed. `npm test` (630 tests), `npx tsc --noEmit`, `npm run web:check`, `npm run build` and `npm run web:build` all pass. I also checked the page in headless Chrome at 1440x900 and 375 px.
+
+**What changed** (`web/index.html`, `main.ts`, `graveyard-view.ts`, `style.css`, new `first-screen.ts` and its test, `tasks.md` ticks for tasks 12–16):
+- **Hero:** I used my own sentence: "Kiro rewrote code that requests reverted in 2020." The subline says Déjà Boo stopped it and showed the commit and why the code died. I didn't use the spec's "Your AI agent just rewrote…" line because only the requests test is real. The primary button is "Paste what Kiro wrote (real requests history)", with a "Watch the video" link beside it. It fills the box, selects requests, summons and scrolls to the haunted stone. A new verdict line under the grid caption shows BLOCK or WARN, the similarity and the epitaph, with a link to the full result.
+- **Headline numbers:** 19,908 commits and 7 via Revert come from `stats.json`. The 26 comebacks come from `stats.json` `revivalsAllTombstones`, and the page shows nothing for them if that field is missing. The 20 confirmed real is the single constant `CONFIRMED_REAL`, with a comment pointing at `research/labels/` and the README line. Tests check the numbers against `stats.json` and the README text. The other stats and their definitions sit in a collapsed "How we counted" block with the old wording, plus a note on where the 20 comes from.
+- **For judges strip:** the three steps you listed, with the video, demo and README setup links.
+- **Opening stone:** requests opens on the 2020 Revert stone with the label "2020 Revert · Kiro rewrote this in our test". The label ignores clicks, so it can't block other stones. Other repos open as before.
+- **Tooltip:** hovering or focusing a stone shows its epitaph next to it, and Esc or scrolling hides it. I removed the SVG `<title>` so the browser doesn't show a second tooltip. The caption under the grid still works.
+- **Left unchanged:** the summon panel and its "This page only checks against the sample graveyards…" line, the dialog, reduced motion and the contrast test. I added no colours and no dependencies.
+
+**Measured in Chrome**
+- At 1440x900 the hero, three numbers and judges strip all end by y=589, so they fit without scrolling.
+- At 375 px the hero and numbers end by y=641, inside 1.5 screens.
+- `scrollWidth` equals the viewport width both before and after the demo. At 375 px the summon result cards were overflowing sideways, to 460 px. I fixed that with `minmax(0,1fr)` on `.sm-out`.
+- Hero and stats line up with the graveyard section's edges.
+
+**Left out or to know**
+- The initial-scroll test checks which stone is the target. The scroll itself, the tooltip's DOM behaviour and the layout were checked by hand in Chrome, because vitest has no DOM. A temporary script did this and I removed it.
+- At 375 px the label beside the stone is clipped to the visible width of the scroll area. The stone is placed just right of the row labels to show as much of it as possible.
+- The "about 15 s on a 3,400-commit repo" wording is yours. I didn't find it in the README, so I didn't verify it.
+- A vite process from another project (`RedditDaily/poise`) is running on port 5199. It isn't mine, so I left it.
+- The untracked `docs/kiro-runs/*` files were already there and are not in the commit.
+EXIT 0
